@@ -1,0 +1,39 @@
+# fly.toml — Mythos2099 Web (static Vite → nginx)
+#
+# Deploy from repo root:
+#   fly deploy . --config web/fly.toml --dockerfile web/Dockerfile --yes
+# (or: npm run deploy:web)
+#
+# First-time setup:
+#   fly apps create mythos2099-web
+#   fly tokens create deploy -a mythos2099-web -x 720h -n "mythos2099-web deploy"
+#   $env:FLY_API_TOKEN = "FlyV1 ..."
+#   npm run deploy:web
+#
+# Scale-to-0 when idle. If extra Machines linger:
+#   fly scale count 1 -a mythos2099-web
+#
+
+app = 'mythos2099-web'
+primary_region = 'sin'
+
+[build]
+  [build.args]
+    VITE_WS_URL = 'wss://mythos2099-api.fly.dev/ws'
+
+# Runtime env unused by Vite (baked at build via build.args above).
+[env]
+  VITE_WS_URL = 'wss://mythos2099-api.fly.dev/ws'
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

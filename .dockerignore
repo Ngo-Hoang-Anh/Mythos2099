@@ -1,0 +1,12 @@
+# Áp dụng khi build với context = repo root (api + web deploy).
+**/node_modules
+**/dist
+**/.env
+**/.env.local
+**/npm-debug.log
+.git
+.gitignore
+*.log
+data
+docs
+agent-transcripts

@@ -1,0 +1,107 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Power analysis</title><style>
+:root { --ink:#1a1a1a; --muted:#555; --line:#ccc; --head:#f0f0f0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; color: var(--ink); font: 11px/1.4 "Segoe UI", system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 8px; }
+h2 { font-size: 15px; margin: 18px 0 8px; page-break-after: avoid; }
+h3 { font-size: 13px; margin: 12px 0 6px; page-break-after: avoid; }
+p, li { font-size: 11px; }
+.muted { color: var(--muted); }
+.note { font-size: 10px; color: var(--muted); margin: 0 0 12px; }
+table { border-collapse: collapse; width: 100%; margin: 0 0 14px; }
+th, td { border: 1px solid var(--line); padding: 3px 5px; vertical-align: top; }
+th { background: var(--head); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.matrix { font-size: 7.5px; }
+.matrix th, .matrix td { padding: 2px 3px; white-space: nowrap; text-align: center; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; font-weight: 600; background: #fafafa; }
+.w { background: #c6efce; }
+.l { background: #ffc7ce; }
+.x { background: #ffe599; }
+.live { background: #fff; }
+.over { background: #c6efce; }
+.under { background: #ffc7ce; }
+.role { background: #dbeafe; }
+.ok { background: #f7f7f7; }
+.card { break-inside: avoid; margin: 0 0 10px; padding: 0 0 4px; }
+@page { size: A3 landscape; margin: 10mm; }
+@media print {
+  thead { display: table-header-group; }
+  h2 { break-after: avoid; }
+}
+</style></head><body><h1>Power analysis — overpower / underpower</h1>
+<p class="muted">Generated 2026-09-16T16:43:27.208Z</p>
+<p>Vacuum 1v1 = combat thuần (không bài). Bảng 2-turn dmg giả định 0 armor. Kết luận ưu tiên leftover HP + kill, rồi dmg/cost. Band <b>role</b>: đừng buff stat nếu utility đã đủ.</p>
+<p class="note">Màu hàng: xanh = over, đỏ = under, xanh dương = role, xám = ok.</p>
+<h2>Ranking</h2>
+<table><thead><tr><th>Unit</th><th class="num">Cost</th><th>Class</th><th>1-eng W/L</th><th>2-round W/L</th><th>Avg HP atk/def</th><th class="num">Dmg/cost</th><th class="num">HP+3A/cost</th><th>Band</th></tr></thead><tbody><tr class="over"><td>Viper Gunship</td><td class="num">5</td><td>Helicopter</td><td class="num">4/0</td><td class="num">16/0</td><td class="num">10.2 / 9.5</td><td class="num">5.20</td><td class="num">4.00</td><td>over</td></tr><tr class="over"><td>Zeus</td><td class="num">6</td><td>Tank</td><td class="num">7/0</td><td class="num">12/0</td><td class="num">12.1 / 11.8</td><td class="num">5.00</td><td class="num">5.33</td><td>over</td></tr><tr class="over"><td>Hornet Interceptor</td><td class="num">4</td><td>Helicopter</td><td class="num">7/0</td><td class="num">11/4</td><td class="num">7.0 / 6.6</td><td class="num">6.00</td><td class="num">4.25</td><td>over</td></tr><tr class="over"><td>Aegis</td><td class="num">6</td><td>Robot</td><td class="num">4/0</td><td class="num">9/0</td><td class="num">14.0 / 13.5</td><td class="num">3.33</td><td class="num">4.83</td><td>over</td></tr><tr class="under"><td>Stealthray Bomber</td><td class="num">6</td><td>Jet Plane</td><td class="num">4/0</td><td class="num">7/3</td><td class="num">7.8 / 7.1</td><td class="num">3.33</td><td class="num">2.50</td><td>under</td></tr><tr class="ok"><td>Stalker Biped</td><td class="num">5</td><td>Robot</td><td class="num">4/0</td><td class="num">5/1</td><td class="num">11.3 / 10.8</td><td class="num">3.80</td><td class="num">4.80</td><td>ok</td></tr><tr class="under"><td>Death Rider</td><td class="num">5</td><td>Motorcycle</td><td class="num">4/0</td><td class="num">5/1</td><td class="num">9.7 / 9.2</td><td class="num">3.80</td><td class="num">3.40</td><td>under</td></tr><tr class="role"><td>Kamikaze Hunter</td><td class="num">2</td><td>Drone</td><td class="num">5/15</td><td class="num">5/15</td><td class="num">0.8 / 0.6</td><td class="num">16.00</td><td class="num">2.00</td><td>role</td></tr><tr class="under"><td>Komet Fighter</td><td class="num">6</td><td>Jet Plane</td><td class="num">5/20</td><td class="num">5/20</td><td class="num">0.4 / 0.3</td><td class="num">5.33</td><td class="num">0.50</td><td>under</td></tr><tr class="role"><td>Trench Guard</td><td class="num">5</td><td>Armored Infantry</td><td class="num">0/0</td><td class="num">4/0</td><td class="num">15.7 / 14.7</td><td class="num">3.20</td><td class="num">4.00</td><td>role</td></tr><tr class="ok"><td>Line Combat Medic</td><td class="num">4</td><td>Armored Infantry</td><td class="num">3/0</td><td class="num">4/0</td><td class="num">14.7 / 13.9</td><td class="num">4.75</td><td class="num">4.75</td><td>ok</td></tr><tr class="ok"><td>Exosuit Breacher</td><td class="num">4</td><td>Armored Infantry</td><td class="num">0/0</td><td class="num">4/0</td><td class="num">13.5 / 12.8</td><td class="num">6.50</td><td class="num">4.50</td><td>ok</td></tr><tr class="ok"><td>Ironclad Goliath</td><td class="num">6</td><td>Robot</td><td class="num">4/0</td><td class="num">4/0</td><td class="num">12.9 / 12.5</td><td class="num">3.00</td><td class="num">4.67</td><td>ok</td></tr><tr class="ok"><td>Falcon Dropship</td><td class="num">4</td><td>Helicopter</td><td class="num">4/0</td><td class="num">4/2</td><td class="num">10.8 / 10.1</td><td class="num">4.50</td><td class="num">4.50</td><td>ok</td></tr><tr class="ok"><td>Nomad Supply Buggy</td><td class="num">5</td><td>Light Vehicle</td><td class="num">3/0</td><td class="num">4/1</td><td class="num">10.0 / 9.4</td><td class="num">3.20</td><td class="num">4.00</td><td>ok</td></tr><tr class="over"><td>Apex Destroyer</td><td class="num">6</td><td>Tank</td><td class="num">4/0</td><td class="num">4/1</td><td class="num">9.3 / 8.8</td><td class="num">4.83</td><td class="num">3.67</td><td>over</td></tr><tr class="over"><td>Mirage Humvee</td><td class="num">3</td><td>Light Vehicle</td><td class="num">3/0</td><td class="num">4/1</td><td class="num">9.3 / 8.7</td><td class="num">6.33</td><td class="num">7.33</td><td>over</td></tr><tr class="under"><td>Tempest Strike Bomber</td><td class="num">4</td><td>Jet Plane</td><td class="num">4/0</td><td class="num">4/1</td><td class="num">9.2 / 8.7</td><td class="num">4.50</td><td class="num">5.50</td><td>under</td></tr><tr class="role"><td>Manticore MLRS</td><td class="num">5</td><td>Artillery</td><td class="num">4/0</td><td class="num">4/2</td><td class="num">8.0 / 3.0</td><td class="num">4.40</td><td class="num">1.60</td><td>role</td></tr><tr class="role"><td>Sentinel Battery</td><td class="num">4</td><td>Artillery</td><td class="num">4/0</td><td class="num">4/2</td><td class="num">8.0 / 3.0</td><td class="num">6.50</td><td class="num">2.00</td><td>role</td></tr><tr class="role"><td>Siege Howitzer</td><td class="num">5</td><td>Artillery</td><td class="num">4/0</td><td class="num">4/2</td><td class="num">8.0 / 3.0</td><td class="num">4.60</td><td class="num">1.60</td><td>role</td></tr><tr class="over"><td>Iron Bastion</td><td class="num">6</td><td>Tank</td><td class="num">0/0</td><td class="num">3/0</td><td class="num">14.0 / 13.7</td><td class="num">3.00</td><td class="num">6.50</td><td>over</td></tr><tr class="ok"><td>Jackal Scout</td><td class="num">4</td><td>Light Vehicle</td><td class="num">1/0</td><td class="num">3/5</td><td class="num">8.0 / 7.3</td><td class="num">3.50</td><td class="num">4.50</td><td>ok</td></tr><tr class="ok"><td>Phantom Speeder</td><td class="num">3</td><td>Motorcycle</td><td class="num">1/0</td><td class="num">3/5</td><td class="num">7.7 / 6.9</td><td class="num">4.67</td><td class="num">5.00</td><td>ok</td></tr><tr class="ok"><td>Scout Biker</td><td class="num">4</td><td>Motorcycle</td><td class="num">1/0</td><td class="num">2/5</td><td class="num">7.9 / 7.3</td><td class="num">3.50</td><td class="num">4.50</td><td>ok</td></tr><tr class="role"><td>Aegis Support Drone</td><td class="num">2</td><td>Drone</td><td class="num">0/11</td><td class="num">1/24</td><td class="num">1.4 / 0.9</td><td class="num">6.00</td><td class="num">4.00</td><td>role</td></tr><tr class="role"><td>Recon Eye</td><td class="num">2</td><td>Drone</td><td class="num">0/17</td><td class="num">0/26</td><td class="num">0.7 / 0.5</td><td class="num">7.00</td><td class="num">2.00</td><td>role</td></tr></tbody></table>
+<h2>Overpower</h2>
+<div class="card"><h3>Zeus <span class="muted">(6 cost, Tank)</span></h3>
+<p>Armor 6 + ATK 4 + AP 3 (nerf), Missile 5 (buff) + Thunder Strike. Vẫn tank/missile nhưng mỏng hơn.</p>
+<ul><li><b>Thunder Strike</b> — Zeus's Missile ignores armor this turn and Zeus does an extra attack.</li></ul>
+<p class="note">Special-dmg constant: 9. Vacuum atk 7W/0L · def 3W · 2-round 12W/0L · 2-turn dmg 30 · HP+3A 32.</p></div><div class="card"><h3>Apex Destroyer <span class="muted">(6 cost, Tank)</span></h3>
+<p>ATK 3 / Armor 3 / AP 6. Ambush 3S: Frontline only, +2 ARM +2 ATK rồi engage. Burst phụ thuộc skill + vị trí.</p>
+<ul><li><b>Ambush</b> — If Apex Destroyer is on the Frontline, it gets +2 Armor and +2 ATK this turn and engages in combat.</li></ul>
+<p class="note">Special-dmg constant: 11. Vacuum atk 4W/0L · def 1W · 2-round 4W/1L · 2-turn dmg 29 · HP+3A 22.</p></div><div class="card"><h3>Iron Bastion <span class="muted">(6 cost, Tank)</span></h3>
+<p>Armor 8 + Retaliate 6 vẫn là wall, nhưng ATK 2 / AP 3 đã bị nerf. 2-round first-strike không còn xóa roster như trước.</p>
+<ul><li><b>Trap</b> — Enemy in Iron Bastion's lane engages. Their ATK cannot be modified in this combat.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 0W/0L · def 4W · 2-round 3W/0L · 2-turn dmg 18 · HP+3A 39.</p></div><div class="card"><h3>Mirage Humvee <span class="muted">(3 cost, Light Vehicle)</span></h3>
+<p>Cost 3, ATK 4 / Armor 3 / AP 2. Cover only. Còn rẻ nhưng giáp mỏng hơn.</p>
+<ul><li><b>Rally</b> — An ally gets +3 ATK this turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 3W/0L · def 3W · 2-round 4W/1L · 2-turn dmg 19 · HP+3A 22.</p></div><div class="card"><h3>Viper Gunship <span class="muted">(5 cost, Helicopter)</span></h3>
+<p>Cost 5, ATK 6 + Retaliate 3. Rally không phải lúc nào cũng có; base combat vẫn ổn.</p>
+<ul><li><b>Rally</b> — An ally gets +3 ATK this turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 4W/0L · def 4W · 2-round 16W/0L · 2-turn dmg 26 · HP+3A 20.</p></div><div class="card"><h3>Hornet Interceptor <span class="muted">(4 cost, Helicopter)</span></h3>
+<p>Cost 4, Missile 4. Khỏe chủ yếu khi có Tactical Strike; vacuum 1v1 không tính Rally/skill.</p>
+<ul><li><b>Tactical Strike</b> — An ally with Missile gets Missile +3 this turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 7W/0L · def 4W · 2-round 11W/4L · 2-turn dmg 24 · HP+3A 17.</p></div><div class="card"><h3>Aegis <span class="muted">(6 cost, Robot)</span></h3>
+<p>17 HP / Armor 4 / Retaliate 2 / ATK 5 (nerf nhẹ). Vẫn robot tank, retaliate yếu hơn.</p>
+<ul><li><b>Diversion</b> — Move an enemy to Aegis's lane.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 4W/0L · def 4W · 2-round 9W/0L · 2-turn dmg 20 · HP+3A 29.</p></div>
+<h2>Underpower — review skill trước khi buff</h2>
+<p>Combat không trả đủ cost. Nếu special/utility không bù → buff HP/ATK/AP hoặc hạ cost.</p>
+<div class="card"><h3>Death Rider <span class="muted">(5 cost, Motorcycle)</span></h3>
+<p>14 HP / 4 ATK (buff). Aggressive 3 + Cover. Thân khỏe hơn Phantom, còn cost 5.</p>
+<ul><li><b>Deadly Presence</b> — Death Rider gets +4 AP and +2 ATK this turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 4W/0L · def 3W · 2-round 5W/1L · 2-turn dmg 19 · HP+3A 17.</p></div><div class="card"><h3>Tempest Strike Bomber <span class="muted">(4 cost, Jet Plane)</span></h3>
+<p>13 HP (buff), Death from Above 2 cost. AP 0 nên 1v1 vs armor vẫn yếu; team missile buff rẻ hơn.</p>
+<ul><li><b>Death from Above</b> — All allied units with Missile get Missile +1 this turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 4W/0L · def 1W · 2-round 4W/1L · 2-turn dmg 18 · HP+3A 22.</p></div><div class="card"><h3>Stealthray Bomber <span class="muted">(6 cost, Jet Plane)</span></h3>
+<p>Stat giữ vì Flank. Silent Death 1 cost. Combat 6-cost vẫn dựa utility hơn 1v1.</p>
+<ul><li><b>The Silent Death</b> — Opponent cannot target Stealthray with missiles or effects next turn.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 4W/0L · def 4W · 2-round 7W/3L · 2-turn dmg 20 · HP+3A 15.</p></div><div class="card"><h3>Komet Fighter <span class="muted">(6 cost, Jet Plane)</span></h3>
+<p>Vẫn 3 HP, nhưng ATK 8 / AP 8 / Hit &amp; Run 1 cost. Glass cannon rẻ hơn về skill; 1v1 vẫn dễ chết.</p>
+<ul><li><b>Hit &amp; Run</b> — Komet does an extra attack then returns to your reserve.</li></ul>
+<p class="note">Special-dmg constant: 8. Vacuum atk 5W/20L · def 2W · 2-round 5W/20L · 2-turn dmg 32 · HP+3A 3.</p></div>
+<h2>Role — 1v1 không phải thước đo</h2>
+<div class="card"><h3>Manticore MLRS <span class="muted">(5 cost, Artillery)</span></h3>
+<p>Artillery 8 HP 0 armor. Vacuum 1v1 là worst case (địch bắn lại). Vai trò bắn HQ / hàng sau; Storm Caller + Missile 3.</p>
+<ul><li><b>Storm Caller</b> — Manticore and 1 other unit with Missile trigger their missile strike.</li></ul>
+<p class="note">Special-dmg constant: 3. Vacuum atk 4W/0L · def 0W · 2-round 4W/2L · 2-turn dmg 22 · HP+3A 8.</p></div><div class="card"><h3>Sentinel Battery <span class="muted">(4 cost, Artillery)</span></h3>
+<p>Cùng khung artillery giấy. Quick Mobilization +6 là burst. Không kết luận UP từ 1v1.</p>
+<ul><li><b>Quick Mobilization</b> — Sentinel Battery does an extra attack.</li></ul>
+<p class="note">Special-dmg constant: 6. Vacuum atk 4W/0L · def 0W · 2-round 4W/2L · 2-turn dmg 26 · HP+3A 8.</p></div><div class="card"><h3>Siege Howitzer <span class="muted">(5 cost, Artillery)</span></h3>
+<p>AP 7 nhưng 8 HP 0 armor. Precision Strike anywhere. Vacuum 1v1 không phản ánh artillery.</p>
+<ul><li><b>Precision Strike</b> — Siege Howitzer attacks an enemy unit anywhere.</li></ul>
+<p class="note">Special-dmg constant: 5. Vacuum atk 4W/0L · def 0W · 2-round 4W/2L · 2-turn dmg 23 · HP+3A 8.</p></div><div class="card"><h3>Trench Guard <span class="muted">(5 cost, Armored Infantry)</span></h3>
+<p>0 ATK khi đánh trước by design. Avg HP 15, 7 kill khi thủ. Wall + Entrenchment — không underpower.</p>
+<ul><li><b>Entrenchment</b> — Until the end of next turn, Trench Guard gets +3 Armor and +2 AP.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 0W/0L · def 4W · 2-round 4W/0L · 2-turn dmg 16 · HP+3A 20.</p></div><div class="card"><h3>Recon Eye <span class="muted">(2 cost, Drone)</span></h3>
+<p>Cost 2, 4 HP, 0W/20L. Đúng vai trò spotter (Target Acquired + 2 Artillery Call). Đừng buff HP nếu utility đã đủ.</p>
+<ul><li><b>Target Acquired</b> — Mark Recon Eye's current lane. This turn, allied missile attacks prioritize this lane.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 0W/17L · def 0W · 2-round 0W/26L · 2-turn dmg 14 · HP+3A 4.</p></div><div class="card"><h3>Kamikaze Hunter <span class="muted">(2 cost, Drone)</span></h3>
+<p>Cost 2, 8 ignore-armor rồi chết. Bảng 0-armor đẩy total lên 32 (trông OP) nhưng vacuum 1v1 luôn tự sát. Skill là toàn bộ unit.</p>
+<ul><li><b>Kamikaze</b> — Destroy Kamikaze Hunter to deal 8 damage to a unit anywhere, ignoring armor.</li></ul>
+<p class="note">Special-dmg constant: 8. Vacuum atk 5W/15L · def 2W · 2-round 5W/15L · 2-turn dmg 32 · HP+3A 4.</p></div><div class="card"><h3>Aegis Support Drone <span class="muted">(2 cost, Drone)</span></h3>
+<p>Cost 2, HQ Repair 7 + Supply + SF 2. Combat 1v1 gần như luôn chết — đúng support.</p>
+<ul><li><b>HQ Repair</b> — Repair HQ for 7 HP.</li></ul>
+<p class="note">Special-dmg constant: 0. Vacuum atk 0W/11L · def 0W · 2-round 1W/24L · 2-turn dmg 12 · HP+3A 8.</p></div>
+<h2>Ưu tiên review</h2>
+<ol>
+<li><b>Komet Fighter</b> — cost 6 / 3 HP, 23 thua khi đánh trước. Hit &amp; Run phải cực mạnh; nếu không, hạ cost hoặc thêm HP.</li>
+<li><b>Stealthray Bomber</b> — Silent Death + Artillery Call vs cost 6. Combat thua Viper 5.</li>
+<li><b>Death Rider</b> — thân ≈ Phantom cost 3. Deadly Presence có thể không đủ 2 cost chênh.</li>
+<li><b>Ironclad Goliath</b> — Analyze Weakness bị bảng 0-armor giấu; so Aegis cùng 6 cost thì thua tank.</li>
+<li><b>Nomad / Scout Biker / Tempest</b> — kit support. Chỉ buff combat nếu muốn chúng 1v1 được.</li>
+</ol>
+<p>Không cần buff combat: Trench Guard (wall), Jackal/Phantom (flanker rẻ), artillery (context sai), drone support/kamikaze (payoff skill).</p></body></html>

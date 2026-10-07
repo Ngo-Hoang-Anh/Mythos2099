@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 400" preserveAspectRatio="none">
+  <path d="M16 24v40l12 12v280l-12 12v8h12l12 12h92l12-12h12v-8l-12-12V76l12-12V24l-12-12H28z" fill="#1b1f27" stroke="#00FEFE" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M8 80v64l8 8V88z" fill="#00FEFE" opacity="0.85"/>
+  <path d="M12 88v52" stroke="#1a1a1a" stroke-width="3" stroke-dasharray="4 3"/>
+</svg>

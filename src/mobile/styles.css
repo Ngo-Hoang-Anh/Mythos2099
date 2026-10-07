@@ -1,0 +1,347 @@
+/* Mobile shell only — loaded from /m. Do not import into desktop App. */
+
+html.is-mobile-shell {
+  /* Bumps rem-based type across reused desktop views under /m. */
+  font-size: 120%;
+}
+
+html.is-mobile-shell,
+html.is-mobile-shell body {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+html.is-mobile-shell #root {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.mobile-shell {
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Fill remaining height under the banner so tutorial/match don't force 100dvh + banner overflow. */
+.mobile-shell > :not(.mobile-shell-banner) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* In play the screen never scrolls — a scrollable .match steals card-drag touches. */
+.mobile-shell.is-play > :not(.mobile-shell-banner) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.is-mobile-shell .mobile-shell > .match {
+  height: 100%;
+  min-height: 0;
+}
+
+html.is-mobile-shell .tutorial-shell {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+html.is-mobile-shell .tutorial-stage .match {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Inline px icons (FileIcon / SgIcon*) — enlarge without editing shared components. */
+.mobile-shell .file-icon,
+.mobile-shell .sg-icon-img,
+.mobile-shell .sg-icon-btn img {
+  zoom: 1.28;
+}
+
+.mobile-shell .unit-token.board-token .stat-chip .file-icon,
+.mobile-shell .unit-token.board-token .kw-chip .file-icon {
+  zoom: 1.35;
+}
+
+.mobile-shell button {
+  font-size: 1.05em;
+  padding: 0.5rem 0.85rem;
+}
+
+.mobile-shell input,
+.mobile-shell textarea {
+  font-size: 1.08em;
+  min-height: 2.35em;
+}
+
+.mobile-shell-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  background: #161a20;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mobile-shell-banner strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/*
+ * Auth renders inside the scaled ~1280×720 layout (mobileFit). Size it to fit
+ * under the banner without overflow — any scroll here toggles the mobile URL bar,
+ * which resizes visualViewport and re-runs the fit mid-gesture.
+ */
+.mobile-auth {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+}
+
+.mobile-auth-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  width: min(100%, 860px);
+  font-size: 1.2em;
+}
+
+.mobile-auth-guest {
+  width: 100%;
+  font-size: 1.2em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mobile-auth-or {
+  margin: 0;
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.mobile-auth-panel .auth-form {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem 1rem;
+  align-items: end;
+}
+
+.mobile-auth-panel .auth-form input {
+  box-sizing: border-box;
+}
+
+.mobile-auth-panel .auth-form > .error,
+.mobile-auth-actions {
+  grid-column: 1 / -1;
+}
+
+.mobile-auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.mobile-auth-actions button {
+  width: 100%;
+}
+
+/* Pointer card drag (iOS/Android — HTML5 DnD unavailable) */
+.mobile-shell .mobile-hand .mobile-card-draggable {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-card-ghost {
+  position: fixed;
+  z-index: 100001;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  width: 100px;
+  min-height: 72px;
+  padding: 0.45rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid #c9a227;
+  background: #1b1f27f2;
+  color: var(--text, #e8e4d9);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 24px #000a;
+}
+
+/* —— Army builder (/m): bigger type + independent panes (no nested-scroll jank) —— */
+.mobile-shell:has(.builder) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-shell:has(.builder) .mobile-shell-banner {
+  flex: 0 0 auto;
+}
+
+html.is-mobile-shell:has(.builder) #root {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.mobile-shell .builder {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.75rem 4.6rem;
+  font-size: 1.12em;
+  overflow: hidden;
+}
+
+.mobile-shell .builder-hero h1 {
+  font-size: 1.35rem;
+}
+
+.mobile-shell .builder .eyebrow,
+.mobile-shell .builder .class-block h3,
+.mobile-shell .builder .deck-cols h3 {
+  font-size: 0.95rem;
+}
+
+.mobile-shell .builder .pick-meta strong,
+.mobile-shell .builder .deck-panel h2 {
+  font-size: 1.1rem;
+}
+
+.mobile-shell .builder .unit-card-pill,
+.mobile-shell .builder .deck-card-group li,
+.mobile-shell .builder .deck-card-group h4 {
+  font-size: 0.95rem;
+}
+
+.mobile-shell .builder .file-icon,
+.mobile-shell .builder .sg-icon-img {
+  zoom: 1.5;
+}
+
+.mobile-shell .builder .pick-detail-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+}
+
+.mobile-shell .builder.deck-drawer .unit-pick-grid {
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 0.7rem;
+}
+
+.mobile-shell .builder.deck-drawer .pick-select {
+  grid-template-columns: 128px minmax(0, 1fr);
+}
+
+.mobile-shell .builder.deck-drawer .pick-meta {
+  min-width: 0;
+}
+
+.mobile-shell .builder.deck-drawer .builder-layout {
+  display: grid !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px) !important;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.mobile-shell .builder.deck-drawer .catalog,
+.mobile-shell .builder.deck-drawer .deck-panel {
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.mobile-shell .builder.deck-drawer .deck-panel {
+  position: relative;
+  top: auto;
+}
+
+.mobile-shell .builder-deck-open {
+  min-height: 40px;
+  padding: 0.35rem 0.65rem;
+}
+
+.mobile-shell .builder-deck-dialog {
+  width: min(560px, 100%);
+  max-height: min(85dvh, 860px);
+}
+
+.mobile-shell .builder > :not(.builder-layout):not(.builder-footer) {
+  flex: 0 0 auto;
+}
+
+.mobile-shell .builder-footer {
+  padding: 0.55rem 0.85rem;
+  gap: 0.55rem;
+}
+
+.mobile-shell .builder-footer button {
+  font-size: 1.05rem;
+  padding: 0.55rem 1rem;
+}
+
+/* Tap tips on /m — readable + stay in viewport (placement also clamps in AnchoredTip). */
+html.is-mobile-shell .chip-tip {
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  border: 1px solid #6a7280;
+  background: #161b22f7;
+  box-shadow: 0 12px 28px #000c;
+}
+
+html.is-mobile-shell .chip-tip b {
+  font-size: 1.05rem;
+}
+
+html.is-mobile-shell .chip-tip p {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+}
+
+html.is-mobile-shell .unit-card-pill,
+html.is-mobile-shell .kw-chip,
+html.is-mobile-shell .stat-chip {
+  cursor: pointer;
+}
