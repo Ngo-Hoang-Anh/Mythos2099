@@ -69,6 +69,20 @@ export const PREMADE_ARMIES: Record<string, { name: string; description: string;
       8,
     ],
   },
+  missile: {
+    name: "Missile",
+    description: "Every unit with Missile, plus Fenrir Vanguard, Eir's Blessing, and Houyi Quiver.",
+    units: [
+      1,
+      8,
+      10,
+      22,
+      25,
+      2,
+      5,
+      11,
+    ],
+  },
 };
 
 export const DEFAULT_P1 = PREMADE_ARMIES.tank_robot.units;

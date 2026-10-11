@@ -4,7 +4,7 @@ import { artilleryRepeatBonus, computeStrikeDamage, defenseArmor } from "../comb
 import { armorPiercingOf } from "../keywords";
 import { log, withLogGroup } from "../state";
 import { afterGunAttack, statusesOf } from "../status";
-import { HQ_MAX_HP, type MatchState, type PlayerId, type UnitInstance } from "../types";
+import { playerHqMax, type MatchState, type PlayerId, type UnitInstance } from "../types";
 import { removeDeadUnits } from "./cleanup";
 import {
   canCounter,
@@ -102,7 +102,7 @@ function fireGunAtHq(
     damage: dmg,
     side,
     power: atk + bonus + pen,
-    targetMaxHp: HQ_MAX_HP,
+    targetMaxHp: playerHqMax(state.players[foe]),
   });
   if (dmg <= 0) {
     afterGunAttack(state, shooter);

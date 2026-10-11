@@ -1,7 +1,7 @@
 import { getUnitDef } from "../data/units";
 import { countUnits, unitsOf } from "./board";
 import { canAffordDeploy } from "./desperateMeasure";
-import { log } from "./state";
+import { canDraw, log } from "./state";
 import { BASE_SUPPLY, type MatchState, type PlayerId } from "./types";
 
 /** True if any reserve unit can be fielded with Supply and/or Desperate Measure. */
@@ -20,7 +20,7 @@ export function canFieldAnyReserve(
 
 /** Supply the player would have at the start of Deployment with the current board. */
 export function projectedDeploySupply(state: MatchState, playerId: PlayerId): number {
-  return BASE_SUPPLY + countUnits(state.board, playerId);
+  return BASE_SUPPLY + (state.players[playerId].baseSupplyBonus ?? 0) + countUnits(state.board, playerId);
 }
 
 /**
@@ -34,7 +34,7 @@ export function isPlayerEliminated(
 ): boolean {
   if (unitsOf(state.board, playerId).length > 0) return false;
   const player = state.players[playerId];
-  if (player.deck.length > 0) return false;
+  if (canDraw(player)) return false;
   const enemy: PlayerId = playerId === 0 ? 1 : 0;
   const costs = player.undeployed.filter((id) => id !== 0).map((id) => getUnitDef(id).cost);
   return !canFieldAnyReserve(

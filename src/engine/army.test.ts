@@ -18,6 +18,7 @@ describe("army builder rules", () => {
     expect(validateArmy(PREMADE_ARMIES.support_fire.units)).toBeNull();
     expect(validateArmy(PREMADE_ARMIES.jet_infantry.units)).toBeNull();
     expect(validateArmy(PREMADE_ARMIES.aggro.units)).toBeNull();
+    expect(validateArmy(PREMADE_ARMIES.missile.units)).toBeNull();
     expect(PREMADE_ARMIES.aggro.units).toEqual([
       27,
       26,
@@ -29,7 +30,15 @@ describe("army builder rules", () => {
       8,
     ]);
     expect(DEFAULT_P1).toBe(PREMADE_ARMIES.tank_robot.units);
-    expect(Object.keys(PREMADE_ARMIES)).toEqual(["tank_robot", "retaliate", "support_fire", "jet_infantry", "aggro"]);
+    expect(Object.keys(PREMADE_ARMIES)).toEqual([
+      "tank_robot",
+      "retaliate",
+      "support_fire",
+      "jet_infantry",
+      "aggro",
+      "missile",
+    ]);
+    expect(PREMADE_ARMIES.missile.units).toEqual([1, 8, 10, 22, 25, 2, 5, 11]);
   });
 
   it("includes Special cards in the constructed deck", () => {

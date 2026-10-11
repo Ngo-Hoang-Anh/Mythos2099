@@ -1,5 +1,5 @@
 import type { Action, MatchState, PlayerId } from "../engine/types";
-import type { ClientMessage, ResumeInfo, RoomMode, RoomSummary, ServerMessage } from "./protocol";
+import type { AiDifficulty, ClientMessage, ResumeInfo, RoomMode, RoomSummary, ServerMessage } from "./protocol";
 
 export const AUTH_TOKEN_KEY = "mythos2099.authToken";
 
@@ -80,8 +80,8 @@ export class GameClient {
     this.send({ type: "listRooms" });
   }
 
-  createRoom(mode: RoomMode, p1Army: number[], p2Army?: number[]): void {
-    this.send({ type: "createRoom", mode, p1Army, p2Army });
+  createRoom(mode: RoomMode, p1Army: number[], p2Army?: number[], aiDifficulty?: AiDifficulty): void {
+    this.send({ type: "createRoom", mode, p1Army, p2Army, aiDifficulty });
   }
 
   join(roomId: string, army: number[]): void {

@@ -1,3 +1,4 @@
+import type { AiDifficulty } from "../engine/aiDifficulty";
 import { pickAiAction, runAiTurn } from "../engine/ai";
 import { validateArmy } from "../engine/army";
 import { applyAction, createMatch } from "../engine/match";
@@ -112,7 +113,7 @@ export class MatchRoom {
     return this.state.currentPlayer;
   }
 
-  start(seed: number): string | null {
+  start(seed: number, aiDifficulty: AiDifficulty = "easy"): string | null {
     if (this.state) return "Match already started";
     const p2 = this.p2Army;
     if (!p2) return "P2 army is missing";
@@ -120,7 +121,14 @@ export class MatchRoom {
     if (err1) return `P1: ${err1}`;
     const err2 = validateArmy(p2);
     if (err2) return `P2: ${err2}`;
-    this.state = createMatch(this.p1Army, p2, seed);
+    this.state = createMatch(
+      this.p1Army,
+      p2,
+      seed,
+      this.mode === "ai" && aiDifficulty !== "easy"
+        ? { aiDifficulty, aiPlayer: AI_SEAT }
+        : undefined,
+    );
     this.combatAcks.clear();
     return null;
   }
@@ -246,6 +254,7 @@ export function createRoom(
   p2Army: number[] | null,
   id = randomRoomId(),
   hostUserId: string | null = null,
+  aiDifficulty: AiDifficulty = "easy",
 ): { room: MatchRoom; error: string | null } {
   // Client sends (humanArmy, aiArmy). For AI mode the computer goes first, so swap seats.
   const firstArmy = mode === "ai" && p2Army ? p2Army : p1Army;
@@ -260,7 +269,7 @@ export function createRoom(
   }
   const room = new MatchRoom(id, mode, firstArmy, secondArmy, hostUserId);
   if (mode !== "pvp") {
-    const started = room.start(Date.now() % 1_000_000);
+    const started = room.start(Date.now() % 1_000_000, mode === "ai" ? aiDifficulty : "easy");
     if (started) return { room, error: started };
   }
   return { room, error: null };

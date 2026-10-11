@@ -1,7 +1,16 @@
 import { cloneBoard } from "./board";
 import { cloneFx } from "./fx";
+import { shuffle } from "./rng";
 import { cloneStatuses } from "./status";
-import { HAND_LIMIT, type CardInstance, type LogEntry, type LogIcon, type MatchState, type PlayerState } from "./types";
+import {
+  HAND_LIMIT,
+  INITIATIVE_TEMPLATE_ID,
+  type CardInstance,
+  type LogEntry,
+  type LogIcon,
+  type MatchState,
+  type PlayerState,
+} from "./types";
 
 export function cloneCard(card: CardInstance): CardInstance {
   return { ...card, targets: [...card.targets] };
@@ -109,11 +118,34 @@ export function takeFromHand(player: PlayerState, cardId: string): CardInstance 
   return player.hand.splice(idx, 1)[0];
 }
 
+function recyclableDiscard(player: PlayerState): CardInstance[] {
+  return player.discard.filter((card) => card.templateId !== INITIATIVE_TEMPLATE_ID);
+}
+
+/** True when the next draw can take a card, including a difficulty reshuffle. */
+export function canDraw(player: PlayerState): boolean {
+  if (player.deck.length > 0) return true;
+  return Boolean(player.recycleDeck) && recyclableDiscard(player).length > 0;
+}
+
+function refillDeck(state: MatchState, player: PlayerState): boolean {
+  if (!player.recycleDeck) return false;
+  const pile = recyclableDiscard(player);
+  if (pile.length === 0) return false;
+  player.discard = player.discard.filter((card) => card.templateId === INITIATIVE_TEMPLATE_ID);
+  const shuffled = shuffle(pile, state.rngState);
+  state.rngState = shuffled.rngState;
+  player.deck = shuffled.items;
+  log(state, `P${player.id + 1} shuffles ${pile.length} discarded cards back into the deck`);
+  return true;
+}
+
 export function drawCards(state: MatchState, playerId: 0 | 1, count: number): number {
   const player = state.players[playerId];
   let drawn = 0;
   for (let i = 0; i < count; i++) {
     if (player.hand.length >= HAND_LIMIT) break;
+    if (player.deck.length === 0 && !refillDeck(state, player)) break;
     const card = player.deck.shift();
     if (!card) break;
     player.hand.push(card);

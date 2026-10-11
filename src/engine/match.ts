@@ -1,5 +1,6 @@
 import { getUnitDef } from "../data/units";
 import { makeInitiativeCard } from "../data/initiative";
+import { aiProfile, buffedUnitStats, expandAiArmy, type AiDifficulty } from "./aiDifficulty";
 import { beginEngagement } from "./combat/engagement";
 import { resolveDestroyedUnits } from "./combat/cleanup";
 import { resetCombatFlags, clearRested } from "./combat/helpers";
@@ -43,8 +44,15 @@ import {
   type MatchState,
   type PlayerId,
   type PlayerState,
+  type UnitDef,
   type UnitInstance,
 } from "./types";
+
+export interface MatchOptions {
+  aiDifficulty?: AiDifficulty;
+  /** Seat that receives the vs-AI bonuses. The computer is seat 0. */
+  aiPlayer?: PlayerId;
+}
 
 function createPlayer(
   id: PlayerId,
@@ -68,6 +76,10 @@ function createPlayer(
     deploysThisTurn: 0,
     turnsTaken: 0,
     thinkingTimeSeconds: 180,
+    baseSupplyBonus: 0,
+    drawPerTurnBonus: 0,
+    recycleDeck: false,
+    hqMaxHp: HQ_MAX_HP,
   };
 }
 
@@ -75,16 +87,30 @@ export function createMatch(
   p1Army: number[],
   p2Army: number[],
   seed = 1,
+  options?: MatchOptions,
 ): MatchState {
   const err1 = validateArmy(p1Army);
   const err2 = validateArmy(p2Army);
   if (err1) throw new Error(`P1: ${err1}`);
   if (err2) throw new Error(`P2: ${err2}`);
 
+  const difficulty = options?.aiDifficulty ?? "easy";
+  const aiPlayer: PlayerId = options?.aiPlayer ?? 0;
+  const profile = aiProfile(difficulty);
+  let armies: [number[], number[]] = [[...p1Army], [...p2Army]];
+  let rngState = mulberry32State(seed);
+  let added: number[] = [];
+  if (profile && profile.extraUnits > 0) {
+    const expanded = expandAiArmy(armies[aiPlayer], profile.extraUnits, rngState);
+    armies[aiPlayer] = expanded.unitIds;
+    added = expanded.added;
+    rngState = expanded.rngState;
+  }
+
   const proto: MatchState = {
     players: [
-      createPlayer(0, p1Army, () => "tmp"),
-      createPlayer(1, p2Army, () => "tmp"),
+      createPlayer(0, armies[0], () => "tmp"),
+      createPlayer(1, armies[1], () => "tmp"),
     ],
     board: emptyBoard(),
     currentPlayer: 0,
@@ -93,7 +119,7 @@ export function createMatch(
     turn: 1,
     winner: null,
     seed,
-    rngState: mulberry32State(seed),
+    rngState,
     log: [],
     fx: [],
     combatPlayback: null,
@@ -103,9 +129,18 @@ export function createMatch(
     phaseStartTime: null,
   };
 
-  const p1 = createPlayer(0, p1Army, () => nid(proto, "c"));
-  const p2 = createPlayer(1, p2Army, () => nid(proto, "c"));
+  const p1 = createPlayer(0, armies[0], () => nid(proto, "c"));
+  const p2 = createPlayer(1, armies[1], () => nid(proto, "c"));
   proto.players = [p1, p2];
+  if (profile) {
+    const ai = proto.players[aiPlayer];
+    ai.baseSupplyBonus = profile.baseSupply;
+    ai.drawPerTurnBonus = profile.drawBonus;
+    ai.recycleDeck = profile.recycleDeck;
+    ai.hqMaxHp = HQ_MAX_HP + profile.hqBonus;
+    ai.hqHp = ai.hqMaxHp;
+    ai.deployBuff = profile.deployBuff;
+  }
 
   const s1 = shuffle(p1.deck, proto.rngState);
   p1.deck = s1.items;
@@ -117,13 +152,24 @@ export function createMatch(
   drawCards(proto, 1, OPENING_HAND);
   p2.hand.unshift(makeInitiativeCard(nid(proto, "c")));
   startTurn(proto, 0);
+  if (profile) {
+    const names = added.map((id) => getUnitDef(id).name).join(", ");
+    const extra =
+      profile.drawBonus > 0
+        ? `, +${profile.drawBonus} card each turn`
+        : "";
+    log(
+      proto,
+      `AI ${difficulty}: +${added.length} random unit${added.length === 1 ? "" : "s"}${names ? ` (${names})` : ""}, +${profile.baseSupply} base Supply, +${profile.hqBonus} HQ${extra}. Empty deck reshuffles from discard.`,
+    );
+  }
   log(proto, "Match start — P1 Deployment");
   return proto;
 }
 
 function refreshCp(state: MatchState, playerId: PlayerId): void {
   const player = state.players[playerId];
-  const base = BASE_SUPPLY + countUnits(state.board, playerId);
+  const base = BASE_SUPPLY + (player.baseSupplyBonus ?? 0) + countUnits(state.board, playerId);
   const supplyBonus = player.nextTurnSupplyBonus;
   player.nextTurnSupplyBonus = 0;
   player.commandPoints = base + supplyBonus;
@@ -156,12 +202,16 @@ function startTurn(state: MatchState, playerId: PlayerId): void {
   if (player.turnsTaken > 1) {
     const drawBonus = player.nextTurnDrawBonus;
     player.nextTurnDrawBonus = 0;
-    const drawn = drawCards(state, playerId, DRAW_PER_TURN + drawBonus);
+    const difficultyDraw = player.drawPerTurnBonus ?? 0;
+    const drawn = drawCards(state, playerId, DRAW_PER_TURN + difficultyDraw + drawBonus);
     if (drawn) {
+      const notes: string[] = [];
+      if (difficultyDraw > 0) notes.push(`+${difficultyDraw} difficulty`);
+      if (drawBonus > 0) notes.push(`+${drawBonus} comeback`);
       log(
         state,
-        drawBonus > 0
-          ? `P${playerId + 1} draws ${drawn} (incl. +${drawBonus} comeback)`
+        notes.length > 0
+          ? `P${playerId + 1} draws ${drawn} (incl. ${notes.join(", ")})`
           : `P${playerId + 1} draws ${drawn}`,
       );
     }
@@ -311,18 +361,33 @@ function deploy(
   const paid = def.cost - needed / 2;
   const spent = spend(player, paid);
   if (spent) return spent;
-  player.undeployed.splice(idx, 1);
   player.deploysThisTurn += 1;
+  const unit = commitDeploy(state, player, def, row);
+  const payNote =
+    needed > 0 ? `${paid} Supply + ${needed} discarded` : `${def.cost} Supply`;
+  log(
+    state,
+    `P${player.id + 1} deploys ${unit.name} on lane ${row + 1} for ${payNote}`,
+    "supply",
+  );
+  return null;
+}
+
+function commitDeploy(state: MatchState, player: PlayerState, def: UnitDef, row: number): UnitInstance {
+  const idx = player.undeployed.indexOf(def.id);
+  player.undeployed.splice(idx, 1);
+  const col = supportCol(player.id);
+  const stats = buffedUnitStats(def, player.deployBuff);
   const unit: UnitInstance = {
     instanceId: nid(state, "u"),
     defId: def.id,
     name: def.name,
     class: def.class,
     owner: player.id,
-    hp: def.hp,
-    maxHp: def.hp,
-    atk: def.atk,
-    armor: def.armor,
+    hp: stats.hp,
+    maxHp: stats.hp,
+    atk: stats.atk,
+    armor: stats.armor,
     ap: def.ap,
     cost: def.cost,
     col,
@@ -338,13 +403,6 @@ function deploy(
   };
   placeUnit(state.board, unit);
   revealUnit(player, unit.defId);
-  const payNote =
-    needed > 0 ? `${paid} Supply + ${needed} discarded` : `${def.cost} Supply`;
-  log(
-    state,
-    `P${player.id + 1} deploys ${unit.name} on lane ${row + 1} for ${payNote}`,
-    "supply",
-  );
   if (restsOnDeploy(unit)) {
     unit.rested = true;
     log(state, `${unit.name} rests until next turn`);
@@ -356,7 +414,7 @@ function deploy(
       log(state, `${unit.name} Blitz to Frontline`, "blitz");
     }
   }
-  return null;
+  return unit;
 }
 
 function playCard(
@@ -436,7 +494,7 @@ export function applyAction(state: MatchState, action: Action): ActionResult {
         const player = current(next);
         if (player.discardRedrawsUsed >= DISCARD_REDRAW_LIMIT)
           error = "Already discarded twice this turn";
-        else if (player.deck.length === 0) error = "Deck is empty";
+        else if (player.deck.length === 0 && !player.recycleDeck) error = "Deck is empty";
         else {
           const card = takeFromHand(player, action.cardId);
           if (!card) error = "Card not in hand";

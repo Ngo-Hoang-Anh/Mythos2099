@@ -1,6 +1,6 @@
 import { moveUnitOnBoard } from "./board";
 import { weaponPower } from "./combat/helpers";
-import { HQ_MAX_HP, type BoardPos, type FxEvent, type FxTarget, type MatchState, type UnitInstance } from "./types";
+import { HQ_MAX_HP, playerHqMax, type BoardPos, type FxEvent, type FxTarget, type MatchState, type UnitInstance } from "./types";
 
 export function isHqTarget(target: FxTarget): target is { hq: 0 | 1 } {
   return "hq" in target;
@@ -27,7 +27,7 @@ export function pushAttack(
   to: FxTarget,
   extras?: { damage?: number; power?: number; kamikaze?: boolean; missile?: boolean },
 ): void {
-  let targetMaxHp = HQ_MAX_HP;
+  let targetMaxHp = "hq" in to ? playerHqMax(state.players[to.hq]) : HQ_MAX_HP;
   if (!("hq" in to)) {
     const unit = state.board[to.col][to.row];
     if (unit) targetMaxHp = unit.maxHp;

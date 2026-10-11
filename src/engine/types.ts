@@ -225,6 +225,28 @@ export interface PlayerState {
   deploysThisTurn: number;
   turnsTaken: number;
   thinkingTimeSeconds: number;
+  /** Added to base Supply every Deployment. Vs-AI difficulty. */
+  baseSupplyBonus?: number;
+  /** Extra cards on top of the normal per-turn draw. */
+  drawPerTurnBonus?: number;
+  /** When the deck is empty, shuffle the discard pile back in. */
+  recycleDeck?: boolean;
+  /** HQ bar and heals use this instead of {@link HQ_MAX_HP} when set. */
+  hqMaxHp?: number;
+  /** Permanent stat changes applied when this player deploys a unit. */
+  deployBuff?: DeployBuff;
+}
+
+/** Stat bumps applied from the unit's printed Armor when it is deployed. */
+export interface DeployBuff {
+  /** HP added to every unit. */
+  hp: number;
+  /** Extra HP when printed Armor is above 3. */
+  highArmorHp: number;
+  /** ATK added when printed Armor is above 3. */
+  highArmorAtk: number;
+  /** Armor added when printed Armor is 3 or less. */
+  lowArmor: number;
 }
 
 export type BoardPos = { col: number; row: number };
@@ -404,6 +426,10 @@ export interface MatchState {
 export const ROWS = 5;
 export const COLS = 4;
 export const HQ_MAX_HP = 60;
+
+export function playerHqMax(player: { hqMaxHp?: number }): number {
+  return player.hqMaxHp && player.hqMaxHp > 0 ? player.hqMaxHp : HQ_MAX_HP;
+}
 export const ARMY_SIZE = 8;
 export const OPENING_HAND = 5;
 export const DRAW_PER_TURN = 2;

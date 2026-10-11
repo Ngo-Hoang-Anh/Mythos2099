@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Action, MatchState, PlayerId } from "../engine/types";
 import { AUTH_TOKEN_KEY, GameClient } from "./client";
-import type { ResumeInfo, RoomMode, RoomSummary } from "./protocol";
+import type { AiDifficulty, ResumeInfo, RoomMode, RoomSummary } from "./protocol";
 
 export type SessionStatus = "idle" | "connecting" | "online" | "offline";
 
@@ -43,6 +43,12 @@ export function useGameSession() {
   const [waitingForCombatAck, setWaitingForCombatAck] = useState(false);
   const [peerConnected, setPeerConnected] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastSetupRef = useRef<{
+    mode: RoomMode;
+    p1Army: number[];
+    p2Army?: number[];
+    aiDifficulty?: AiDifficulty;
+  } | null>(null);
 
   function clearMatchView(): void {
     roomIdRef.current = null;
@@ -213,9 +219,23 @@ export function useGameSession() {
     clientRef.current.guest();
   }
 
-  function createMatch(nextMode: RoomMode, p1Army: number[], p2Army?: number[]): void {
+  function createMatch(nextMode: RoomMode, p1Army: number[], p2Army?: number[], aiDifficulty?: AiDifficulty): void {
+    lastSetupRef.current = {
+      mode: nextMode,
+      p1Army: [...p1Army],
+      p2Army: p2Army ? [...p2Army] : undefined,
+      aiDifficulty,
+    };
     setError(null);
-    clientRef.current.createRoom(nextMode, p1Army, p2Army);
+    clientRef.current.createRoom(nextMode, p1Army, p2Army, aiDifficulty);
+  }
+
+  function retryMatch(): void {
+    const setup = lastSetupRef.current;
+    if (!setup?.p2Army) return;
+    setError(null);
+    clientRef.current.leave();
+    clientRef.current.createRoom(setup.mode, setup.p1Army, setup.p2Army, setup.aiDifficulty);
   }
 
   function joinMatch(nextRoomId: string, army: number[]): void {
@@ -301,6 +321,8 @@ export function useGameSession() {
     login,
     playAsGuest,
     createMatch,
+    retryMatch,
+    canRetry: Boolean(lastSetupRef.current?.p2Army),
     joinMatch,
     rejoin,
     sendAction,

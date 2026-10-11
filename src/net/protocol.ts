@@ -1,4 +1,7 @@
+import type { AiDifficulty } from "../engine/aiDifficulty";
 import type { Action, MatchState, Phase, PlayerId } from "../engine/types";
+
+export type { AiDifficulty };
 
 export type RoomMode = "ai" | "hotseat" | "pvp";
 
@@ -28,7 +31,7 @@ export type ClientMessage =
   | { type: "guest" }
   | { type: "auth"; token: string }
   | { type: "listRooms" }
-  | { type: "createRoom"; mode: RoomMode; p1Army: number[]; p2Army?: number[] }
+  | { type: "createRoom"; mode: RoomMode; p1Army: number[]; p2Army?: number[]; aiDifficulty?: AiDifficulty }
   | { type: "join"; roomId: string; army: number[] }
   | { type: "rejoin" }
   | { type: "action"; action: Action }

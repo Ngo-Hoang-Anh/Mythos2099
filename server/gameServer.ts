@@ -3,6 +3,7 @@ import { AccountStore } from "./accounts";
 import { restoreRoom, RoomStore } from "./roomStore";
 import type { Action } from "../src/engine/types";
 import type { ClientMessage, ResumeInfo, RoomMode, RoomSummary, ServerMessage } from "../src/net/protocol";
+import { isAiDifficulty } from "../src/engine/aiDifficulty";
 import { createRoom, MatchRoom, randomRoomId, summarizeRoom } from "../src/net/session";
 
 export interface ServerSocket {
@@ -114,7 +115,9 @@ export class GameServer {
         this.requireUser(ws, (user) => this.sendRooms(ws, user));
         break;
       case "createRoom":
-        this.requireUser(ws, (user) => this.handleCreate(ws, user, message.mode, message.p1Army, message.p2Army));
+        this.requireUser(ws, (user) =>
+          this.handleCreate(ws, user, message.mode, message.p1Army, message.p2Army, message.aiDifficulty),
+        );
         break;
       case "join":
         this.requireUser(ws, (user) => this.handleJoin(ws, user, message.roomId, message.army));
@@ -258,12 +261,30 @@ export class GameServer {
     this.authed(ws, account);
   }
 
-  private handleCreate(ws: ServerSocket, user: Account, mode: RoomMode, p1Army: number[], p2Army?: number[]): void {
+  private handleCreate(
+    ws: ServerSocket,
+    user: Account,
+    mode: RoomMode,
+    p1Army: number[],
+    p2Army?: number[],
+    aiDifficulty?: string,
+  ): void {
     if (this.activeRoomForUser(user.id)) {
       this.send(ws, { type: "error", error: "Finish or abandon your current match first" });
       return;
     }
-    const { room, error } = createRoom(mode, p1Army, p2Army ?? null, this.uniqueRoomId(), user.id);
+    if (mode === "ai" && aiDifficulty !== undefined && !isAiDifficulty(aiDifficulty)) {
+      this.send(ws, { type: "error", error: "Unknown AI difficulty" });
+      return;
+    }
+    const { room, error } = createRoom(
+      mode,
+      p1Army,
+      p2Army ?? null,
+      this.uniqueRoomId(),
+      user.id,
+      mode === "ai" && isAiDifficulty(aiDifficulty) ? aiDifficulty : "easy",
+    );
     if (error) {
       this.send(ws, { type: "error", error });
       return;

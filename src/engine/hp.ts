@@ -3,7 +3,7 @@ import { nextRng } from "./rng";
 import { log } from "./state";
 import {
   HQ_BREAKPOINTS,
-  HQ_MAX_HP,
+  playerHqMax,
   type CombatStep,
   type LogIcon,
   type MatchState,
@@ -161,7 +161,7 @@ export function healUnit(unit: UnitInstance, amount: number): number {
 export function healHq(state: MatchState, playerId: PlayerId, amount: number): number {
   const player = state.players[playerId];
   const before = player.hqHp;
-  player.hqHp = Math.min(HQ_MAX_HP, player.hqHp + amount);
+  player.hqHp = Math.min(playerHqMax(player), player.hqHp + amount);
   return player.hqHp - before;
 }
 

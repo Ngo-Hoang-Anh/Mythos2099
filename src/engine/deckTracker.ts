@@ -154,8 +154,8 @@ function rowsFromRemaining(
 export function buildSelfDeckTracker(player: PlayerState): DeckTrackerModel {
   const remaining = remainingDeckCards(player);
   const deckSize = player.deck.length;
-  const draw = DRAW_PER_TURN;
-  const recycleDraws = DRAW_PER_TURN + DISCARD_REDRAW_LIMIT;
+  const draw = DRAW_PER_TURN + (player.drawPerTurnBonus ?? 0);
+  const recycleDraws = draw + DISCARD_REDRAW_LIMIT;
   const rows = rowsFromRemaining(remaining, (copies) => ({
     basePct: drawAtLeastOneChance(copies, deckSize, draw),
     recyclePct: drawAtLeastOneChance(copies, deckSize, recycleDraws),
@@ -184,8 +184,8 @@ export function buildEnemyDeckTracker(player: PlayerState): DeckTrackerModel {
   const handSize = player.hand.length;
   const hiddenSize = deckSize + handSize;
   const unknownCount = Math.max(0, hiddenSize - stillOut.length);
-  const draw = DRAW_PER_TURN;
-  const recycleDraws = DRAW_PER_TURN + DISCARD_REDRAW_LIMIT;
+  const draw = DRAW_PER_TURN + (player.drawPerTurnBonus ?? 0);
+  const recycleDraws = draw + DISCARD_REDRAW_LIMIT;
 
   const rows = rowsFromRemaining(stillOut, (copies) => ({
     basePct: foggedDrawAtLeastOneChance(copies, hiddenSize, deckSize, draw),
