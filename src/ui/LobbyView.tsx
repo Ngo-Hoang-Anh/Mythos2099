@@ -1,5 +1,5 @@
 import type { ResumeInfo, RoomMode, RoomSummary } from "../net/protocol";
-import { SgIconImg } from "./UiChrome";
+import { KitMark } from "./UiChrome";
 
 const MODE_LABEL: Record<RoomMode, string> = {
   ai: "vs AI",
@@ -43,7 +43,8 @@ export function LobbyView({
           <h1>Mythos2099</h1>
           <p className="muted">Signed in as {username}</p>
         </div>
-        <button type="button" className="ghost" onClick={onLogout}>
+        <button type="button" className="ghost kit-btn-row" onClick={onLogout}>
+          <KitMark file="backward.png" />
           Log out
         </button>
       </header>
@@ -66,7 +67,8 @@ export function LobbyView({
               {resume.waitingForPeer ? " · waiting for P2" : ""}
             </h2>
           </div>
-          <button type="button" className="primary" onClick={onResume}>
+          <button type="button" className="primary kit-btn-row" onClick={onResume}>
+            <KitMark file="replay.png" />
             Rejoin match
           </button>
         </div>
@@ -76,17 +78,20 @@ export function LobbyView({
         <span className="sg-tab">Create</span>
         <h2>Create a room</h2>
         <div className="mode-row">
-          <button type="button" className="primary sg-btn-row" onClick={onTutorial}>
-            <SgIconImg name="help" tone="gold" size={20} />
+          <button type="button" className="primary kit-btn-row" onClick={onTutorial}>
+            <KitMark file="faq.png" />
             Tutorial
           </button>
-          <button type="button" className="primary" onClick={() => onCreate("pvp")}>
+          <button type="button" className="primary kit-btn-row" onClick={() => onCreate("pvp")}>
+            <KitMark file="play.png" />
             Host PvP
           </button>
-          <button type="button" onClick={() => onCreate("ai")}>
+          <button type="button" className="kit-btn-row" onClick={() => onCreate("ai")}>
+            <KitMark file="forward.png" />
             vs AI
           </button>
-          <button type="button" onClick={() => onCreate("hotseat")}>
+          <button type="button" className="kit-btn-row" onClick={() => onCreate("hotseat")}>
+            <KitMark file="menu.png" />
             Hotseat
           </button>
         </div>
@@ -144,7 +149,8 @@ function RoomRow({
           {room.turn ? ` · turn ${room.turn}` : ""}
         </small>
       </div>
-      <button type="button" className="primary" onClick={onAction}>
+      <button type="button" className="primary kit-btn-row" onClick={onAction}>
+        <KitMark file={actionLabel === "Join" ? "forward.png" : "replay.png"} />
         {actionLabel}
       </button>
     </li>

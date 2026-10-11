@@ -1,6 +1,12 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { PREMADE_ARMIES } from "../data/premadeArmies";
 import { UNITS } from "../data/units";
+import {
+  AI_DIFFICULTIES,
+  AI_DIFFICULTY_BLURB,
+  AI_DIFFICULTY_LABEL,
+  type AiDifficulty,
+} from "../engine/aiDifficulty";
 import { validateArmy } from "../engine/army";
 import { formatAvg, summarizeArmy, type ArmySummary } from "../engine/armySummary";
 import { ARMY_SIZE, type CardType, type UnitClass, type UnitDef } from "../engine/types";
@@ -50,7 +56,7 @@ export function ArmyBuilder({
   busy?: boolean;
   error?: string | null;
   onBack: () => void;
-  onConfirm: (armies: { p1: number[]; p2: number[] }) => void;
+  onConfirm: (armies: { p1: number[]; p2: number[]; aiDifficulty?: AiDifficulty }) => void;
   /** Tutorial walkthrough: P1 only, no match start required. */
   guide?: boolean;
   deckDrawer?: boolean;
@@ -62,6 +68,8 @@ export function ArmyBuilder({
   const [edit, setEdit] = useState<"p1" | "p2">(joinOnly ? "p2" : "p1");
   const [inspect, setInspect] = useState<UnitDetailTarget | null>(null);
   const [deckOpen, setDeckOpen] = useState(false);
+  const [aiDifficulty, setAiDifficulty] = useState<AiDifficulty>("easy");
+  const vsAi = intent.kind === "create" && intent.mode === "ai";
   const selected = edit === "p1" ? p1 : p2;
   const setter = edit === "p1" ? setP1 : setP2;
   const armyError = useMemo(() => {
@@ -129,12 +137,12 @@ export function ArmyBuilder({
         <div className="picker-tabs">
           {!joinOnly && (
             <button type="button" className={edit === "p1" ? "primary" : "ghost"} onClick={() => setEdit("p1")}>
-              P1 ({p1.length}/{ARMY_SIZE})
+              {vsAi ? "You" : "P1"} ({p1.length}/{ARMY_SIZE})
             </button>
           )}
           {!hostOnly && (
             <button type="button" className={edit === "p2" ? "primary" : "ghost"} onClick={() => setEdit("p2")}>
-              P2 ({p2.length}/{ARMY_SIZE})
+              {vsAi ? "AI" : "P2"} ({p2.length}/{ARMY_SIZE})
             </button>
           )}
         </div>
@@ -241,6 +249,22 @@ export function ArmyBuilder({
 
       <footer className="builder-footer">
         {(error || sessionError) && <p className="error">{error ?? sessionError}</p>}
+        {vsAi && (
+          <div className="difficulty-row">
+            <span className="sg-tab">AI</span>
+            {AI_DIFFICULTIES.map((level) => (
+              <button
+                key={level}
+                type="button"
+                className={aiDifficulty === level ? "primary" : undefined}
+                onClick={() => setAiDifficulty(level)}
+              >
+                {AI_DIFFICULTY_LABEL[level]}
+              </button>
+            ))}
+            <p className="muted difficulty-blurb">{AI_DIFFICULTY_BLURB[aiDifficulty]}</p>
+          </div>
+        )}
         <div className="mode-row">
           <button type="button" className="ghost sg-btn-row" onClick={onBack}>
             <SgIconImg name="back" tone="cyan" size={20} />
@@ -251,7 +275,7 @@ export function ArmyBuilder({
             className="primary sg-btn-row"
             data-tut="builder-start"
             disabled={guide ? false : Boolean(error) || busy}
-            onClick={() => onConfirm({ p1, p2 })}
+            onClick={() => onConfirm({ p1, p2, aiDifficulty: vsAi ? aiDifficulty : undefined })}
           >
             <SgIconImg name="check" tone="gold" size={20} />
             {confirmLabel}

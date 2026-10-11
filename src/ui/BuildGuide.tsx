@@ -63,11 +63,11 @@ export function BuildGuide({
       </div>
       {complete ? (
         <div className="tutorial-complete">
-          <div className="choice-dialog" role="dialog" aria-label="Build Guide complete">
+          <div className="choice-dialog kit-window" role="dialog" aria-label="Build Guide complete">
             <p className="eyebrow">Lesson complete</p>
             <h2>You are ready to dive into battle.</h2>
             <p>{BUILD_GUIDE.success}</p>
-            <div className="choice-options">
+            <div className="choice-options kit-table">
               <button
                 type="button"
                 className="primary"

@@ -15,6 +15,18 @@ export type SgIconName =
   | "lock";
 
 const BASE = "/ui/sungraphica";
+const KIT = "/ui/kit";
+
+export type KitButton = "close" | "ok";
+
+/** Navy/cyan kit copied from resource/usable/UI into /ui/kit. */
+export function kitAsset(file: string): string {
+  return `${KIT}/${file}`;
+}
+
+export function kitButton(name: KitButton): string {
+  return kitAsset(name === "close" ? "close.png" : "ok.png");
+}
 
 export function sgIcon(name: SgIconName, tone: SgTone = "gold"): string {
   return `${BASE}/icons/${name}-${tone}.svg`;
@@ -79,6 +91,42 @@ export function SgIconImg({
 }) {
   const src = framed ? sgButton(name, tone) : sgIcon(name, tone);
   return <img className="sg-icon-img" src={src} alt={title ?? ""} title={title} width={size} height={size} draggable={false} />;
+}
+
+/** Unstretched kit glyph sitting beside a text label. */
+export function KitMark({ file, size = 32 }: { file: string; size?: number }) {
+  return <img className="kit-mark" src={kitAsset(file)} alt="" width={size} height={size} draggable={false} />;
+}
+
+/** Square bevel button from the usable UI kit. Do not stretch into a wide label. */
+export function KitIconBtn({
+  name,
+  title,
+  onClick,
+  className = "",
+  disabled,
+  size = 40,
+}: {
+  name: KitButton;
+  title: string;
+  onClick?: () => void;
+  className?: string;
+  disabled?: boolean;
+  size?: number;
+}) {
+  return (
+    <button
+      type="button"
+      className={`kit-icon-btn ${className}`}
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      style={{ width: size, height: size }}
+    >
+      <img src={kitButton(name)} alt="" width={size} height={size} draggable={false} />
+    </button>
+  );
 }
 
 /** Corner brackets overlay for a framed region */

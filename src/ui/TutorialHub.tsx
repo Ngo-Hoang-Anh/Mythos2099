@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { keywordTutorial } from "../engine/armySummary";
 import {
   BUILD_GUIDE,
@@ -9,24 +10,42 @@ import {
   type TutorialId,
 } from "../tutorial";
 import { KeywordChip, KeywordIcon, StatIcon } from "./icons";
-import { SgIconImg } from "./UiChrome";
+import { KitMark, SgIconImg } from "./UiChrome";
 
 const PLAYABLE_IDS = new Set<string>([
   ...LESSONS.map((l) => l.id),
   BUILD_GUIDE.id,
 ]);
 
+type HubTab = "tutorial" | "codex";
+
+const HUB_TABS: { id: HubTab; label: string }[] = [
+  { id: "tutorial", label: "Tutorial" },
+  { id: "codex", label: "Mechanic Codex" },
+];
+
 export function TutorialHub({
   onPlay,
   onBack,
+  onBattle,
+  tab,
+  onTabChange,
 }: {
   onPlay: (id: TutorialId) => void;
   onBack: () => void;
+  onBattle: () => void;
+  tab: HubTab;
+  onTabChange: (tab: HubTab) => void;
 }) {
+  const [readyOpen, setReadyOpen] = useState(false);
   const done = loadCompletedLessons();
-  const realCards = TUTORIAL_HUB.flatMap((s) => s.cards).filter(
-    (c) => !c.placeholder,
-  );
+  const sections =
+    tab === "tutorial"
+      ? TUTORIAL_HUB.filter((section) => section.id === "basic")
+      : TUTORIAL_HUB.filter((section) => section.id !== "basic");
+  const realCards = sections
+    .flatMap((s) => s.cards)
+    .filter((c) => !c.placeholder && !c.cta);
   const totalRealCards = realCards.length;
   const doneCount = realCards.reduce(
     (n: number, card) => n + (cardCompleted(card, done) ? 1 : 0),
@@ -36,12 +55,29 @@ export function TutorialHub({
     <div className="tutorial-hub">
       <header className="builder-hero">
         <p className="eyebrow">Training</p>
-        <h1>Tutorial</h1>
+        <h1>{tab === "tutorial" ? "Tutorial" : "Mechanic Codex"}</h1>
         <p>
-          Sandbox lessons teach the rules. Some lessons use a short scripted
-          enemy opening to set up the scenario. Finish lessons in order — locked
-          ones unlock after the previous lesson.
+          {tab === "tutorial"
+            ? "Sandbox lessons teach the rules. Some lessons use a short scripted enemy opening to set up the scenario. Finish lessons in order — locked ones unlock after the previous lesson."
+            : "Keywords, special units, playstyles, and army building. Guides stay locked until the previous one is finished, including the last Basics lesson."}
         </p>
+        <div
+          className="picker-tabs tutorial-tabs"
+          role="tablist"
+          aria-label="Training sections">
+          {HUB_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              className={`${tab === item.id ? "primary" : "ghost"} kit-btn-row`}
+              onClick={() => onTabChange(item.id)}>
+              <KitMark file={item.id === "tutorial" ? "info.png" : "faq.png"} />
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div
           className="builder-army-meter"
           aria-label={`${doneCount} of ${totalRealCards} lessons complete`}>
@@ -55,50 +91,83 @@ export function TutorialHub({
           </div>
         </div>
       </header>
-      {TUTORIAL_HUB.map((section, sIdx) => (
-        <section
-          key={section.id}
-          className={`tutorial-section section-${section.id}`}>
-          <div className="tutorial-section-header">
-            <p className="eyebrow">{section.eyebrow}</p>
-            <h2>{section.title}</h2>
-            {section.intro ? (
-              <p className="section-intro">{section.intro}</p>
-            ) : null}
+      {sections.map((section) => {
+        const sIdx = TUTORIAL_HUB.findIndex((s) => s.id === section.id);
+        return (
+          <section
+            key={section.id}
+            className={`tutorial-section section-${section.id}`}>
+            <div className="tutorial-section-header">
+              <p className="eyebrow">{section.eyebrow}</p>
+              <h2>{section.title}</h2>
+              {section.intro ? (
+                <p className="section-intro">{section.intro}</p>
+              ) : null}
+            </div>
+            <div className="tutorial-grid">
+              {section.cards.map((card, idx) => {
+                const locked = isCardLocked(TUTORIAL_HUB, sIdx, idx, done);
+                return (
+                  <HubCard
+                    key={card.id}
+                    card={card}
+                    index={idx}
+                    done={done}
+                    onPlay={onPlay}
+                    onReady={() => setReadyOpen(true)}
+                    locked={locked}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+      {tab === "codex" ? (
+        <p
+          className="muted"
+          style={{ marginTop: "0.75rem" }}>
+          Sandbox lessons teach the rules; the Build Your Army walkthrough is the
+          army builder.
+        </p>
+      ) : null}
+      {readyOpen ? (
+        <div className="choice-modal" onClick={() => setReadyOpen(false)}>
+          <div
+            className="choice-dialog kit-window"
+            role="dialog"
+            aria-label="To battle or to library?"
+            onClick={(event) => event.stopPropagation()}>
+            <h2>To battle or to library?</h2>
+            <div className="choice-options kit-table">
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  setReadyOpen(false);
+                  onBattle();
+                }}>
+                To Battle
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setReadyOpen(false);
+                  onTabChange("codex");
+                }}>
+                To Library
+              </button>
+            </div>
           </div>
-          <div className="tutorial-grid">
-            {section.cards.map((card, idx) => {
-              const locked = isCardLocked(TUTORIAL_HUB, sIdx, idx, done);
-              return (
-                <HubCard
-                  key={card.id}
-                  card={card}
-                  index={idx}
-                  done={done}
-                  onPlay={onPlay}
-                  locked={locked}
-                />
-              );
-            })}
-          </div>
-        </section>
-      ))}
-      <p
-        className="muted"
-        style={{ marginTop: "0.75rem" }}>
-        Sandbox lessons teach the rules; the Build Your Army walkthrough is the
-        army builder.
-      </p>
+        </div>
+      ) : null}
       <footer className="builder-footer">
         <button
           type="button"
           className="ghost sg-btn-row"
           onClick={onBack}>
-          <SgIconImg
-            name="back"
-            tone="cyan"
-            size={20}
-          />
+          <KitMark file="backward.png" />
           Back
         </button>
       </footer>
@@ -115,34 +184,42 @@ function cardCompleted(
   return done.has(card.id as TutorialId);
 }
 
+function chainCard(card: HubLessonCard): boolean {
+  return !card.placeholder && !card.cta;
+}
+
+/** Previous real lesson. CTA cards are skipped so they do not lock the Codex. */
+function previousChainCard(
+  hub: readonly HubSection[],
+  sIdx: number,
+  idx: number,
+): HubLessonCard | null {
+  const section = hub[sIdx]!;
+  for (let i = idx - 1; i >= 0; i--) {
+    const card = section.cards[i]!;
+    if (chainCard(card)) return card;
+  }
+  for (let s = sIdx - 1; s >= 0; s--) {
+    const cards = hub[s]!.cards;
+    for (let i = cards.length - 1; i >= 0; i--) {
+      const card = cards[i]!;
+      if (chainCard(card)) return card;
+    }
+  }
+  return null;
+}
+
 function isCardLocked(
   hub: readonly HubSection[],
   sIdx: number,
   idx: number,
   done: ReturnType<typeof loadCompletedLessons>,
 ): boolean {
-  const section = hub[sIdx]!;
-  const card = section.cards[idx];
+  const card = hub[sIdx]!.cards[idx]!;
   if (card.placeholder) return false;
-
-  if (idx > 0) {
-    const prev = section.cards[idx - 1]!;
-    if (prev.placeholder) return false;
-    if (!cardCompleted(prev, done)) return true;
-    return false;
-  }
-
-  if (sIdx === 0) return false;
-
-  let prevS = sIdx - 1;
-  while (prevS >= 0 && hub[prevS]!.cards.length === 0) prevS--;
-  if (prevS < 0) return false;
-  const prevCards = hub[prevS]!.cards;
-  for (let i = prevCards.length - 1; i >= 0; i--) {
-    const c = prevCards[i]!;
-    if (!c.placeholder) return !cardCompleted(c, done);
-  }
-  return false;
+  const prev = previousChainCard(hub, sIdx, idx);
+  if (!prev) return false;
+  return !cardCompleted(prev, done);
 }
 
 function HubCard({
@@ -150,26 +227,29 @@ function HubCard({
   index,
   done,
   onPlay,
+  onReady,
   locked,
 }: {
   card: HubLessonCard;
   index: number;
   done: ReturnType<typeof loadCompletedLessons>;
   onPlay: (id: TutorialId) => void;
+  onReady: () => void;
   locked: boolean;
 }) {
   const isRealLesson = !card.placeholder && PLAYABLE_IDS.has(card.id);
   const completed = cardCompleted(card, done);
   // Completed lessons stay playable (replay) even if the unlock chain is broken.
-  const blocked = card.placeholder || (locked && !completed) || !isRealLesson;
+  const blocked = card.placeholder || (locked && !completed) || (!isRealLesson && !card.cta);
   const onClick = () => {
     if (blocked) return;
-    onPlay(card.id as TutorialId);
+    if (card.cta) onReady();
+    else onPlay(card.id as TutorialId);
   };
   return (
     <button
       type="button"
-      className={`tutorial-card ${completed ? "done" : ""} ${card.placeholder ? "placeholder" : ""} ${locked && !completed ? "locked" : ""}`}
+      className={`tutorial-card ${card.cta ? "basic-complete-card tutorial-card-cta" : ""} ${completed ? "done" : ""} ${card.placeholder ? "placeholder" : ""} ${locked && !completed ? "locked" : ""}`}
       onClick={onClick}
       disabled={blocked}
       aria-disabled={blocked}>
@@ -190,7 +270,7 @@ function HubCard({
               />
               <span>Done</span>
             </em>
-          ) : card.placeholder || !isRealLesson ? (
+          ) : card.placeholder || (!isRealLesson && !card.cta) ? (
             <em className="tutorial-check placeholder-tag">
               <SgIconImg
                 name="lock"

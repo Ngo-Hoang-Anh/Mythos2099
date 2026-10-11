@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { CLASS_COLOR, UnitArt, UnitToken } from "./UnitToken";
 import { SquadArt } from "./SquadArt";
 import { ExplosionFx } from "./ExplosionFx";
-import { SgBrackets } from "./UiChrome";
-import { StatIcon } from "./icons";
+import { SgBrackets, sgIcon } from "./UiChrome";
+import { WhiteFlagIcon } from "./icons";
 import { boardFacingDeg, getUnitArt } from "../data/unitArt";
 import { getSquadArt, SQUAD_PROP_FADE_TOTAL_MS } from "../data/squadArt";
 import { getSpriteArt } from "../data/spriteArt";
@@ -40,6 +40,7 @@ import {
   HQ_COMEBACK_LOSS_STEPS,
   HQ_MAX_HP,
   nextHqBreakpoint,
+  playerHqMax,
   ROWS,
   type BoardPos,
   type CombatPhaseName,
@@ -256,6 +257,76 @@ const EMPTY_PLAY: PlayFx = {
 
 let explosionSeq = 0;
 
+const HQ_TILES = [
+  "B01", "B02", "B09", "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20",
+  "B21", "B22", "B23", "B24", "B25", "B26", "P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08",
+].map((name) => `/ui/hq-building-rng/${name}.png`);
+
+function shuffleTiles(items: string[]): string[] {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+function rollHqFace(): { outer: string[]; face: string[] } {
+  const picked = shuffleTiles(HQ_TILES);
+  return { face: picked.slice(0, 4), outer: picked.slice(4, 9) };
+}
+
+function HqFaceFlank({
+  player,
+  aimRef,
+}: {
+  player: 0 | 1;
+  aimRef: (el: HTMLElement | null) => void;
+}) {
+  const [layout] = useState(rollHqFace);
+  const faceTowardEnemy = player === 0;
+  const columns = faceTowardEnemy
+    ? [
+        { key: "outer", tiles: layout.outer, tall: true },
+        { key: "face", tiles: layout.face, tall: false },
+      ]
+    : [
+        { key: "face", tiles: layout.face, tall: false },
+        { key: "outer", tiles: layout.outer, tall: true },
+      ];
+  return (
+    <div
+      className={`hq-flank p${player}`}
+      aria-hidden
+      onDragOver={(event) => {
+        event.stopPropagation();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      <div className="hq-face">
+        {columns.map((col) => (
+          <div key={col.key} className={`hq-face-col ${col.tall ? "n5" : "n4"}`}>
+            {col.tiles.map((src) => (
+              <img key={src} className="hq-cell" src={src} alt="" draggable={false} />
+            ))}
+          </div>
+        ))}
+        <span className="hq-aim" ref={aimRef} />
+      </div>
+    </div>
+  );
+}
+
+function aimArcPath(from: Point, to: Point): string {
+  const lift = Math.min(110, Math.max(42, Math.hypot(to.x - from.x, to.y - from.y) * 0.35));
+  const mx = (from.x + to.x) / 2;
+  const my = (from.y + to.y) / 2 - lift;
+  return `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`;
+}
+
 export function BoardView({
   match,
   selectedIds,
@@ -266,6 +337,9 @@ export function BoardView({
   dropKind = null,
   fxQueue,
   fxStartBoard = null,
+  fxStartHq = null,
+  holdBoard = null,
+  holdHq = null,
   onFxDone,
   combatPlayback,
   combatSpeed = "detail",
@@ -275,6 +349,11 @@ export function BoardView({
   onSelectHq,
   onDropBoard,
   onDropCell,
+  viewer = 0,
+  onSurrender,
+  surrenderDisabled = false,
+  onToggleExit,
+  onRequestSurrender,
 }: {
   match: MatchState;
   selectedIds: string[];
@@ -287,6 +366,11 @@ export function BoardView({
   fxQueue: FxEvent[];
   /** Board before card-move FX resolved; keeps tokens from teleporting to final cells. */
   fxStartBoard?: (UnitInstance | null)[][] | null;
+  /** HQ before this FX batch; damage is applied when the shot lands. */
+  fxStartHq?: [number, number] | null;
+  /** Freeze the board on the pre-card snapshot while the opponent's card reveal plays. */
+  holdBoard?: (UnitInstance | null)[][] | null;
+  holdHq?: [number, number] | null;
   onFxDone: () => void;
   combatPlayback: CombatPlayback | null;
   combatSpeed?: "detail" | "quick";
@@ -296,10 +380,16 @@ export function BoardView({
   onSelectHq: (player: PlayerId) => void;
   onDropBoard?: (event: DragEvent) => void;
   onDropCell?: (col: number, row: number, event: DragEvent) => void;
+  viewer?: PlayerId;
+  onSurrender?: () => void;
+  surrenderDisabled?: boolean;
+  onToggleExit?: () => void;
+  onRequestSurrender?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hqRefs = useRef<Record<0 | 1, HTMLButtonElement | null>>({ 0: null, 1: null });
+  const hqArtRefs = useRef<Record<0 | 1, HTMLElement | null>>({ 0: null, 1: null });
   const visualRef = useRef<(UnitInstance | null)[][] | null>(null);
   const poseRef = useRef<Record<string, { hull: number; turret: number }>>({});
   const [visualBoard, setVisualBoard] = useState<(UnitInstance | null)[][] | null>(null);
@@ -320,6 +410,8 @@ export function BoardView({
   const boardAlive = useRef(true);
   const [pose, setPose] = useState<Record<string, { hull: number; turret: number }>>({});
   const [squadGround, setSquadGround] = useState<SquadGround>({ leftover: [], phase: {} });
+  const [missileAimId, setMissileAimId] = useState<string | null>(null);
+  const [missileArc, setMissileArc] = useState<{ from: Point; to: Point } | null>(null);
   const groundTimers = useRef<number[]>([]);
   poseRef.current = pose;
 
@@ -442,9 +534,47 @@ export function BoardView({
     preloadCombatFx();
   }, []);
 
-  const board = visualBoard ?? match.board;
-  const hq0 = visualHq ? visualHq[0] : match.players[0].hqHp;
-  const hq1 = visualHq ? visualHq[1] : match.players[1].hqHp;
+  const board = visualBoard ?? holdBoard ?? match.board;
+  const missileLocks = new Set<string>();
+  for (const unit of allUnits(board)) {
+    if (unit.hp <= 0 || !unit.missileTarget) continue;
+    missileLocks.add(`${unit.missileTarget.col}-${unit.missileTarget.row}`);
+  }
+
+  useLayoutEffect(() => {
+    const unit = missileAimId ? findUnit(board, missileAimId) : null;
+    const target = unit?.missileTarget;
+    const root = rootRef.current?.getBoundingClientRect();
+    if (!unit || !target || !root) {
+      setMissileArc(null);
+      return;
+    }
+    const from = parkPoint(unit.col, unit.row, root);
+    const to = centerOfCell(target, root);
+    setMissileArc(from && to ? { from, to } : null);
+  }, [missileAimId, board]);
+
+  useEffect(() => {
+    if (!missileAimId) return;
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType === "mouse") return;
+      const t = event.target;
+      if (t instanceof Element && t.closest(`[data-missile-aim="${missileAimId}"]`)) return;
+      setMissileAimId(null);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [missileAimId]);
+
+  function aimMissile(unitId: string, mode: "on" | "off" | "toggle") {
+    setMissileAimId((prev) => {
+      if (mode === "on") return unitId;
+      if (mode === "off") return prev === unitId ? null : prev;
+      return prev === unitId ? null : unitId;
+    });
+  }
+  const hq0 = visualHq ? visualHq[0] : holdHq ? holdHq[0] : match.players[0].hqHp;
+  const hq1 = visualHq ? visualHq[1] : holdHq ? holdHq[1] : match.players[1].hqHp;
 
   function pointOfTarget(to: FxTarget | { col: number; row: number }): Point | null {
     const root = rootRef.current?.getBoundingClientRect();
@@ -467,7 +597,7 @@ export function BoardView({
   }
 
   function centerOfHq(player: PlayerId, root: DOMRect): Point | null {
-    const el = hqRefs.current[player];
+    const el = hqArtRefs.current[player] ?? hqRefs.current[player];
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return { x: r.left - root.left + r.width / 2, y: r.top - root.top + r.height / 2 };
@@ -571,6 +701,46 @@ export function BoardView({
     return aislePoint(owner, node.row, root);
   }
 
+  /** Apply FX damage only after the projectile animation has reached the target. */
+  async function settleFxStrike(
+    event: Extract<FxEvent, { kind: "attack" }>,
+    wait: (ms: number) => Promise<unknown>,
+    cancelled: () => boolean,
+  ) {
+    const boardNow = visualRef.current;
+    if ("hq" in event.to) {
+      if (event.damage <= 0) return;
+      const player = event.to.hq;
+      setVisualHq((prev) => {
+        const next: [number, number] = prev
+          ? [...prev]
+          : fxStartHq
+            ? [...fxStartHq]
+            : [match.players[0].hqHp, match.players[1].hqHp];
+        next[player] = Math.max(0, next[player] - event.damage);
+        return next;
+      });
+      return;
+    }
+    if (boardNow && event.damage > 0) {
+      const shown = boardNow[event.to.col]?.[event.to.row];
+      if (shown) {
+        shown.hp = Math.max(0, shown.hp - event.damage);
+        bumpVisual();
+        if (shown.hp <= 0) await playDestroy(shown.instanceId, wait, cancelled, setPlay);
+        if (cancelled()) return;
+      }
+    }
+    if (event.kamikaze && boardNow) {
+      const shooter = findUnit(boardNow, event.unitId);
+      if (shooter && shooter.hp > 0) {
+        shooter.hp = 0;
+        bumpVisual();
+        await playDestroy(shooter.instanceId, wait, cancelled, setPlay);
+      }
+    }
+  }
+
   useEffect(() => {
     if (fxQueue.length === 0 || combatPlayback) {
       return;
@@ -578,9 +748,10 @@ export function BoardView({
     let cancelled = false;
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const moveEvents = fxQueue.filter((event): event is Extract<FxEvent, { kind: "move" }> => event.kind === "move");
+    const hasAttack = fxQueue.some((event) => event.kind === "attack");
     const movers = new Map<string, UnitInstance>();
 
-    if (moveEvents.length > 0) {
+    if (moveEvents.length > 0 || hasAttack) {
       const start = cloneBoard(fxStartBoard ?? match.board);
       for (const event of moveEvents) {
         const unit = findUnit(start, event.unitId);
@@ -590,6 +761,7 @@ export function BoardView({
       }
       visualRef.current = start;
       setVisualBoard(cloneBoard(start));
+      if (hasAttack && fxStartHq) setVisualHq([...fxStartHq]);
     }
 
     async function run() {
@@ -624,6 +796,8 @@ export function BoardView({
             originAt: liveFrom(event.unitId, event.from) ?? undefined,
             targetAt: liveTo(event.to) ?? undefined,
           });
+          if (cancelled) return;
+          await settleFxStrike(event, wait, () => cancelled);
         }
       }
       if (cancelled) return;
@@ -633,6 +807,7 @@ export function BoardView({
       clearAllPlay();
       visualRef.current = null;
       setVisualBoard(null);
+      setVisualHq(null);
       onFxDone();
     }
 
@@ -1345,7 +1520,7 @@ export function BoardView({
             ? emitMissileWake(p.missileWakes, missilePt, missileNose, DRONE_MISSILE_SCALE)
             : [],
       }));
-      await wait(missilePath ? Math.min(DRONE_STEP_MS, DRONE_MISSILE_STEP_MS) : DRONE_STEP_MS);
+      await wait(missilePath ? Math.max(DRONE_STEP_MS, DRONE_MISSILE_STEP_MS) : DRONE_STEP_MS);
       if (cancelled()) return;
       if (i >= lastFire + tracerTravel && (!missilePath || missileIdx >= missilePath.length - 1) && i >= steps - 1) break;
     }
@@ -1596,7 +1771,7 @@ export function BoardView({
           missileWakes: p.shot ? emitMissileWake(p.missileWakes, p.shot, p.shotAngle, 1) : emitMissileWake([], pt, nose, 1),
         }));
       }
-      await wait(missilePath ? Math.min(JET_STEP_MS, MISSILE_STEP_MS) : JET_STEP_MS);
+      await wait(missilePath ? Math.max(JET_STEP_MS, MISSILE_STEP_MS) : JET_STEP_MS);
       if (cancelled()) return;
     }
     return resolveShot(
@@ -2138,6 +2313,15 @@ export function BoardView({
       (async () => {
         await wait(plan.moves.length > 0 ? 260 : 80);
         if (cancelled()) return;
+        if (plan.locks.length > 0 && boardNow) {
+          for (const lock of plan.locks) {
+            const unit = findUnit(boardNow, lock.unitId);
+            if (unit) unit.missileTarget = { ...lock.to };
+          }
+          bumpVisual();
+          await wait(460);
+          if (cancelled()) return;
+        }
         await Promise.all(
           plan.missiles.map((strike, i) =>
             (async () => {
@@ -2238,6 +2422,13 @@ export function BoardView({
       await flashHqBreaks([step], wait, cancelled);
       return;
     }
+    if (step.kind === "missileLock" && boardNow) {
+      const unit = findUnit(boardNow, step.unitId);
+      if (unit) unit.missileTarget = { ...step.to };
+      bumpVisual();
+      await wait(460);
+      return;
+    }
     if (step.kind === "destroy") {
       await playDestroy(step.unitId, wait, cancelled, setPlay);
     }
@@ -2305,6 +2496,14 @@ export function BoardView({
             <SquadArt unitId={item.defId} facingDeg={item.facingDeg} deployed showSoldiers={false} showProps />
           </div>
         ))}
+        {missileLocks.has(`${col}-${row}`) ? (
+          <div className="missile-lock" aria-hidden>
+            <i className="arm n" />
+            <i className="arm e" />
+            <i className="arm s" />
+            <i className="arm w" />
+          </div>
+        ) : null}
         {unit ? (
           <UnitToken
             unit={unit}
@@ -2327,6 +2526,7 @@ export function BoardView({
                 : null
             }
             onClick={() => onSelectUnit(unit)}
+            onMissileAim={(mode) => aimMissile(unit.instanceId, mode)}
           />
         ) : (
           <span className="empty">{deployable ? "Drop here" : reachable ? "Move here" : ""}</span>
@@ -2347,6 +2547,7 @@ export function BoardView({
         onDropBoard?.(event);
       }}
     >
+      <SgBrackets />
       {phaseName && (
         <div className="combat-phase-banner">
           {PHASE_LABEL[phaseName]}
@@ -2355,7 +2556,13 @@ export function BoardView({
       )}
       <HqPillar
         player={0}
+        showSurrender={viewer === 0 && Boolean(onSurrender)}
+        surrenderDisabled={surrenderDisabled}
+        onSurrender={onSurrender}
+        onRequestSurrender={onRequestSurrender}
+        onToggleExit={onToggleExit}
         hp={hq0}
+        maxHp={playerHqMax(match.players[0])}
         triggered={match.players[0].triggeredBreakpoints}
         animating={visualHq !== null}
         crack={hqCrack?.player === 0}
@@ -2368,12 +2575,16 @@ export function BoardView({
           hqRefs.current[0] = el;
         }}
       />
+      <HqFaceFlank
+        player={0}
+        aimRef={(el) => {
+          hqArtRefs.current[0] = el;
+        }}
+      />
       <div className="grid-wrap">
-        <SgBrackets />
         <div className="board">
           {Array.from({ length: ROWS }, (_, row) => (
             <div className={`lane ${laneHl?.lane === row ? `hl-${laneHl.color}` : ""}`} key={row}>
-              <span className="lane-no">{row + 1}</span>
               {renderCell(0, row)}
               {renderCell(1, row)}
               <div className="lane-border" aria-hidden />
@@ -2383,9 +2594,20 @@ export function BoardView({
           ))}
         </div>
       </div>
+      <HqFaceFlank
+        player={1}
+        aimRef={(el) => {
+          hqArtRefs.current[1] = el;
+        }}
+      />
       <HqPillar
         player={1}
+        showSurrender={viewer === 1 && Boolean(onSurrender)}
+        surrenderDisabled={surrenderDisabled}
+        onSurrender={onSurrender}
+        onRequestSurrender={onRequestSurrender}
         hp={hq1}
+        maxHp={playerHqMax(match.players[1])}
         triggered={match.players[1].triggeredBreakpoints}
         animating={visualHq !== null}
         crack={hqCrack?.player === 1}
@@ -2398,6 +2620,11 @@ export function BoardView({
           hqRefs.current[1] = el;
         }}
       />
+      {missileArc ? (
+        <svg className="missile-arc" aria-hidden>
+          <path d={aimArcPath(missileArc.from, missileArc.to)} />
+        </svg>
+      ) : null}
       <div className="fx-layer" aria-hidden>
         {Object.entries(fxLayers).map(([layerId, layer]) => (
           <div key={layerId}>
@@ -2535,7 +2762,13 @@ export function BoardView({
 
 function HqPillar({
   player,
+  showSurrender,
+  surrenderDisabled,
+  onSurrender,
+  onRequestSurrender,
+  onToggleExit,
   hp,
+  maxHp,
   triggered,
   animating,
   crack,
@@ -2547,7 +2780,13 @@ function HqPillar({
   innerRef,
 }: {
   player: PlayerId;
+  showSurrender?: boolean;
+  surrenderDisabled?: boolean;
+  onSurrender?: () => void;
+  onRequestSurrender?: () => void;
+  onToggleExit?: () => void;
   hp: number;
+  maxHp: number;
   triggered: number[];
   animating: boolean;
   crack: boolean;
@@ -2558,40 +2797,51 @@ function HqPillar({
   onClick: () => void;
   innerRef: (el: HTMLButtonElement | null) => void;
 }) {
-  const pct = Math.max(0, Math.min(100, (hp / HQ_MAX_HP) * 100));
+  const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const nextBp = nextHqBreakpoint(hp, triggered);
   const note =
     crack && crackBps.length > 0
-      ? `HQ ${crackBps.join("/")} · comeback +1S/+1D each`
+      ? `Comeback +1 Supply · +1 Draw`
       : supplyBonus > 0 || drawBonus > 0
-        ? `Comeback next turn: +${supplyBonus} Supply, +${drawBonus} draw`
+        ? `+${supplyBonus} Supply · +${drawBonus} Draw`
         : null;
   return (
+    <div className={`hq-slot p${player}`}>
+    {player === 0 && onToggleExit ? (
+      <button
+        type="button"
+        className="match-back"
+        title="Leave match"
+        aria-label="Leave match"
+        onClick={onToggleExit}
+      >
+        <img src={sgIcon("back", "cyan")} alt="" width={22} height={22} draggable={false} />
+      </button>
+    ) : null}
     <button
       type="button"
       className={`hq ${active ? "active" : ""} ${crack ? "crack" : ""}`}
       data-tut={`hq-${player}`}
-      title={`HQ ${HQ_MAX_HP} HP. Comeback after losing ${HQ_COMEBACK_LOSS_STEPS.join("/")} HP (marks at ${HQ_BREAKPOINTS.join("/")} remaining). Reduce enemy HQ to 0 to win.`}
+      title={`HQ ${maxHp} HP. Comeback after losing ${HQ_COMEBACK_LOSS_STEPS.join("/")} HP (marks at ${HQ_BREAKPOINTS.join("/")} remaining). Reduce enemy HQ to 0 to win.`}
       onClick={onClick}
       ref={innerRef}
     >
-      <SgBrackets />
       <div className="hq-label">HQ P{player + 1}</div>
       <div className="hq-bar">
-        <div className="hq-fill" style={{ height: `${pct}%` }} />
+        <div className="hq-fill" style={{ width: `${pct}%` }} />
         {HQ_BREAKPOINTS.map((bp, i) => {
           const broken = triggered.includes(bp) && (!animating || hp <= bp);
           const isNext = nextBp === bp;
           const lossStep = HQ_COMEBACK_LOSS_STEPS[i] ?? HQ_MAX_HP - bp;
+          const at = `${(bp / maxHp) * 100}%`;
           return (
             <span
               key={bp}
               className={`hq-mark ${broken ? "broken" : ""} ${isNext ? "next" : ""} ${crackBps.includes(bp) ? "flash" : ""}`}
-              style={{ bottom: `${(bp / HQ_MAX_HP) * 100}%` }}
+              style={player === 1 ? { right: at, left: "auto" } : { left: at }}
               data-tut={isNext ? `hq-bp-${player}` : undefined}
               title={`Comeback mark at ${bp} HQ (after losing ${lossStep} more from the previous mark)`}
             >
-              <StatIcon name="armor" size={14} />
               <em className="hq-bp-num">{bp}</em>
             </span>
           );
@@ -2600,5 +2850,17 @@ function HqPillar({
       <div className="hq-hp">{hp}</div>
       {note ? <div className="hq-break-note">{note}</div> : null}
     </button>
+    {showSurrender ? (
+      <button
+        type="button"
+        className="surrender-flag"
+        disabled={surrenderDisabled}
+        title="Surrender"
+        onClick={() => (onRequestSurrender ? onRequestSurrender() : onSurrender?.())}
+      >
+        <WhiteFlagIcon />
+      </button>
+    ) : null}
+    </div>
   );
 }

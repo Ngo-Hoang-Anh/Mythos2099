@@ -20,6 +20,7 @@ import {
   type InitiativeChoice,
   type MatchState,
   type PlayTargets,
+  type CombatPlayback,
   type PlayerId,
   type TargetKind,
   type UnitInstance,
@@ -29,14 +30,22 @@ import { EnemyDeckTracker, OwnDeckTracker } from "./DeckTracker";
 import { HandView } from "./HandView";
 import { MobileHandView } from "../mobile/MobileHandView";
 import { resolvePointerDropZone } from "../mobile/pointerCardDrag";
-import { RecycleIcon, SupplyIcon, WhiteFlagIcon } from "./icons";
-import { SgIconBtn, sgButton } from "./UiChrome";
+import { RecycleIcon, SupplyIcon } from "./icons";
+import { KitIconBtn, kitAsset, kitButton } from "./UiChrome";
 import { UnitCardPills } from "./CardTip";
 import { LogView } from "./LogView";
 import { UnitKeywords, UnitPortrait } from "./UnitToken";
 import { UnitDetailDialog, type UnitDetailTarget } from "./UnitDetailDialog";
 import { AnchoredPanel } from "./AnchoredTip";
 import { heldPlaybackAfterState } from "./combatPlayback";
+import {
+  OPPONENT_CARD_FLY_MS,
+  OPPONENT_CARD_PAUSE_MS,
+  OpponentCardReveal,
+  opponentSidePoint,
+  stageCenterPoint,
+} from "./OpponentCardReveal";
+import { opponentCardPlay } from "./opponentCardPlay";
 import { onPageHidden } from "./pageVisibility";
 import { allowDrop, centerOf, readDrag, type DragKind, type DragPayload } from "./dnd";
 import {
@@ -203,6 +212,26 @@ function drawnForViewer(prev: MatchState, next: MatchState, viewer: PlayerId): s
     .map((card) => card.name);
 }
 
+type CardNotice = {
+  card: CardInstance;
+  actor: PlayerId;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  board: (UnitInstance | null)[][] | null;
+  hq: [number, number] | null;
+};
+
+type PendingResolution = {
+  card: CardInstance;
+  actor: PlayerId;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  fx: FxEvent[];
+  board: (UnitInstance | null)[][];
+  hq: [number, number];
+  combat: CombatPlayback | null;
+};
+
 export function MatchView({
   match,
   you,
@@ -214,10 +243,14 @@ export function MatchView({
   onContinueAi,
   onClearError,
   onExit,
+  onRetry,
+  onLearnMore,
   onSurrender,
   onTutorialHud,
   /** `/m` only — pointer-drag cards. Desktop App must omit (HTML5 DnD unchanged). */
   pointerCardDrag = false,
+  /** Hotseat shares one screen, so the person across the table must see both seats' cards. */
+  showOwnCardPlays = false,
 }: {
   match: MatchState;
   you: PlayerId;
@@ -229,28 +262,35 @@ export function MatchView({
   onContinueAi?: () => void;
   onClearError: () => void;
   onExit: () => void;
+  onRetry?: () => void;
+  onLearnMore?: () => void;
   onSurrender?: () => void;
   onTutorialHud?: (hud: TutorialHud) => void;
   pointerCardDrag?: boolean;
+  showOwnCardPlays?: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<TargetDraft | null>(null);
   const [initiativeCard, setInitiativeCard] = useState<CardInstance | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [confirm, setConfirm] = useState<null | "lobby" | "surrender">(null);
   const [ownTrackerOpen, setOwnTrackerOpen] = useState(false);
   const [enemyTrackerOpen, setEnemyTrackerOpen] = useState(false);
-  const [combatSpeed, setCombatSpeed] = useState<"detail" | "quick">(loadCombatSpeed);
-  const [speedFlash, setSpeedFlash] = useState<"detail" | "quick" | null>(null);
+  const [combatSpeed] = useState<"detail" | "quick">(loadCombatSpeed);
   const [reserveOpen, setReserveOpen] = useState(false);
   const [pendingDeploy, setPendingDeploy] = useState<number | null>(null);
   const [desperateDiscards, setDesperateDiscards] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [fxQueue, setFxQueue] = useState<FxEvent[]>([]);
   const [fxStartBoard, setFxStartBoard] = useState<(UnitInstance | null)[][] | null>(null);
+  const [fxStartHq, setFxStartHq] = useState<[number, number] | null>(null);
+  /** FX batch whose flight has finished. Win/lose stays hidden until this matches match.fx. */
+  const [settledFx, setSettledFx] = useState<FxEvent[] | null>(null);
   const [dropKind, setDropKind] = useState<DragKind | null>(null);
   const [flight, setFlight] = useState<{ name: string; x: number; y: number } | null>(null);
   const [heldPlayback, setHeldPlayback] = useState(match.combatPlayback);
   const [inspect, setInspect] = useState<UnitDetailTarget | null>(null);
+  const [cardNotice, setCardNotice] = useState<CardNotice | null>(null);
 
   const finishingCombat = useRef(false);
   const dragRef = useRef<DragPayload | null>(null);
@@ -260,13 +300,18 @@ export function MatchView({
   const enemyTrackerPanelRef = useRef<HTMLDivElement>(null);
   const handDockRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const speedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevMatchRef = useRef(match);
   const pendingFlight = useRef<{
     discardName?: string;
     discardNames?: string[];
     discardFrom: { x: number; y: number } | null;
   } | null>(null);
+  const pendingResolution = useRef<PendingResolution | null>(null);
+  const cardQueue = useRef<PendingResolution[]>([]);
+  const queuedMatch = useRef<MatchState | null>(null);
+  const revealActive = useRef(false);
+  const revealToken = useRef(0);
+  const blockPlayback = useRef(false);
 
   const viewer = you;
   const player = match.players[viewer];
@@ -284,7 +329,43 @@ export function MatchView({
       : false;
   const committedMove = targetingSeq && !seqStuck;
 
+  const announcedPlay =
+    prevMatchRef.current !== match
+      ? opponentCardPlay(prevMatchRef.current, match, viewer, { includeSelf: showOwnCardPlays })
+      : null;
+  if (announcedPlay && queuedMatch.current !== match) {
+    queuedMatch.current = match;
+    const snapshot = prevMatchRef.current;
+    const board = cloneBoard(snapshot.board);
+    const hq: [number, number] = [snapshot.players[0].hqHp, snapshot.players[1].hqHp];
+    const item: PendingResolution = {
+      card: announcedPlay.card,
+      actor: announcedPlay.actor,
+      from: opponentSidePoint(announcedPlay.actor, stageRef.current),
+      to: stageCenterPoint(stageRef.current),
+      fx: match.fx,
+      board,
+      hq,
+      combat: match.combatPlayback,
+    };
+    blockPlayback.current = true;
+    if (!cardNotice && cardQueue.current.length === 0 && !revealActive.current) {
+      pendingResolution.current = item;
+      setCardNotice({
+        card: item.card,
+        actor: item.actor,
+        from: item.from,
+        to: item.to,
+        board: item.board,
+        hq: item.hq,
+      });
+    } else {
+      cardQueue.current.push(item);
+    }
+  }
+
   useEffect(() => {
+    if (blockPlayback.current) return;
     setHeldPlayback((prev) => {
       const next = heldPlaybackAfterState(prev, match.combatPlayback ?? null);
       if (next.resetAck) finishingCombat.current = false;
@@ -334,18 +415,13 @@ export function MatchView({
   }, [ownTrackerOpen, enemyTrackerOpen]);
 
   useEffect(() => {
-    return () => {
-      if (speedFlashTimer.current) clearTimeout(speedFlashTimer.current);
-    };
-  }, []);
-
-  useEffect(() => {
     const prev = prevMatchRef.current;
     if (prev === match) return;
     const flightInfo = pendingFlight.current;
     pendingFlight.current = null;
     const drawnNames = drawnForViewer(prev, match, viewer);
-    const holdBusy = match.fx.length > 0 || Boolean(match.combatPlayback);
+    const play = opponentCardPlay(prev, match, viewer, { includeSelf: showOwnCardPlays });
+    const holdBusy = Boolean(play) || match.fx.length > 0 || Boolean(match.combatPlayback);
     prevMatchRef.current = match;
     if (flightInfo?.discardName || flightInfo?.discardNames?.length || drawnNames.length > 0) {
       playHandFlight({
@@ -356,18 +432,53 @@ export function MatchView({
         holdBusy,
       });
     }
+    if (play || blockPlayback.current) {
+      setBusy(true);
+      return;
+    }
     if (match.combatPlayback) {
       setFxQueue([]);
       setFxStartBoard(null);
+      setFxStartHq(null);
       setBusy(true);
     } else if (match.fx.length > 0) {
       setFxQueue(match.fx);
       setFxStartBoard(cloneBoard(prev.board));
+      setFxStartHq([prev.players[0].hqHp, prev.players[1].hqHp]);
       setBusy(true);
     } else {
       setBusy(false);
     }
-  }, [match, viewer]);
+  }, [match, viewer, showOwnCardPlays]);
+
+  useEffect(() => {
+    if (!cardNotice) return;
+    revealActive.current = true;
+    blockPlayback.current = true;
+    const token = ++revealToken.current;
+    setBusy(true);
+    const timer = window.setTimeout(() => {
+      if (revealToken.current !== token) return;
+      const pending = pendingResolution.current;
+      if (!pending) return;
+      if (pending.combat) {
+        setFxQueue([]);
+        setFxStartBoard(null);
+        setFxStartHq(null);
+        setHeldPlayback(pending.combat);
+        return;
+      }
+      if (pending.fx.length > 0) {
+        setFxQueue(pending.fx);
+        setFxStartBoard(pending.board);
+        setFxStartHq(pending.hq);
+        return;
+      }
+      releaseCardHold();
+      window.setTimeout(() => finishCardReveal(token, false), OPPONENT_CARD_PAUSE_MS);
+    }, OPPONENT_CARD_FLY_MS + OPPONENT_CARD_PAUSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [cardNotice?.card.instanceId]);
 
   useEffect(() => {
     if (!pendingDeploy) {
@@ -393,9 +504,39 @@ export function MatchView({
       targetingTemplateId: draft?.card.templateId ?? (initiativeCard ? initiativeCard.templateId : null),
       targetingPickedUnits: draft?.unitIds.length ?? 0,
       initiativeOpen: Boolean(initiativeCard),
-      animating: Boolean(heldPlayback) || busy,
+      animating: Boolean(heldPlayback) || busy || Boolean(cardNotice),
     });
-  }, [reserveOpen, pendingDeploy, draft, initiativeCard, heldPlayback, busy, onTutorialHud]);
+  }, [reserveOpen, pendingDeploy, draft, initiativeCard, heldPlayback, busy, cardNotice, onTutorialHud]);
+
+  function releaseCardHold() {
+    setCardNotice((notice) => (notice ? { ...notice, board: null, hq: null } : notice));
+  }
+
+  function finishCardReveal(token: number, ackCombat: boolean) {
+    if (revealToken.current !== token) return;
+    const next = cardQueue.current.shift();
+    if (next) {
+      pendingResolution.current = next;
+      revealActive.current = true;
+      blockPlayback.current = true;
+      setCardNotice({
+        card: next.card,
+        actor: next.actor,
+        from: next.from,
+        to: next.to,
+        board: next.board,
+        hq: next.hq,
+      });
+      setBusy(true);
+    } else {
+      revealActive.current = false;
+      blockPlayback.current = false;
+      pendingResolution.current = null;
+      setCardNotice(null);
+      setBusy(false);
+    }
+    if (ackCombat) finishCombat();
+  }
 
   function waitMs(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -746,50 +887,36 @@ export function MatchView({
           ? desperateNeed > 0
             ? `Click an empty Support cell to summon ${pendingDef.name} (−${desperateNeed / 2} cost from discards)`
             : `Click an empty Support cell to summon ${pendingDef.name}`
-          : waitingText
-            ? waitingText
-            : match.winner !== null
-              ? match.winReason === "surrender"
-                ? `P${match.winner + 1} wins — opponent surrendered.`
-                : match.winReason === "elimination"
-                  ? `P${match.winner + 1} wins — opponent has no forces left.`
-                  : `P${match.winner + 1} wins — enemy HQ destroyed.`
+            : waitingText
+              ? waitingText
               : null;
-  const dialogTone =
-    draft || pendingDef ? "play" : shownError ? "error" : match.winner !== null ? "win" : "info";
+  const dialogTone = draft || pendingDef ? "play" : shownError ? "error" : "info";
+  const viewerWon = match.winner === viewer;
+  const fxInFlight = (match.fx.length > 0 && settledFx !== match.fx) || fxQueue.length > 0;
+  const combatInFlight = Boolean(heldPlayback || match.combatPlayback);
+  const endReason =
+    match.winner === null
+      ? null
+      : match.winReason === "surrender"
+        ? `P${match.winner + 1} wins — opponent surrendered.`
+        : match.winReason === "elimination"
+          ? `P${match.winner + 1} wins — opponent has no forces left.`
+          : `P${match.winner + 1} wins — enemy HQ destroyed.`;
   const canSurrender = Boolean(onSurrender) && match.winner === null;
-  const surrenderBtn = canSurrender ? (
-    <button
-      type="button"
-      className="surrender-flag"
-      disabled={Boolean(heldPlayback) || waitingForCombatAck}
-      title="Surrender"
-      onClick={() => {
-        if (window.confirm("Surrender this match?")) onSurrender?.();
-      }}
-    >
-      <WhiteFlagIcon />
-    </button>
-  ) : null;
 
   return (
     <div className="match">
-      <SgIconBtn
-        name="close"
-        tone="gold"
-        className="round-btn exit-btn sg-exit"
-        title="Leave match (can rejoin)"
-        onClick={onExit}
-        size={44}
-      />
-
+      {cardNotice && (
+        <OpponentCardReveal
+          card={cardNotice.card}
+          actor={cardNotice.actor}
+          viewer={viewer}
+          vsAi={vsAi}
+          from={cardNotice.from}
+          to={cardNotice.to}
+        />
+      )}
       <div className="hq-strip">
-        <div className="hq-side">
-          {viewer === 0 ? surrenderBtn : null}
-          <span>
-            HQ P1 <b>{match.players[0].hqHp}</b>
-          </span>
-        </div>
         <div className="phase-track" data-tut="phase">
           <em>Turn {match.turn}</em>
           {TURN_PHASES.map((phase) => (
@@ -797,12 +924,6 @@ export function MatchView({
               {PHASE_LABEL[phase]}
             </span>
           ))}
-        </div>
-        <div className="hq-side hq-side-end">
-          <span>
-            HQ P2 <b>{match.players[1].hqHp}</b>
-          </span>
-          {viewer === 1 ? surrenderBtn : null}
         </div>
       </div>
 
@@ -820,6 +941,42 @@ export function MatchView({
             {dialogText}
           </div>
         )}
+        {endReason && !combatInFlight && !fxInFlight && (
+          <div className={`match-end ${viewerWon ? "win" : "lose"}`} role="dialog" aria-label={viewerWon ? "You win" : "You lose"}>
+            <div className="match-end-window kit-window">
+              <img
+                className="match-end-title"
+                src={kitAsset(viewerWon ? "win.png" : "lose.png")}
+                alt={viewerWon ? "You win" : "You lose"}
+              />
+              <div className="match-end-stars" aria-hidden>
+                <img src={kitAsset("star-01.png")} alt="" />
+                <img src={kitAsset("star-02.png")} alt="" />
+                <img src={kitAsset("star-03.png")} alt="" />
+              </div>
+              <p className="match-end-reason">{endReason}</p>
+              <div className="match-end-actions">
+                {!viewerWon && onRetry ? (
+                  <button type="button" className="primary" onClick={onRetry}>
+                    Try again
+                  </button>
+                ) : null}
+                {!viewerWon && onLearnMore ? (
+                  <button type="button" className="secondary" onClick={onLearnMore}>
+                    Learn more
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={viewerWon || !onRetry ? "primary" : "secondary"}
+                  onClick={onExit}
+                >
+                  To Lobby
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <BoardView
           match={match}
           selectedIds={selectedIds}
@@ -830,21 +987,78 @@ export function MatchView({
           dropKind={dropKind}
           fxQueue={fxQueue}
           fxStartBoard={fxStartBoard}
+          fxStartHq={fxStartHq}
+          holdBoard={cardNotice?.board ?? null}
+          holdHq={cardNotice?.hq ?? null}
           onFxDone={() => {
-            setBusy(false);
             setFxQueue([]);
             setFxStartBoard(null);
+            setFxStartHq(null);
+            setSettledFx(match.fx);
+            if (revealActive.current) {
+              releaseCardHold();
+              const token = revealToken.current;
+              window.setTimeout(() => finishCardReveal(token, false), OPPONENT_CARD_PAUSE_MS);
+              return;
+            }
+            setBusy(false);
           }}
           combatPlayback={heldPlayback}
           combatSpeed={combatSpeed}
-          onCombatDone={finishCombat}
+          onCombatDone={() => {
+            if (!revealActive.current) {
+              finishCombat();
+              return;
+            }
+            const token = revealToken.current;
+            window.setTimeout(() => {
+              if (revealToken.current !== token) return;
+              finishCardReveal(token, true);
+            }, OPPONENT_CARD_PAUSE_MS);
+          }}
           onSelectUnit={onSelectUnit}
           onSelectCell={onSelectCell}
           onSelectHq={onSelectHq}
           onDropBoard={onDropBoard}
           onDropCell={onDropCell}
+          viewer={viewer}
+          onSurrender={canSurrender ? onSurrender : undefined}
+          surrenderDisabled={Boolean(heldPlayback) || waitingForCombatAck}
+          onToggleExit={() => setConfirm("lobby")}
+          onRequestSurrender={() => setConfirm("surrender")}
         />
       </div>
+
+      {confirm ? (
+        <div className="confirm-overlay" onClick={() => setConfirm(null)}>
+          <div
+            className="confirm-dialog kit-window"
+            role="dialog"
+            aria-modal="true"
+            aria-label={confirm === "lobby" ? "Return to Lobby?" : "Surrender?"}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p>{confirm === "lobby" ? "Return to Lobby?" : "Surrender?"}</p>
+            <div className="confirm-actions">
+              <button type="button" className="secondary" onClick={() => setConfirm(null)}>
+                No
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const kind = confirm;
+                  setConfirm(null);
+                  if (kind === "lobby") onExit();
+                  else onSurrender?.();
+                }}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {logOpen && (
         <aside className="log-float near-deck">
@@ -863,7 +1077,7 @@ export function MatchView({
           }}
           title="Cancel"
         >
-          <img src={sgButton("close", "cyan")} alt="" width={40} height={40} draggable={false} />
+          <img src={kitButton("close")} alt="" width={40} height={40} draggable={false} />
           Cancel
         </button>
       )}
@@ -886,7 +1100,7 @@ export function MatchView({
           }}
           title="Finish move early"
         >
-          <img src={sgButton("check", "gold")} alt="" width={40} height={40} draggable={false} />
+          <img src={kitButton("ok")} alt="" width={40} height={40} draggable={false} />
           Done
         </button>
       )}
@@ -1002,37 +1216,6 @@ export function MatchView({
         <div className="deck-cluster">
           <div className="deck-actions">
             <div className="phase-advance">
-              <div className="speed-slot">
-                <button
-                  type="button"
-                  className={`round-btn icon-btn speed ${combatSpeed}`}
-                  aria-label={combatSpeed === "quick" ? "Quick engagement" : "Detail engagement"}
-                  title={
-                    combatSpeed === "quick"
-                      ? "Quick engagement — units move and fire together"
-                      : "Detail engagement — phase by phase"
-                  }
-                  onClick={() => {
-                    setCombatSpeed((prev) => {
-                      const next = prev === "quick" ? "detail" : "quick";
-                      try {
-                        localStorage.setItem(COMBAT_SPEED_KEY, next);
-                      } catch {
-                        /* ignore quota / private mode */
-                      }
-                      if (speedFlashTimer.current) clearTimeout(speedFlashTimer.current);
-                      setSpeedFlash(next);
-                      speedFlashTimer.current = setTimeout(() => setSpeedFlash(null), 900);
-                      return next;
-                    });
-                  }}
-                />
-                {speedFlash && (
-                  <em className="speed-flash" aria-live="polite">
-                    {speedFlash === "quick" ? "Speed x2" : "Speed"}
-                  </em>
-                )}
-              </div>
               <div className="phase-pass">
                 <span className="phase-advance-label">{phaseAdvanceLabel(match)}</span>
                 <button
@@ -1041,10 +1224,10 @@ export function MatchView({
                   data-tut="hourglass"
                   disabled={locked || committedMove || (match.phase !== "deployment" && match.phase !== "maneuver")}
                   title={`Go to ${PHASE_LABEL[nextPhaseOf(match)]}`}
+                  aria-label={`Go to ${PHASE_LABEL[nextPhaseOf(match)]}`}
                   onClick={() => act({ type: match.phase === "deployment" ? "endDeployment" : "endManeuver" })}
-                >
-                  <span>{PHASE_LABEL[nextPhaseOf(match)]}</span>
-                </button>
+                />
+                <span className="phase-next-name">{PHASE_LABEL[nextPhaseOf(match)]}</span>
               </div>
             </div>
           </div>
@@ -1082,7 +1265,7 @@ export function MatchView({
                     anchorRef={enemyDeckRef}
                     panelRef={enemyTrackerPanelRef}
                     prefer="above"
-                    maxWidth={260}
+                    maxWidth={480}
                   >
                     <EnemyDeckTracker player={match.players[viewer === 0 ? 1 : 0]} />
                   </AnchoredPanel>
@@ -1133,7 +1316,7 @@ export function MatchView({
                   anchorRef={deckRef}
                   panelRef={ownTrackerPanelRef}
                   prefer="above"
-                  maxWidth={320}
+                  maxWidth={480}
                 >
                   <OwnDeckTracker player={player} />
                 </AnchoredPanel>
@@ -1148,14 +1331,14 @@ export function MatchView({
       {initiativeCard && (
         <div className="choice-modal" onClick={() => setInitiativeCard(null)}>
           <div
-            className="choice-dialog"
+            className="choice-dialog kit-window"
             role="dialog"
             aria-label={INITIATIVE_CARD_NAME}
             onClick={(event) => event.stopPropagation()}
           >
             <h2>{INITIATIVE_CARD_NAME}</h2>
             <p>Second player — choose one:</p>
-            <div className="choice-options">
+            <div className="choice-options kit-table">
               <button type="button" className="primary" onClick={() => pickInitiative("move")} data-tut="initiative-forward">
                 Move 1 unit (any direction)
               </button>
@@ -1163,10 +1346,10 @@ export function MatchView({
                 Gain 1 Supply
               </button>
               <button type="button" className="primary" onClick={() => pickInitiative("nextSupply")} data-tut="initiative-next-supply">
-                +1 Supply next Deployment
+                Gain 2 Supply at the start of your next Deployment
               </button>
             </div>
-            <SgIconBtn name="close" tone="cyan" title="Cancel" onClick={() => setInitiativeCard(null)} size={40} />
+            <KitIconBtn name="close" title="Cancel" onClick={() => setInitiativeCard(null)} size={44} />
           </div>
         </div>
       )}
@@ -1174,7 +1357,7 @@ export function MatchView({
       {reserveOpen && (
         <div className="reserve-modal" onClick={() => setReserveOpen(false)}>
           <div
-            className="reserve-dialog"
+            className="reserve-dialog kit-window"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-label="Reserved units"
@@ -1188,9 +1371,9 @@ export function MatchView({
                     : "Click a unit you can afford with Supply, then click an empty Support cell."
                   : "View only — summon during Deployment."}
               </p>
-              <SgIconBtn name="close" tone="gold" title="Close" onClick={() => setReserveOpen(false)} size={40} />
+              <KitIconBtn name="close" title="Close" onClick={() => setReserveOpen(false)} size={44} />
             </header>
-            <div className="reserve-row">
+            <div className="reserve-row kit-table alt">
               {visibleReserve.map((id) => {
                 const def = getUnitDef(id);
                 const handCount = visibleHand.length;
@@ -1204,9 +1387,10 @@ export function MatchView({
                     (showDesperateHint &&
                       canAffordDeploy(def.cost, player.commandPoints, handCount)));
                 return (
-                  <button
+                  <div
                     key={id}
-                    type="button"
+                    role="button"
+                    tabIndex={canSummon ? 0 : undefined}
                     className={`reserve-chip ${pendingDeploy === id ? "on" : ""} ${canSummon ? "" : "no-pick"}`}
                     data-tut={`reserve-unit-${id}`}
                     title={
@@ -1225,8 +1409,23 @@ export function MatchView({
                             ? `Need ${need} cards in hand to cover cost`
                             : undefined
                     }
-                    onClick={() => {
+                    onClick={(event) => {
                       if (!canSummon) return;
+                      const target = event.target;
+                      if (
+                        target instanceof Element &&
+                        target.closest(".kw-chip, .unit-card-pill")
+                      ) {
+                        return;
+                      }
+                      setPendingDeploy(id);
+                      setDesperateDiscards([]);
+                      setReserveOpen(false);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!canSummon) return;
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
                       setPendingDeploy(id);
                       setDesperateDiscards([]);
                       setReserveOpen(false);
@@ -1252,7 +1451,7 @@ export function MatchView({
                       <UnitKeywords keywords={def.keywords} unitId={def.id} />
                       <UnitCardPills cards={def.cards} facing={viewer} sourceName={def.name} />
                     </span>
-                  </button>
+                  </div>
                 );
               })}
               {visibleReserve.length === 0 && <p className="muted">No reserved units.</p>}

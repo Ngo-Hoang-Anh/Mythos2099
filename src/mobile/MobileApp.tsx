@@ -20,6 +20,7 @@ export function MobileApp() {
   const session = useGameSession();
   const [intent, setIntent] = useState<ArmyIntent | null>(null);
   const [tutorial, setTutorial] = useState<"hub" | TutorialId | null>(null);
+  const [hubTab, setHubTab] = useState<"tutorial" | "codex">("tutorial");
   useEffect(() => {
     if (session.match || session.waitingForPeer) setIntent(null);
   }, [session.match, session.waitingForPeer]);
@@ -53,7 +54,19 @@ export function MobileApp() {
       />
     );
   } else if (tutorial === "hub") {
-    body = <TutorialHub onPlay={(id) => setTutorial(id)} onBack={() => setTutorial(null)} />;
+    body = (
+      <TutorialHub
+        tab={hubTab}
+        onTabChange={setHubTab}
+        onPlay={(id) => setTutorial(id)}
+        onBack={() => setTutorial(null)}
+        onBattle={() => {
+          setTutorial(null);
+          setIntent({ kind: "create", mode: "ai" });
+          if (!session.username) void session.playAsGuest();
+        }}
+      />
+    );
   } else if (!session.username) {
     body = (
       <MobileAuthView
@@ -62,7 +75,10 @@ export function MobileApp() {
         onLogin={(username, password) => void session.login(username, password)}
         onRegister={(username, password) => void session.register(username, password)}
         onGuest={() => void session.playAsGuest()}
-        onTutorial={() => setTutorial("hub")}
+        onTutorial={() => {
+          setHubTab("tutorial");
+          setTutorial("hub");
+        }}
       />
     );
   } else if (session.match) {
@@ -71,6 +87,7 @@ export function MobileApp() {
         match={session.match}
         you={session.you}
         vsAi={session.mode === "ai"}
+        showOwnCardPlays={session.mode === "hotseat"}
         waitingForCombatAck={session.waitingForCombatAck}
         peerConnected={session.peerConnected}
         actionError={session.error}
@@ -78,6 +95,12 @@ export function MobileApp() {
         onContinueAi={session.continueAi}
         onClearError={session.clearError}
         onExit={session.exitToLobby}
+        onRetry={session.canRetry ? session.retryMatch : undefined}
+        onLearnMore={() => {
+          session.exitToLobby();
+          setHubTab("codex");
+          setTutorial("hub");
+        }}
         onSurrender={() => session.sendAction({ type: "surrender" })}
         pointerCardDrag
       />
@@ -118,12 +141,12 @@ export function MobileApp() {
           setIntent(null);
           session.clearError();
         }}
-        onConfirm={({ p1, p2 }) => {
+        onConfirm={({ p1, p2, aiDifficulty }) => {
           if (intent.kind === "join") {
             session.joinMatch(intent.roomId, p2);
             return;
           }
-          session.createMatch(intent.mode, p1, intent.mode === "pvp" ? undefined : p2);
+          session.createMatch(intent.mode, p1, intent.mode === "pvp" ? undefined : p2, aiDifficulty);
         }}
       />
     );
@@ -146,7 +169,10 @@ export function MobileApp() {
         onResume={() => session.rejoin()}
         onReconnect={() => session.reconnect()}
         onLogout={() => session.logout()}
-        onTutorial={() => setTutorial("hub")}
+        onTutorial={() => {
+          setHubTab("tutorial");
+          setTutorial("hub");
+        }}
       />
     );
   }

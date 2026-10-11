@@ -7,6 +7,7 @@ import { TankArt } from "./TankArt";
 import { SquadArt } from "./SquadArt";
 import { SpriteArt } from "./SpriteArt";
 import { parkedHullDeg, usesDriveRig } from "./movePath";
+import { isMobileShellUi } from "./tipExclusive";
 import {
   ApChip,
   ArmorChip,
@@ -94,10 +95,25 @@ export function UnitArt({
   );
 }
 
+function BoardHpMeter({ hp, maxHp, tut }: { hp: number; maxHp?: number; tut?: string }) {
+  const pct = maxHp && maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : hp > 0 ? 100 : 0;
+  const label = maxHp != null ? `HP ${hp}/${maxHp}` : `HP ${hp}`;
+  return (
+    <div className="unit-hp-meter" data-tut={tut} title={label} aria-label={label}>
+      <div className="unit-hp-frame" />
+      <div className="unit-hp-track">
+        <div className="unit-hp-fill" style={{ ["--hp-cut" as string]: `${100 - pct}%` }} />
+      </div>
+      <span className="unit-hp-num">{hp}</span>
+    </div>
+  );
+}
+
 export function UnitPortrait({
   name,
   unitClass,
   compact,
+  boardMeter = false,
   cost,
   hp,
   maxHp,
@@ -115,6 +131,7 @@ export function UnitPortrait({
   name: string;
   unitClass: UnitClass;
   compact?: boolean;
+  boardMeter?: boolean;
   cost: number;
   hp: number;
   maxHp?: number;
@@ -142,14 +159,20 @@ export function UnitPortrait({
         running={running}
         showProps={showProps}
       />
-      <div className="port-tl">
-        {cost > 0 ? <SupplyChip value={cost} /> : null}
-      </div>
+      {boardMeter ? (
+        <BoardHpMeter hp={hp} maxHp={maxHp} tut={unitId ? `hp-${unitId}` : undefined} />
+      ) : (
+        <>
+          <div className="port-tl">
+            {cost > 0 ? <SupplyChip value={cost} /> : null}
+          </div>
+          <div className="port-bl" data-tut={unitId ? `hp-${unitId}` : undefined}>
+            <HpChip value={hp} max={maxHp} />
+          </div>
+        </>
+      )}
       <div className="port-tr">
         {armor > 0 ? <ArmorChip value={armor} tut={unitId ? `armor-${unitId}` : undefined} /> : null}
-      </div>
-      <div className="port-bl" data-tut={unitId ? `hp-${unitId}` : undefined}>
-        <HpChip value={hp} max={maxHp} />
       </div>
       <div className="port-br" data-tut={unitId ? `atk-${unitId}` : undefined}>
         {ap > 0 ? <ApChip value={ap} tut={unitId ? `ap-${unitId}` : undefined} /> : null}
@@ -164,12 +187,17 @@ export function UnitKeywords({
   size = KEYWORD_ICON_SIZE,
   unitId,
   boosted,
+  missileAimId,
+  onMissileAim,
 }: {
   keywords: Keyword[];
   size?: number;
   unitId?: number;
   /** Keyword names currently raised by a temporary mod (e.g. Missile +4). */
   boosted?: Partial<Record<Keyword["name"], boolean>>;
+  /** Board unit whose Missile icon draws the aim arc. */
+  missileAimId?: string;
+  onMissileAim?: (mode: "on" | "off" | "toggle") => void;
 }) {
   return (
     <div className="unit-keys">
@@ -180,6 +208,17 @@ export function UnitKeywords({
           size={size}
           boost={boosted?.[k.name]}
           tut={unitId ? `kw-${k.name}-${unitId}` : undefined}
+          data-missile-aim={k.name === "missile" && missileAimId ? missileAimId : undefined}
+          onMouseEnter={k.name === "missile" && onMissileAim ? () => onMissileAim("on") : undefined}
+          onMouseLeave={k.name === "missile" && onMissileAim ? () => onMissileAim("off") : undefined}
+          onClick={
+            k.name === "missile" && onMissileAim
+              ? (event) => {
+                  event.stopPropagation();
+                  if (isMobileShellUi()) onMissileAim("toggle");
+                }
+              : undefined
+          }
         />
       ))}
     </div>
@@ -204,6 +243,7 @@ export function UnitToken({
   running = false,
   groundPhase = null,
   onClick,
+  onMissileAim,
 }: {
   unit: UnitInstance;
   match?: MatchState;
@@ -222,6 +262,7 @@ export function UnitToken({
   running?: boolean;
   groundPhase?: "hold" | "arriving" | null;
   onClick?: () => void;
+  onMissileAim?: (mode: "on" | "off" | "toggle") => void;
 }) {
   const recoilClass = recoil === 0 ? "recoil-0" : recoil === 1 ? "recoil-1" : "";
   const atk = unit.atk + unit.tempAtk + unit.combatAtkBonus;
@@ -258,6 +299,7 @@ export function UnitToken({
             running={running}
             showProps={layout !== "board"}
             compact={layout === "board"}
+            boardMeter={layout === "board"}
             cost={unit.cost}
             hp={Math.max(0, unit.hp)}
             maxHp={unit.maxHp}
@@ -281,6 +323,8 @@ export function UnitToken({
             unitId={unit.defId}
             size={layout === "board" ? 16 : KEYWORD_ICON_SIZE}
             boosted={missileBoost ? { missile: true } : undefined}
+            missileAimId={layout === "board" && unit.missileTarget ? unit.instanceId : undefined}
+            onMissileAim={layout === "board" && unit.missileTarget ? onMissileAim : undefined}
           />
         </div>
       </div>

@@ -173,11 +173,11 @@ function CompleteOverlay({
 }) {
   return (
     <div className="tutorial-complete">
-      <div className="choice-dialog" role="dialog" aria-label="Lesson complete">
+      <div className="choice-dialog kit-window" role="dialog" aria-label="Lesson complete">
         <p className="eyebrow">Lesson complete</p>
         <h2>{lesson.title}</h2>
         <p>{lesson.success}</p>
-        <div className="choice-options">
+        <div className="choice-options kit-table">
           {onNext && nextId ? (
             <button type="button" className="primary sg-btn-row" onClick={onNext}>
               <SgIconImg name="skip" tone="gold" size={20} />

@@ -31,7 +31,7 @@ function TrackerPanel({
 }) {
   const groups: CardType[] = ["special", "maneuver", "move"];
   return (
-    <div className={`deck-tracker ${enemy ? "enemy" : "self"}`} role="dialog" aria-label={title}>
+    <div className={`deck-tracker kit-window ${enemy ? "enemy" : "self"}`} role="dialog" aria-label={title}>
       <header>
         <strong>{title}</strong>
         <span>
@@ -43,7 +43,7 @@ function TrackerPanel({
         <span>% next 2-card draw</span>
         <span className="recycle-pct">% if you discard &amp; redraw x2 (+2 draws)</span>
       </p>
-      <div className="deck-tracker-body">
+      <div className="deck-tracker-body kit-table alt">
         {groups.map((type) => {
           const rows = model.rows.filter((r) => !r.unknown && r.type === type);
           if (rows.length === 0) return null;
@@ -115,14 +115,16 @@ function TrackerLine({
 }) {
   const inner = (
     <>
-      <span className={`deck-tracker-name ${row.unknown ? "unknown" : ""}`}>{row.name}</span>
-      <b>×{row.count}</b>
+      <span className={`deck-tracker-name ${row.unknown ? "unknown" : ""}`}>
+        <span className="deck-tracker-label">{row.name}</span>
+        <b>×{row.count}</b>
+      </span>
       {!row.unknown ? (
-        <small>
+        <small className="deck-tracker-cost">
           <SupplyChip value={row.cost} />
         </small>
       ) : (
-        <small />
+        <small className="deck-tracker-cost" />
       )}
       <em className="base-pct" title="Probability in the next 2-card draw">
         {formatPct(row.basePct)}

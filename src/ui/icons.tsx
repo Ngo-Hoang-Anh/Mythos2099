@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from "react";
 import type { CardType, EffectId, Keyword, KeywordName } from "../engine/types";
 import { FLAG_KEYWORDS } from "../engine/keywords";
 import { keywordHelp, STAT_HELP } from "../engine/armySummary";
@@ -161,12 +162,13 @@ export function KeywordChip({
   size = KEYWORD_ICON_SIZE,
   tut,
   boost,
+  ...rest
 }: {
   keyword: Keyword;
   size?: number;
   tut?: string;
   boost?: boolean;
-}) {
+} & Omit<HTMLAttributes<HTMLSpanElement>, "className" | "children">) {
   const flag = FLAG_KEYWORDS.has(keyword.name);
   const { title, body } = keywordHelp(keyword);
   return (
@@ -175,6 +177,7 @@ export function KeywordChip({
       tipClassName="chip-tip kw-tip"
       aria-label={`${title}. ${body}`}
       data-tut={tut}
+      {...rest}
       tip={
         <>
           <b>{title}</b>

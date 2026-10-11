@@ -74,6 +74,22 @@ html.is-mobile-shell .tutorial-stage .match {
   font-size: 1.05em;
   padding: 0.5rem 0.85rem;
 }
+.mobile-shell .round-btn.float-cancel,
+.mobile-shell .round-btn.float-confirm {
+  padding: 0 0.85rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+.mobile-shell .hud button,
+.mobile-shell .surrender-flag,
+.mobile-shell .match-back,
+.mobile-shell .match-back-confirm {
+  font-size: 1em;
+  padding: 0;
+}
+.mobile-shell .hq {
+  padding: 0.34rem 0.55rem;
+  font-size: 1em;
+}
 
 .mobile-shell input,
 .mobile-shell textarea {

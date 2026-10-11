@@ -6,6 +6,7 @@ type MoveStep = Extract<CombatStep, { kind: "move" }>;
 type RestStep = Extract<CombatStep, { kind: "rest" }>;
 type StatStep = Extract<CombatStep, { kind: "statAtk" }>;
 type DestroyStep = Extract<CombatStep, { kind: "destroy" }>;
+type LockStep = Extract<CombatStep, { kind: "missileLock" }>;
 
 export type CombatExchange = {
   shots: ShotStep[];
@@ -49,6 +50,7 @@ export type QuickCombatPlan = {
   stats: StatStep[];
   guns: CombatStrike[];
   missiles: CombatStrike[];
+  locks: LockStep[];
   destroys: DestroyStep[];
 };
 
@@ -59,6 +61,7 @@ export function collectQuickCombat(steps: CombatStep[]): QuickCombatPlan {
   const stats: StatStep[] = [];
   const guns: CombatStrike[] = [];
   const missiles: CombatStrike[] = [];
+  const locks: LockStep[] = [];
   const destroys: DestroyStep[] = [];
 
   for (let i = 0; i < steps.length; i += 1) {
@@ -79,6 +82,10 @@ export function collectQuickCombat(steps: CombatStep[]): QuickCombatPlan {
       destroys.push(step);
       continue;
     }
+    if (step.kind === "missileLock") {
+      locks.push(step);
+      continue;
+    }
     if (step.kind !== "shot") continue;
 
     const results: ResultStep[] = [];
@@ -93,5 +100,5 @@ export function collectQuickCombat(steps: CombatStep[]): QuickCombatPlan {
     i = j - 1;
   }
 
-  return { moves, rests, stats, guns, missiles, destroys };
+  return { moves, rests, stats, guns, missiles, locks, destroys };
 }

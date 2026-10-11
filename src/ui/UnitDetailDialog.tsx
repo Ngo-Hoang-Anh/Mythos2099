@@ -4,7 +4,7 @@ import { keywordHelp, keywordFullLabel } from "../engine/armySummary";
 import { keywordsWithMods, missileMod } from "../engine/status";
 import type { MatchState, PlayerId, StatusEffect, UnitDef, UnitInstance } from "../engine/types";
 import { ArmorChip, ApChip, AtkChip, HpChip, SupplyChip } from "./icons";
-import { SgIconBtn } from "./UiChrome";
+import { KitIconBtn, kitAsset } from "./UiChrome";
 import { UnitArt, UnitKeywords } from "./UnitToken";
 import { UnitCardPills } from "./CardTip";
 
@@ -106,7 +106,7 @@ export function UnitDetailDialog({
   return (
     <div className="unit-detail-modal" onClick={onClose} role="presentation">
       <div
-        className="unit-detail-dialog"
+        className="unit-detail-dialog kit-window"
         role="dialog"
         aria-label={`${def.name} details`}
         onClick={(event) => event.stopPropagation()}
@@ -118,7 +118,7 @@ export function UnitDetailDialog({
               {def.class} · <SupplyChip value={def.cost} />
             </p>
           </div>
-          <SgIconBtn name="close" tone="gold" title="Close" onClick={onClose} size={40} />
+          <KitIconBtn name="close" title="Close" onClick={onClose} size={44} />
         </header>
 
         <div className="unit-detail-main">
@@ -127,9 +127,18 @@ export function UnitDetailDialog({
               <div className="unit-detail-face front">
                 <UnitArt name={def.name} unitClass={def.class} unitId={def.id} facingDeg={0} />
                 <div className="unit-detail-stats">
-                  <HpChip value={hp} />
-                  {maxHp !== hp ? <span className="unit-detail-maxhp">/{maxHp}</span> : null}
-                  <ArmorChip value={armor} />
+                  <div className="kit-hp-row">
+                    <img src={kitAsset("hp.png")} alt="" />
+                    <HpChip value={hp} />
+                    {maxHp !== hp ? <span className="unit-detail-maxhp">/{maxHp}</span> : null}
+                    <div className="kit-hp-bar" aria-hidden>
+                      <span style={{ width: `${maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0}%` }} />
+                    </div>
+                  </div>
+                  <div className="kit-hp-row">
+                    <img src={kitAsset("armor.png")} alt="" />
+                    <ArmorChip value={armor} />
+                  </div>
                   <AtkChip value={atk} />
                   <ApChip value={ap} />
                 </div>
@@ -152,7 +161,7 @@ export function UnitDetailDialog({
             )}
           </div>
 
-          <aside className="unit-detail-side">
+          <aside className="unit-detail-side kit-table">
             <h3>Keywords</h3>
             {keywords.length === 0 ? (
               <p className="muted">None</p>
