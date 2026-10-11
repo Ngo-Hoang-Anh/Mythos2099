@@ -190,7 +190,7 @@ describe("local AI", () => {
       defId: PREMADE_ARMIES.tank_robot.units[0]!,
       owner: 1,
       col: frontCol(1),
-      row: 4,
+      row: 3,
     });
     wounded.hp = 2;
     wounded.maxHp = 10;
@@ -203,7 +203,7 @@ describe("local AI", () => {
     const action = pickAiAction(match);
     expect(action?.type).toBe("deploy");
     if (action?.type === "deploy") {
-      expect(action.row).toBe(4);
+      expect(action.row).toBe(3);
     }
   });
 
@@ -301,11 +301,11 @@ describe("local AI", () => {
     match.currentPlayer = 0;
     match.phase = "deployment";
     match.players[0].commandPoints = 5;
-    // Soft enemy in lane 0, armored enemy in lane 4.
+    // Soft enemy in lane 0, armored enemy in lane 3.
     const soft = spawnUnit(match, { defId: PREMADE_ARMIES.aggro.units[0]!, owner: 1, col: frontCol(1), row: 0 });
     soft.armor = 1;
     soft.ap = 0;
-    const hard = spawnUnit(match, { defId: PREMADE_ARMIES.tank_robot.units[0]!, owner: 1, col: frontCol(1), row: 4 });
+    const hard = spawnUnit(match, { defId: PREMADE_ARMIES.tank_robot.units[0]!, owner: 1, col: frontCol(1), row: 3 });
     hard.armor = 6;
     hard.ap = 0;
 
@@ -316,7 +316,7 @@ describe("local AI", () => {
     const action = pickAiAction(match);
     expect(action?.type).toBe("deploy");
     if (action?.type === "deploy") {
-      expect(action.row).toBe(4);
+      expect(action.row).toBe(3);
     }
   });
 

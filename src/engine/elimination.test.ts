@@ -10,7 +10,7 @@ import {
 } from "./elimination";
 import { createMatch, must } from "./match";
 import { flattenLog } from "./state";
-import { P1_FRONT, P2_FRONT, type CardInstance, type MatchState } from "./types";
+import { P1_FRONT, P2_FRONT, ROWS, type CardInstance, type MatchState } from "./types";
 
 function fakeCard(id: string): CardInstance {
   return {
@@ -123,7 +123,7 @@ describe("elimination loss", () => {
     match.players[1].deck = [];
     match.players[1].hand = [];
     for (let c = 0; c < 4; c++) {
-      for (let r = 0; r < 5; r++) {
+      for (let r = 0; r < ROWS; r++) {
         if (match.board[c][r]?.owner === 1) match.board[c][r] = null;
       }
     }

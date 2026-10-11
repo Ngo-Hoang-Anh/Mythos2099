@@ -22,7 +22,7 @@ describe("move path", () => {
   });
 
   it("uses the own-side aisle when changing lanes instead of driving through an ally", () => {
-    const path = planMoveRoute({ col: 1, row: 4 }, { col: 1, row: 0 }, 0, [{ col: 1, row: 2 }]);
+    const path = planMoveRoute({ col: 1, row: 3 }, { col: 1, row: 0 }, 0, [{ col: 1, row: 2 }]);
     expect(path.some((n) => n.k === "aisle")).toBe(true);
     expect(path.some((n) => n.k === "park" && n.col === 1 && n.row === 2)).toBe(false);
   });
@@ -31,12 +31,11 @@ describe("move path", () => {
     const blocked = [
       { col: 1, row: 1 },
       { col: 1, row: 2 },
-      { col: 1, row: 3 },
     ];
-    const path = planMoveRoute({ col: 0, row: 4 }, { col: 0, row: 0 }, 0, blocked);
+    const path = planMoveRoute({ col: 0, row: 3 }, { col: 0, row: 0 }, 0, blocked);
     for (const node of path) {
       if (node.k !== "park") continue;
-      if (node.col === 0 && (node.row === 0 || node.row === 4)) continue;
+      if (node.col === 0 && (node.row === 0 || node.row === 3)) continue;
       expect(blocked.some((b) => b.col === node.col && b.row === node.row)).toBe(false);
     }
     expect(path[path.length - 1]).toEqual({ k: "park", col: 0, row: 0 });
@@ -92,12 +91,12 @@ describe("move path", () => {
 
   it("lets airborne units fly park-to-park through occupied infantry cells", () => {
     const blocked = [{ col: 1, row: 2 }];
-    const air = planMoveRoute({ col: 1, row: 4 }, { col: 1, row: 0 }, 0, blocked, { airborne: true });
+    const air = planMoveRoute({ col: 1, row: 3 }, { col: 1, row: 0 }, 0, blocked, { airborne: true });
     expect(air).toEqual([
-      { k: "park", col: 1, row: 4 },
+      { k: "park", col: 1, row: 3 },
       { k: "park", col: 1, row: 0 },
     ]);
-    const ground = planMoveRoute({ col: 1, row: 4 }, { col: 1, row: 0 }, 0, blocked);
+    const ground = planMoveRoute({ col: 1, row: 3 }, { col: 1, row: 0 }, 0, blocked);
     expect(ground.some((n) => n.k === "aisle")).toBe(true);
     expect(ground.some((n) => n.k === "park" && n.col === 1 && n.row === 2)).toBe(false);
   });

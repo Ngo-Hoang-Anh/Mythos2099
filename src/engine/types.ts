@@ -426,7 +426,7 @@ export interface MatchState {
   phaseStartTime: number | null;
 }
 
-export const ROWS = 5;
+export const ROWS = 4;
 export const COLS = 4;
 export const HQ_MAX_HP = 60;
 

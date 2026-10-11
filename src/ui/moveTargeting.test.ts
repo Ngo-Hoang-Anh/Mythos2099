@@ -76,7 +76,6 @@ describe("Swift Maneuver targeting", () => {
     expect(dests).not.toContainEqual({ col: 1, row: 2 });
     expect(dests).toEqual(
       expect.arrayContaining([
-        { col: 1, row: 4 },
         { col: 0, row: 3 },
       ]),
     );
