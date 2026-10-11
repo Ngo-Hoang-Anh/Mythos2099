@@ -5,7 +5,17 @@ export function emptyBoard(): (UnitInstance | null)[][] {
 }
 
 export function cloneBoard(board: (UnitInstance | null)[][]): (UnitInstance | null)[][] {
-  return board.map((col) => col.map((cell) => (cell ? { ...cell, keywords: cell.keywords.map((k) => ({ ...k })) } : null)));
+  return board.map((col) =>
+    col.map((cell) =>
+      cell
+        ? {
+            ...cell,
+            keywords: cell.keywords.map((k) => ({ ...k })),
+            missileTarget: cell.missileTarget ? { ...cell.missileTarget } : null,
+          }
+        : null,
+    ),
+  );
 }
 
 export function supportCol(player: PlayerId): number {

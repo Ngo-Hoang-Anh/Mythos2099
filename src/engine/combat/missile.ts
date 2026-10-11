@@ -1,18 +1,40 @@
-import { applyHqDamage, pushHqDamageSteps } from "../hp";
 import { consumeMissileSplash, missileDamage, missilePowerOf } from "../combat";
 import { unitsOf } from "../board";
 import { log, withLogGroup } from "../state";
-import { HQ_MAX_HP, type MatchState, type PlayerId, type UnitInstance } from "../types";
+import { isUntargetableBy } from "../status";
+import type { BoardPos, MatchState, UnitInstance } from "../types";
 import { pushAttack } from "../fx";
 import { resolveDestroyedUnits } from "./cleanup";
 import {
   combatLanes,
-  extraVolleyTarget,
   mayStrike,
   pickMissileTarget,
   sideUnitsInLane,
   type CombatCtx,
 } from "./helpers";
+
+/** Living enemy in the locked cell. Untargetable units do not count, so the lock is replaced. */
+function enemyOnLock(state: MatchState, shooter: UnitInstance, pos: BoardPos): UnitInstance | null {
+  const unit = state.board[pos.col]?.[pos.row];
+  if (!unit || unit.hp <= 0 || unit.owner === shooter.owner) return null;
+  if (isUntargetableBy(state, unit, shooter.owner)) return null;
+  return unit;
+}
+
+function lockMissileTarget(state: MatchState, shooter: UnitInstance, ctx?: CombatCtx): void {
+  const next = pickMissileTarget(state, shooter);
+  if (!next) {
+    shooter.missileTarget = null;
+    return;
+  }
+  shooter.missileTarget = { col: next.col, row: next.row };
+  log(state, `${shooter.name} locks Missile on ${next.name} (lane ${next.row + 1})`, "missile");
+  ctx?.steps.push({
+    kind: "missileLock",
+    unitId: shooter.instanceId,
+    to: { col: next.col, row: next.row },
+  });
+}
 
 export function resolveMissileShot(
   state: MatchState,
@@ -22,46 +44,14 @@ export function resolveMissileShot(
   if (shooter.hp <= 0) return;
   const power = missilePowerOf(state, shooter);
   if (power <= 0) return;
-  const attacker = shooter.owner;
-  const defender: PlayerId = attacker === 0 ? 1 : 0;
   const ctx = opts?.ctx;
-  const target = ctx?.extra ? extraVolleyTarget(state, ctx, shooter) : pickMissileTarget(state, shooter);
-
-  if (target) {
-    const dmg = missileDamage(state, shooter, target);
-    if (ctx) {
-      ctx.steps.push({
-        kind: "shot",
-        unitId: shooter.instanceId,
-        name: shooter.name,
-        owner: shooter.owner,
-        from: { col: shooter.col, row: shooter.row },
-        to: { col: target.col, row: target.row },
-        damage: dmg,
-        side: "missile",
-        power,
-        targetMaxHp: target.maxHp,
-      });
-    } else {
-      pushAttack(state, shooter, { col: target.col, row: target.row }, {
-        damage: dmg,
-        power,
-        missile: true,
-      });
-    }
-    if (dmg > 0) {
-      target.hp -= dmg;
-      log(state, `${shooter.name} deals ${dmg} with Missile to ${target.name} (${Math.max(target.hp, 0)} HP)`, "missile");
-      if (ctx) ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
-    }
-    for (const splash of consumeMissileSplash(state, target, shooter.owner, { lane: ctx?.extra?.lane })) {
-      log(state, `${shooter.name} deals 1 with Missile splash to ${splash.name} (${Math.max(splash.hp, 0)} HP)`, "missile");
-      if (ctx) ctx.steps.push({ kind: "hp", unitId: splash.instanceId, hp: splash.hp, lost: 1 });
-    }
-    if (!ctx) resolveDestroyedUnits(state);
+  const locked = shooter.missileTarget ? enemyOnLock(state, shooter, shooter.missileTarget) : null;
+  if (!locked) {
+    lockMissileTarget(state, shooter, ctx);
     return;
   }
-
+  const target = locked;
+  const dmg = missileDamage(state, shooter, target);
   if (ctx) {
     ctx.steps.push({
       kind: "shot",
@@ -69,23 +59,29 @@ export function resolveMissileShot(
       name: shooter.name,
       owner: shooter.owner,
       from: { col: shooter.col, row: shooter.row },
-      to: { hq: defender },
-      damage: power,
+      to: { col: target.col, row: target.row },
+      damage: dmg,
       side: "missile",
       power,
-      targetMaxHp: HQ_MAX_HP,
+      targetMaxHp: target.maxHp,
     });
   } else {
-    pushAttack(state, shooter, { hq: defender }, { damage: power, power, missile: true });
-  }
-  if (power > 0) {
-    const hits = applyHqDamage(state, defender, power, shooter.name, {
-      keepPhase: true,
-      icon: "missile",
-      via: "Missile",
+    pushAttack(state, shooter, { col: target.col, row: target.row }, {
+      damage: dmg,
+      power,
+      missile: true,
     });
-    if (ctx) pushHqDamageSteps(ctx.steps, defender, state.players[defender].hqHp, power, hits);
   }
+  if (dmg > 0) {
+    target.hp -= dmg;
+    log(state, `${shooter.name} deals ${dmg} with Missile to ${target.name} (${Math.max(target.hp, 0)} HP)`, "missile");
+    if (ctx) ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
+  }
+  for (const splash of consumeMissileSplash(state, target, shooter.owner, { lane: ctx?.extra?.lane })) {
+    log(state, `${shooter.name} deals 1 with Missile splash to ${splash.name} (${Math.max(splash.hp, 0)} HP)`, "missile");
+    if (ctx) ctx.steps.push({ kind: "hp", unitId: splash.instanceId, hp: splash.hp, lost: 1 });
+  }
+  if (!ctx) resolveDestroyedUnits(state);
 }
 
 export function runMissilePhase(state: MatchState, ctx: CombatCtx): void {

@@ -122,7 +122,8 @@ describe("all special skills resolve", () => {
     spawn(state, 17, 1, P2_FRONT, 1);
     const next = play(state, 1, "thunder_strike", {});
     expect(hasStatusOn(next, next.board[P1_FRONT][1]!.instanceId, "missileIgnoreArmor")).toBe(true);
-    expect(next.board[P2_FRONT][1]?.hp).toBe(12);
+    expect(next.board[P2_FRONT][1]?.hp).toBe(17);
+    expect(next.board[P1_FRONT][1]?.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
   });
 
   it("Apex Ambush buffs on Frontline then engages only that matchup", () => {
@@ -248,7 +249,9 @@ describe("all special skills resolve", () => {
     const zeus = spawn(state, 1, 0, P1_FRONT, 2);
     spawn(state, 17, 1, P2_FRONT, 2);
     const next = play(state, 10, "storm_caller", { unitIds: [zeus.instanceId] });
-    expect(next.board[P2_FRONT][2]?.hp).toBe(10);
+    expect(next.board[P2_FRONT][2]?.hp).toBe(getUnitDef(17).hp);
+    expect(next.board[P1_SUPPORT][2]?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
+    expect(next.board[P1_FRONT][2]?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
   });
 
   it("Sentinel First Strike does an extra artillery attack", () => {
@@ -263,10 +266,10 @@ describe("all special skills resolve", () => {
   it("Siege Howitzer Precision Strike attacks an enemy in another lane", () => {
     const state = blankMatch();
     const howitzer = spawn(state, 12, 0, P1_SUPPORT, 2);
-    const enemy = spawn(state, 3, 1, P2_FRONT, 4);
+    const enemy = spawn(state, 3, 1, P2_FRONT, 3);
     const expected = enemy.hp - extraGunDamage(state, howitzer, enemy);
     const next = play(state, 12, "precision_strike", { unitIds: [enemy.instanceId] });
-    expect(next.board[P2_FRONT][4]?.hp).toBe(expected);
+    expect(next.board[P2_FRONT][3]?.hp).toBe(expected);
     expect(next.board[P2_FRONT][2]).toBeNull();
   });
 
@@ -286,18 +289,18 @@ describe("all special skills resolve", () => {
 
   it("Skadi Coordinate buffs then extra-attacks the nearest occupied lane when empty", () => {
     const state = blankMatch();
-    const stalker = spawn(state, 14, 0, P1_FRONT, 2);
+    const stalker = spawn(state, 14, 0, P1_FRONT, 1);
     const top = spawn(state, 4, 1, P2_FRONT, 0);
     top.armor = 0;
-    spawn(state, 21, 1, P2_FRONT, 4);
+    spawn(state, 21, 1, P2_FRONT, 3);
     const next = play(state, 14, "coordinate", {});
     expect(hasStatusOn(next, stalker.instanceId, "redirectEmptyLane")).toBe(false);
-    expect(next.board[P1_FRONT][2]?.tempAtk).toBe(1);
-    expect(next.board[P1_FRONT][2]?.tempAp).toBe(1);
-    // Extra attack: ATK 3 +1 buff = 4 into Armor 0 → top lane damaged; bottom untouched; no return fire.
+    expect(next.board[P1_FRONT][1]?.tempAtk).toBe(1);
+    expect(next.board[P1_FRONT][1]?.tempAp).toBe(1);
+    // Extra attack: ATK 3 +1 buff = 4 into Armor 0 → nearest lane damaged; farther lane untouched.
     expect(next.board[P2_FRONT][0]?.hp).toBe(getUnitDef(4).hp - 4);
-    expect(next.board[P2_FRONT][4]?.hp).toBe(getUnitDef(21).hp);
-    expect(next.board[P1_FRONT][2]?.hp).toBe(stalker.maxHp);
+    expect(next.board[P2_FRONT][3]?.hp).toBe(getUnitDef(21).hp);
+    expect(next.board[P1_FRONT][1]?.hp).toBe(stalker.maxHp);
     expect(next.phase).toBe("maneuver");
   });
 
@@ -410,11 +413,11 @@ describe("all special skills resolve", () => {
   it("Recon Eye Target Acquired makes allied missiles prefer its lane", () => {
     const state = blankMatch();
     const recon = spawn(state, 22, 0, P1_FRONT, 0);
-    spawn(state, 1, 0, P1_FRONT, 4);
+    spawn(state, 1, 0, P1_FRONT, 3);
     spawn(state, 17, 1, P2_FRONT, 0);
-    spawn(state, 3, 1, P2_FRONT, 4);
+    spawn(state, 3, 1, P2_FRONT, 3);
     const next = play(state, 22, "target_acquired", {});
-    const zeus = next.board[P1_FRONT][4]!;
+    const zeus = next.board[P1_FRONT][3]!;
     expect(pickMissileTarget(next, zeus)?.row).toBe(recon.row);
       expect(missileDamage(next, zeus, next.board[P2_FRONT][0]!)).toBe(6);
   });
@@ -422,10 +425,10 @@ describe("all special skills resolve", () => {
   it("Kamikaze Hunter destroys itself to deal 8 armor-ignoring damage anywhere", () => {
     const state = blankMatch();
     spawn(state, 23, 0, P1_FRONT, 0);
-    const far = spawn(state, 3, 1, P2_SUPPORT, 4);
+    const far = spawn(state, 3, 1, P2_SUPPORT, 3);
     const next = play(state, 23, "kamikaze", { unitIds: [far.instanceId] });
     expect(next.board[P1_FRONT][0]).toBeNull();
-    expect(next.board[P2_SUPPORT][4]?.hp).toBe(far.maxHp - 8);
+    expect(next.board[P2_SUPPORT][3]?.hp).toBe(far.maxHp - 8);
   });
 
   it("Aegis Support Drone HQ Repair heals HQ for 7", () => {

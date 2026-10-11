@@ -201,6 +201,8 @@ export interface UnitInstance {
   combatAtkBonus: number;
   /** True when this unit is the striker of the current attack, not merely the turn player. */
   isAttacker: boolean;
+  /** Cell this unit's next Missile will hit. Null until a Missile activation locks one. */
+  missileTarget?: BoardPos | null;
 }
 
 export interface PlayerState {
@@ -352,7 +354,8 @@ export type CombatStep =
   | { kind: "hp"; unitId: string; hp: number; lost: number }
   | { kind: "hq"; player: PlayerId; hp: number; damage: number }
   | { kind: "hqBreakpoint"; player: PlayerId; bp: number; supply: number; draw: number }
-  | { kind: "destroy"; unitId: string };
+  | { kind: "destroy"; unitId: string }
+  | { kind: "missileLock"; unitId: string; to: BoardPos };
 
 export interface CombatPlayback {
   steps: CombatStep[];

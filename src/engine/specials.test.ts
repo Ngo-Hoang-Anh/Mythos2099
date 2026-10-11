@@ -111,19 +111,20 @@ describe("special effects", () => {
     spawn(state, 17, 1, P2_FRONT, 1);
     const card = give(state, 1, "thunder_strike");
     const next = must(state, { type: "playCard", cardId: card.instanceId, targets: {} });
-    expect(next.board[P2_FRONT][1]?.hp).toBe(12);
+    expect(next.board[P2_FRONT][1]?.hp).toBe(17);
+    expect(next.board[P1_FRONT][1]?.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
     expect(next.statuses.some((s) => s.kind === "missileIgnoreArmor")).toBe(true);
   });
 
   it("Target Acquired makes allied missiles prefer the marked lane", () => {
     const state = blankMatch();
     const recon = spawn(state, 22, 0, P1_FRONT, 0);
-    spawn(state, 1, 0, P1_FRONT, 4);
+    spawn(state, 1, 0, P1_FRONT, 3);
     spawn(state, 17, 1, P2_FRONT, 0);
-    spawn(state, 3, 1, P2_FRONT, 4);
+    spawn(state, 3, 1, P2_FRONT, 3);
     const card = give(state, 22, "target_acquired");
     const next = must(state, { type: "playCard", cardId: card.instanceId, targets: {} });
-    const zeus = next.board[P1_FRONT][4]!;
+    const zeus = next.board[P1_FRONT][3]!;
     const picked = pickMissileTarget(next, zeus);
     expect(picked?.row).toBe(recon.row);
   });
@@ -143,6 +144,10 @@ describe("special effects", () => {
       duration: "endOfNextTurn",
       remainingPasses: 2,
     });
+    resolveMissileShot(state, zeus);
+    expect(state.board[P2_FRONT][2]?.hp).toBe(getUnitDef(26).hp);
+    expect(other.hp).toBe(other.maxHp);
+    expect(zeus.missileTarget).toEqual({ col: other.col, row: other.row });
     resolveMissileShot(state, zeus);
     expect(state.board[P2_FRONT][2]?.hp).toBe(getUnitDef(26).hp);
     expect(other.hp).toBeLessThan(other.maxHp);
@@ -230,11 +235,11 @@ describe("special effects", () => {
   it("Kamikaze deals 8 ignoring armor to a unit anywhere", () => {
     const state = blankMatch();
     spawn(state, 23, 0, P1_FRONT, 0);
-    const far = spawn(state, 3, 1, P2_SUPPORT, 4);
+    const far = spawn(state, 3, 1, P2_SUPPORT, 3);
     const card = give(state, 23, "kamikaze");
     const next = must(state, { type: "playCard", cardId: card.instanceId, targets: { unitIds: [far.instanceId] } });
     expect(next.board[P1_FRONT][0]).toBeNull();
-    expect(next.board[P2_SUPPORT][4]?.hp).toBe(far.maxHp - 8);
+    expect(next.board[P2_SUPPORT][3]?.hp).toBe(far.maxHp - 8);
     const attack = next.fx.find((event) => event.kind === "attack");
     expect(attack).toMatchObject({
       kind: "attack",

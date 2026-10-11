@@ -109,13 +109,13 @@ describe("relocation phase", () => {
   it("Cover prefers artillery Support over a closer enemy lane with no allies", () => {
     const state = blankMatch();
     spawn(state, 6, 0, P1_FRONT, 2);
-    spawn(state, 12, 0, P1_SUPPORT, 4);
-    spawn(state, 4, 1, P2_FRONT, 1);
-    spawn(state, 21, 1, P2_FRONT, 4);
+    spawn(state, 12, 0, P1_SUPPORT, 0);
+    spawn(state, 4, 1, P2_FRONT, 3);
+    spawn(state, 21, 1, P2_FRONT, 0);
     runRelocationPhase(state, ctx());
-    expect(state.board[P1_FRONT][4]?.defId).toBe(6);
-    expect(state.board[P1_FRONT][4]?.rested).toBe(false);
-    expect(state.board[P1_FRONT][1]).toBeNull();
+    expect(state.board[P1_FRONT][0]?.defId).toBe(6);
+    expect(state.board[P1_FRONT][0]?.rested).toBe(false);
+    expect(state.board[P1_FRONT][3]).toBeNull();
   });
 
   it("Cover prefers an enemy lane with no allies over one that already has an ally", () => {
@@ -511,29 +511,33 @@ describe("stats and damage phases", () => {
 });
 
 describe("missile phase", () => {
-  it("prefers the enemy support unit in the same lane", () => {
+  it("locks the enemy support unit in the same lane, then fires on the next activation", () => {
     const state = blankMatch();
-    spawn(state, 10, 0, P1_SUPPORT, 1);
+    const shooter = spawn(state, 10, 0, P1_SUPPORT, 1);
     const front = spawn(state, 17, 1, P2_FRONT, 1);
     const back = spawn(state, 5, 1, P2_SUPPORT, 1);
     front.armor = 0;
     back.armor = 0;
+    const backHp = back.hp;
     runMissilePhase(state, ctx());
-    expect(back.hp).toBeLessThan(getUnitDef(5).hp);
+    expect(back.hp).toBe(backHp);
+    expect(front.hp).toBe(getUnitDef(17).hp);
+    expect(shooter.missileTarget).toEqual({ col: P2_SUPPORT, row: 1 });
+    runMissilePhase(state, ctx());
+    expect(back.hp).toBeLessThan(backHp);
     expect(front.hp).toBe(getUnitDef(17).hp);
   });
 
-  it("fires at HQ when no enemy is in front", () => {
+  it("does not fire or hit HQ when no enemy is on the board", () => {
     const state = blankMatch();
-    spawn(state, 10, 0, P1_SUPPORT, 2);
+    const shooter = spawn(state, 10, 0, P1_SUPPORT, 2);
     const c = ctx();
     runMissilePhase(state, c);
     expect(c.steps.some((s) => s.kind === "phase" && s.phase === "missile")).toBe(true);
-    const hqShot = c.steps.find((s) => s.kind === "shot" && s.side === "missile");
-    expect(hqShot?.kind === "shot" && "hq" in hqShot.to && hqShot.to.hq === 1).toBe(true);
-    expect(hqShot?.kind === "shot" && hqShot.power).toBe(5);
-    expect(hqShot?.kind === "shot" && hqShot.targetMaxHp).toBe(HQ_MAX_HP);
-    expect(state.players[1].hqHp).toBe(HQ_MAX_HP - 5);
+    expect(c.steps.some((s) => s.kind === "shot" && s.side === "missile")).toBe(false);
+    expect(c.steps.some((s) => s.kind === "missileLock")).toBe(false);
+    expect(shooter.missileTarget ?? null).toBeNull();
+    expect(state.players[1].hqHp).toBe(HQ_MAX_HP);
   });
 
   it("records HQ comeback steps when a volley first crosses a mark while behind", () => {
@@ -563,15 +567,20 @@ describe("missile phase", () => {
     expect(target.hp).toBe(hp);
   });
 
-  it("prefers the upper adjacent lane when both neighbors have enemies", () => {
+  it("locks the upper adjacent lane when both neighbors have enemies, then fires there", () => {
     const state = blankMatch();
-    spawn(state, 10, 0, P1_SUPPORT, 2);
+    const shooter = spawn(state, 10, 0, P1_SUPPORT, 2);
     const upper = spawn(state, 4, 1, P2_FRONT, 1);
     const lower = spawn(state, 21, 1, P2_FRONT, 3);
     upper.armor = 0;
     lower.armor = 0;
+    const upperHp = upper.hp;
     runMissilePhase(state, ctx());
-    expect(upper.hp).toBeLessThan(getUnitDef(4).hp);
+    expect(upper.hp).toBe(upperHp);
+    expect(lower.hp).toBe(getUnitDef(21).hp);
+    expect(shooter.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
+    runMissilePhase(state, ctx());
+    expect(upper.hp).toBeLessThan(upperHp);
     expect(lower.hp).toBe(getUnitDef(21).hp);
   });
 });
@@ -698,9 +707,10 @@ describe("mid-turn extra engagement", () => {
     expect(state.combatResumePhase).toBe("maneuver");
     expect(state.board[P1_SUPPORT][2]?.defId).toBe(17);
     expect(state.board[P1_FRONT][2]).toBeNull();
-    expect(playbackPhases(state)).toEqual(["stats", "damage", "missile", "cleanup"]);
+    expect(playbackPhases(state)).toEqual(["stats", "damage", "missile"]);
     expect(state.board[P1_FRONT][1]?.combatAtkBonus).toBe(4);
-    expect(state.board[P2_FRONT][1]).toBeNull();
+    expect(state.board[P2_FRONT][1]?.missileTarget).toBeUndefined();
+    expect(state.board[P1_SUPPORT][0]?.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
     expect(state.players[1].hqHp).toBeLessThan(HQ_MAX_HP);
   });
 
@@ -879,6 +889,7 @@ describe("mid-turn extra engagement", () => {
     });
     expect(state.board[P1_FRONT][1]).toBeNull();
     expect(state.players[0].hqHp).toBe(hqBefore);
-    expect(state.board[P1_SUPPORT][1]?.hp).toBeLessThan(getUnitDef(17).hp);
+    expect(state.board[P1_SUPPORT][1]?.hp).toBe(getUnitDef(17).hp);
+    expect(enemy.missileTarget).toEqual({ col: P1_SUPPORT, row: 1 });
   });
 });

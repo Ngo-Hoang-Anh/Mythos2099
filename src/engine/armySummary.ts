@@ -27,7 +27,7 @@ export const KEYWORD_SHORT: Record<KeywordName, string> = {
   retaliate: "Adds {n} ATK when this unit counters.",
   aggressive: "Adds {n} ATK when this unit attacks.",
   supportFire: "Gives +{n} ATK to every other ally in this lane and the two adjacent lanes, including rested units.",
-  missile: "After combat, fires a missile with ATK {n}. Counts 50% of the target's armor (round up). AP does not apply.",
+  missile: "Delayed attack. After combat, fires a missile with ATK {n}. Counts 50% of the target's armor (round up). AP does not apply.",
 };
 
 /** Tutorial-only copy. Hover UI must use KEYWORD_SHORT / keywordHelp. */
@@ -48,7 +48,7 @@ export const KEYWORD_FULL: Record<KeywordName, string> = {
   supportFire:
     "Every other living allied unit in this lane and the two adjacent lanes gains +{n} ATK, including rested units and a Front/Support partner. This unit does not gain its own Support Fire.",
   missile:
-    "After the gun volley, fire a missile with ATK {n}. Only 50% of the target's armor applies (rounded up). AP does not pierce it. Rested units skip. Prefers the enemy Support cell in this lane; if no enemy is in front it still fires, including at HQ.",
+    "Delayed attack. After the gun volley, fire a missile with ATK {n}. Only 50% of the target's armor applies (rounded up). AP does not pierce it. Rested units skip. Prefers the enemy Support cell in this lane, then the nearest occupied lane.",
 };
 
 function fillValue(text: string, n: number): string {
