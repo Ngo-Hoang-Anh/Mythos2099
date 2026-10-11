@@ -10,7 +10,6 @@ import { UnitCardPills } from "./CardTip";
 
 const SIDE_WIDE = new Set([
   "modMissile",
-  "missileSplash",
   "artilleryRepeat",
   "supportFireGrantsAp",
   "missileLaneMark",
@@ -22,7 +21,6 @@ const STATUS_LABEL: Record<string, (s: StatusEffect) => string> = {
   modArmor: (s) => `${s.magnitude >= 0 ? "+" : ""}${s.magnitude} Armor`,
   modMissile: (s) => `${s.magnitude >= 0 ? "+" : ""}${s.magnitude} Missile`,
   missileIgnoreArmor: () => "Missile ignores armor",
-  missileSplash: (s) => `Next missile splash ${s.magnitude}`,
   artilleryRepeat: (s) => `Artillery repeat +${s.magnitude}`,
   atkUnmodifiable: () => "ATK locked this combat",
   supportFireGrantsAp: (s) => `Support Fire also +${s.magnitude} AP`,
@@ -111,6 +109,8 @@ export function UnitDetailDialog({
         aria-label={`${def.name} details`}
         onClick={(event) => event.stopPropagation()}
       >
+        <KitIconBtn className="kit-window-close" name="close" title="Close" onClick={onClose} size={44} />
+        <div className="kit-dialog-body">
         <header className="unit-detail-head">
           <div>
             <h2>{def.name}</h2>
@@ -118,7 +118,6 @@ export function UnitDetailDialog({
               {def.class} · <SupplyChip value={def.cost} />
             </p>
           </div>
-          <KitIconBtn name="close" title="Close" onClick={onClose} size={44} />
         </header>
 
         <div className="unit-detail-main">
@@ -207,6 +206,7 @@ export function UnitDetailDialog({
             </>
           )}
         </footer>
+        </div>
       </div>
     </div>
   );

@@ -95,16 +95,54 @@ export function UnitArt({
   );
 }
 
-function BoardHpMeter({ hp, maxHp, tut }: { hp: number; maxHp?: number; tut?: string }) {
-  const pct = maxHp && maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : hp > 0 ? 100 : 0;
-  const label = maxHp != null ? `HP ${hp}/${maxHp}` : `HP ${hp}`;
+function BoardHpMeter({
+  hp,
+  maxHp,
+  forecastHp,
+  tut,
+}: {
+  hp: number;
+  maxHp?: number;
+  /** HP after the previewed shot. The lost slice and the number blink against the current value. */
+  forecastHp?: number;
+  tut?: string;
+}) {
+  const cap = maxHp && maxHp > 0 ? maxHp : Math.max(hp, 1);
+  const pct = Math.max(0, Math.min(100, (hp / cap) * 100));
+  const showForecast = forecastHp != null && forecastHp < hp;
+  const after = showForecast ? forecastHp : hp;
+  const afterPct = Math.max(0, Math.min(100, (after / cap) * 100));
+  const label = showForecast
+    ? `HP ${hp} → ${after}`
+    : maxHp != null
+      ? `HP ${hp}/${maxHp}`
+      : `HP ${hp}`;
   return (
     <div className="unit-hp-meter" data-tut={tut} title={label} aria-label={label}>
       <div className="unit-hp-frame" />
       <div className="unit-hp-track">
-        <div className="unit-hp-fill" style={{ ["--hp-cut" as string]: `${100 - pct}%` }} />
+        <div
+          className={`unit-hp-fill ${showForecast ? "forecast-base" : ""}`}
+          style={{ ["--hp-cut" as string]: `${100 - (showForecast ? afterPct : pct)}%` }}
+        />
+        {showForecast ? (
+          <div
+            className="unit-hp-loss"
+            style={{
+              ["--loss-top" as string]: `${100 - pct}%`,
+              ["--loss-bottom" as string]: `${afterPct}%`,
+            }}
+          />
+        ) : null}
       </div>
-      <span className="unit-hp-num">{hp}</span>
+      {showForecast ? (
+        <span className="unit-hp-num forecast">
+          <span className="hp-now">{hp}</span>
+          <span className="hp-after">{after}</span>
+        </span>
+      ) : (
+        <span className="unit-hp-num">{hp}</span>
+      )}
     </div>
   );
 }
@@ -121,6 +159,10 @@ export function UnitPortrait({
   atk,
   ap,
   atkBoost,
+  forecastHp,
+  atkAiming,
+  atkAimId,
+  onAtkAim,
   unitId,
   facingDeg = 0,
   turretExtraDeg = 0,
@@ -139,6 +181,10 @@ export function UnitPortrait({
   atk: number;
   ap: number;
   atkBoost?: boolean;
+  forecastHp?: number;
+  atkAiming?: boolean;
+  atkAimId?: string;
+  onAtkAim?: () => void;
   unitId?: number;
   facingDeg?: number;
   turretExtraDeg?: number;
@@ -160,7 +206,7 @@ export function UnitPortrait({
         showProps={showProps}
       />
       {boardMeter ? (
-        <BoardHpMeter hp={hp} maxHp={maxHp} tut={unitId ? `hp-${unitId}` : undefined} />
+        <BoardHpMeter hp={hp} maxHp={maxHp} forecastHp={forecastHp} tut={unitId ? `hp-${unitId}` : undefined} />
       ) : (
         <>
           <div className="port-tl">
@@ -176,7 +222,15 @@ export function UnitPortrait({
       </div>
       <div className="port-br" data-tut={unitId ? `atk-${unitId}` : undefined}>
         {ap > 0 ? <ApChip value={ap} tut={unitId ? `ap-${unitId}` : undefined} /> : null}
-        {atk > 0 ? <AtkChip value={atk} boost={atkBoost} /> : null}
+        {atk > 0 ? (
+          <AtkChip
+            value={atk}
+            boost={atkBoost}
+            aiming={atkAiming}
+            aimId={atkAimId}
+            onAim={onAtkAim}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -229,6 +283,7 @@ export function UnitToken({
   unit,
   match,
   selected,
+  kwFocus,
   hostileAim,
   hideArt,
   fadeInfo,
@@ -244,10 +299,15 @@ export function UnitToken({
   groundPhase = null,
   onClick,
   onMissileAim,
+  onAtkAim,
+  forecastHp,
+  atkAiming,
 }: {
   unit: UnitInstance;
   match?: MatchState;
   selected?: boolean;
+  /** Mobile: first tap reveals keywords; a second tap opens the detail. */
+  kwFocus?: boolean;
   hostileAim?: boolean;
   hideArt?: boolean;
   fadeInfo?: boolean;
@@ -263,6 +323,9 @@ export function UnitToken({
   groundPhase?: "hold" | "arriving" | null;
   onClick?: () => void;
   onMissileAim?: (mode: "on" | "off" | "toggle") => void;
+  onAtkAim?: () => void;
+  forecastHp?: number;
+  atkAiming?: boolean;
 }) {
   const recoilClass = recoil === 0 ? "recoil-0" : recoil === 1 ? "recoil-1" : "";
   const atk = unit.atk + unit.tempAtk + unit.combatAtkBonus;
@@ -275,7 +338,8 @@ export function UnitToken({
   return (
     <button
       type="button"
-      className={`unit-token ${layout === "board" ? "board-token" : ""} ${parkSide === "right" ? "park-right" : parkSide === "left" ? "park-left" : ""} ${selected ? "selected" : ""} ${hostileAim ? "hostile-aim" : ""} owner-${unit.owner} ${recoilClass} ${fadeInfo ? "info-fade" : ""} ${fadeOut ? "fade-out" : ""} ${unit.rested ? "rested" : ""} ${dying ? "dying" : ""}`}
+      data-unit-id={unit.instanceId}
+      className={`unit-token ${layout === "board" ? "board-token" : ""} ${parkSide === "right" ? "park-right" : parkSide === "left" ? "park-left" : ""} ${selected ? "selected" : ""} ${kwFocus ? "kw-focus" : ""} ${hostileAim ? "hostile-aim" : ""} owner-${unit.owner} ${recoilClass} ${fadeInfo ? "info-fade" : ""} ${fadeOut ? "fade-out" : ""} ${unit.rested ? "rested" : ""} ${dying ? "dying" : ""}`}
       data-tut={`unit-${unit.defId}`}
       onClick={(e) => {
         e.stopPropagation();
@@ -307,6 +371,10 @@ export function UnitToken({
             atk={atk}
             ap={unit.ap + unit.tempAp}
             atkBoost={unit.combatAtkBonus > 0}
+            forecastHp={layout === "board" ? forecastHp : undefined}
+            atkAiming={layout === "board" && atkAiming}
+            atkAimId={layout === "board" && onAtkAim ? unit.instanceId : undefined}
+            onAtkAim={layout === "board" ? onAtkAim : undefined}
           />
         </div>
         <div className="unit-body">

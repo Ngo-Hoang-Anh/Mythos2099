@@ -3,14 +3,15 @@ import {
   enemyFirstInRow,
   findUnit,
   forwardCol,
+  inBounds,
   isFrontline,
   isSupport,
   oppositeUnit,
   unitsOf,
 } from "./board";
 import { applyUnitDamage, healHq, healUnit, resolveAttack } from "./attack";
-import { resolveMissileShot } from "./combat/missile";
-import { computeStrikeDamage, defenseArmor } from "./combat";
+import { missileLockHasEnemy, resolveMissileShot } from "./combat/missile";
+import { computeStrikeDamage, defenseArmor, missilePowerOf } from "./combat";
 import { beginExtraEngagement } from "./combat/engagement";
 import { canVolley, nearestEnemyLane, sideUnitsInLane } from "./combat/helpers";
 import { pushAttack, relocateUnit } from "./fx";
@@ -136,15 +137,6 @@ function divertEnemyToRow(state: MatchState, enemy: UnitInstance, destRow: numbe
   const destCol = emptyOwnCellInRow(state, enemy.owner, enemy.col, destRow);
   if (destCol === null) return "The destination lane is occupied";
   relocateUnit(state, enemy, destCol, destRow);
-  return null;
-}
-
-function shiftEnemy(state: MatchState, enemy: UnitInstance, dRow: number): string | null {
-  const destRow = enemy.row + dRow;
-  if (destRow < 0 || destRow >= ROWS) return "That move is off the board";
-  if (state.board[enemy.col][destRow]) return "Destination is occupied";
-  relocateUnit(state, enemy, enemy.col, destRow);
-  log(state, `${enemy.name} is diverted to lane ${destRow + 1}`);
   return null;
 }
 
@@ -295,15 +287,17 @@ export function playEffect(state: MatchState, card: CardInstance, targets: PlayT
       if (!hasKeyword(unit, "artillery")) return "Target must have Artillery";
       return resolveAttack(state, unit.instanceId);
     }
-    case "missileBarrage": {
-      addStatus(state, {
-        kind: "missileSplash",
-        magnitude: 1,
-        sourceId: card.ownerUnitId,
-        owner: player.id,
-        duration: "untilConsumed",
-      });
-      log(state, "Missile Barrage: next missile splashes 1 to surrounding enemies");
+    case "heatseeking": {
+      const cell = targets.cells?.[0];
+      if (!cell || !inBounds(cell.col, cell.row)) return "Choose a cell";
+      const shooters = unitsOf(state.board, player.id).filter(
+        (unit) => unit.hp > 0 && missilePowerOf(state, unit) > 0 && unit.missileTarget && !missileLockHasEnemy(state, unit),
+      );
+      if (shooters.length === 0) return "No Missile is locked on a cell without an enemy";
+      for (const unit of shooters) {
+        unit.missileTarget = { col: cell.col, row: cell.row };
+        log(state, `${unit.name} retargets Missile to column ${cell.col + 1}, lane ${cell.row + 1}`);
+      }
       return null;
     }
     case "targetRegistration": {
@@ -432,36 +426,35 @@ export function playEffect(state: MatchState, card: CardInstance, targets: PlayT
       log(state, `${source.name} diverts ${enemy.name} into lane ${source.row + 1} and strips its keywords`);
       return null;
     }
-    case "diversionDown": {
-      const enemy = requireEnemy(state, targets.unitIds?.[0], player.id);
-      if (typeof enemy === "string") return enemy;
-      const shiftErr = shiftEnemy(state, enemy, 1);
-      if (shiftErr) return shiftErr;
-      addStatus(state, {
-        kind: "modAtk",
-        magnitude: -1,
-        sourceId: card.ownerUnitId,
-        owner: player.id,
-        targetId: enemy.instanceId,
-        duration: "endOfNextTurn",
-      });
-      log(state, `${enemy.name} gets -1 ATK for 2 turns`);
-      return null;
-    }
+    case "diversionDown":
     case "diversionUp": {
       const enemy = requireEnemy(state, targets.unitIds?.[0], player.id);
       if (typeof enemy === "string") return enemy;
-      const shiftErr = shiftEnemy(state, enemy, -1);
-      if (shiftErr) return shiftErr;
-      addStatus(state, {
-        kind: "modArmor",
-        magnitude: -1,
-        sourceId: card.ownerUnitId,
-        owner: player.id,
-        targetId: enemy.instanceId,
-        duration: "endOfNextTurn",
-      });
-      log(state, `${enemy.name} gets -1 ARM for 2 turns`);
+      const dirs = dirsForEffect(card.effectId);
+      if (!dirs) return "This card has no movement";
+      const moveErr = applyChosenMove(state, enemy, targets, dirs);
+      if (moveErr) return moveErr;
+      if (card.effectId === "diversionDown") {
+        addStatus(state, {
+          kind: "modAtk",
+          magnitude: -1,
+          sourceId: card.ownerUnitId,
+          owner: player.id,
+          targetId: enemy.instanceId,
+          duration: "endOfNextTurn",
+        });
+        log(state, `${enemy.name} gets -1 ATK for 2 turns`);
+      } else {
+        addStatus(state, {
+          kind: "modArmor",
+          magnitude: -1,
+          sourceId: card.ownerUnitId,
+          owner: player.id,
+          targetId: enemy.instanceId,
+          duration: "endOfNextTurn",
+        });
+        log(state, `${enemy.name} gets -1 ARM for 2 turns`);
+      }
       return null;
     }
     case "coordinate": {

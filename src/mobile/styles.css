@@ -74,6 +74,24 @@ html.is-mobile-shell .tutorial-stage .match {
   font-size: 1.05em;
   padding: 0.5rem 0.85rem;
 }
+/* Icon-only controls keep their pixel box. The shared button padding above
+   shrinks a width/height:100% glyph down to a sliver inside that box. */
+html.is-mobile-shell .kit-icon-btn,
+html.is-mobile-shell .sg-icon-btn,
+.mobile-shell .kit-icon-btn,
+.mobile-shell .sg-icon-btn {
+  padding: 0;
+  flex: 0 0 auto;
+}
+html.is-mobile-shell .kit-icon-btn img,
+html.is-mobile-shell .sg-icon-btn img,
+.mobile-shell .kit-icon-btn img,
+.mobile-shell .sg-icon-btn img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  zoom: 1;
+}
 .mobile-shell .round-btn.float-cancel,
 .mobile-shell .round-btn.float-confirm {
   padding: 0 0.85rem 0 0.35rem;
@@ -231,10 +249,12 @@ html.is-mobile-shell:has(.builder) #root {
 .mobile-shell .builder {
   flex: 1 1 auto;
   min-height: 0;
+  height: auto;
+  max-height: none;
   max-width: none;
   display: flex;
   flex-direction: column;
-  padding: 0.55rem 0.75rem 4.6rem;
+  padding: 0.45rem 0.55rem 0.35rem;
   font-size: 1.12em;
   overflow: hidden;
 }
@@ -264,31 +284,33 @@ html.is-mobile-shell:has(.builder) #root {
 .mobile-shell .builder .sg-icon-img {
   zoom: 1.5;
 }
-
-.mobile-shell .builder .pick-detail-btn {
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
+.mobile-shell .builder .builder-stats .file-icon,
+.mobile-shell .builder .builder-decklist .file-icon {
+  zoom: 1;
 }
 
-.mobile-shell .builder.deck-drawer .unit-pick-grid {
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 0.7rem;
-}
-
-.mobile-shell .builder.deck-drawer .pick-select {
-  grid-template-columns: 128px minmax(0, 1fr);
-}
-
-.mobile-shell .builder.deck-drawer .pick-meta {
+.mobile-shell .builder .pick-toggle {
   min-width: 0;
+  min-height: 40px;
+  padding: 0.3rem 0.28rem;
+  font-size: 0.68rem;
+}
+.mobile-shell .builder .pick-card .pick-focus .unit-art {
+  width: 64px;
+  height: 64px;
+  flex-basis: 64px;
 }
 
-.mobile-shell .builder.deck-drawer .builder-layout {
+.mobile-shell .builder .unit-pick-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+
+.mobile-shell .builder .builder-layout {
   display: grid !important;
   flex: 1 1 auto;
   min-height: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(148px, 48%) !important;
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   overflow: hidden;
@@ -322,18 +344,34 @@ html.is-mobile-shell:has(.builder) #root {
   max-height: min(85dvh, 860px);
 }
 
-.mobile-shell .builder > :not(.builder-layout):not(.builder-footer) {
-  flex: 0 0 auto;
+.mobile-shell .builder > .builder-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mobile-shell .builder-stats { max-height: 30%; }
+.mobile-shell .builder-screen-card .pick-detail-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 1.05rem;
 }
 
 .mobile-shell .builder-footer {
-  padding: 0.55rem 0.85rem;
-  gap: 0.55rem;
+  padding: 0.35rem 0.5rem 0.45rem;
+  gap: 0.35rem;
 }
 
 .mobile-shell .builder-footer button {
-  font-size: 1.05rem;
-  padding: 0.55rem 1rem;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.7rem;
+}
+
+.mobile-shell .builder-footer .difficulty-blurb {
+  font-size: 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Tap tips on /m — readable + stay in viewport (placement also clamps in AnchoredTip). */

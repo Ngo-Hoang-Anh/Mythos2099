@@ -436,15 +436,10 @@ function playCard(
     card.ownerUnitId &&
     !sourcePresent
   ) {
-    const penalty = spend(player, 1);
-    if (penalty) return penalty;
-    takeFromHand(player, cardId);
-    player.discard.push(card);
-    log(state, `${card.name} fizzles — source unit not on board (-1 CP)`);
-    return null;
+    return `${getUnitDef(card.ownerUnitId).name} must be on the board to play ${card.name}`;
   }
-
-  const spent = spend(player, card.cost);
+  const cost = card.cost;
+  const spent = spend(player, cost);
   if (spent) return spent;
   let err: string | null = null;
   const group = withLogGroup(
@@ -457,7 +452,7 @@ function playCard(
     true,
   );
   if (err) {
-    player.commandPoints += card.cost;
+    player.commandPoints += cost;
     const idx = state.log.lastIndexOf(group);
     if (idx >= 0) state.log.splice(idx, 1);
     return err;

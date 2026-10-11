@@ -316,6 +316,51 @@ export function jetOrbitPath(center: Point, radius: number, samples = JET_ORBIT_
   return pts;
 }
 
+/** Ms to arrive at each waypoint. Entry 0 is 0; later entries are the hop that ends there. */
+export function evenDurations(count: number, stepMs: number): number[] {
+  return Array.from({ length: count }, (_, i) => (i === 0 ? 0 : stepMs));
+}
+
+export type TimedTrack = {
+  points: Point[];
+  durations: number[];
+  /** Waypoint just commanded. */
+  index: number;
+  /** Wall time when `index` was commanded. */
+  commandedAt: number;
+};
+
+function lerpPoint(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+/** Where a unit on a fixed schedule will be at wall time `at`. */
+export function pointOnTrack(track: TimedTrack, at: number): Point {
+  const pts = track.points;
+  if (pts.length === 0) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+  const last = pts.length - 1;
+  let idx = Math.max(0, Math.min(last, track.index));
+  const segDur = Math.max(0, track.durations[idx] ?? 0);
+  if (at <= track.commandedAt) return pts[segDur > 0 ? Math.max(0, idx - 1) : idx];
+  if (segDur > 0 && at < track.commandedAt + segDur) {
+    return lerpPoint(pts[Math.max(0, idx - 1)], pts[idx], (at - track.commandedAt) / segDur);
+  }
+  let time = track.commandedAt + segDur;
+  while (idx < last) {
+    const next = idx + 1;
+    const hop = Math.max(0, track.durations[next] ?? 0);
+    if (hop <= 0) {
+      idx = next;
+      continue;
+    }
+    if (at < time + hop) return lerpPoint(pts[idx], pts[next], (at - time) / hop);
+    time += hop;
+    idx = next;
+  }
+  return pts[last];
+}
+
 export function nearestPathIndex(points: Point[], from: Point): number {
   let best = 0;
   let bestD = Infinity;

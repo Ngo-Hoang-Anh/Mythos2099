@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { CLASS_COLOR, UnitArt, UnitToken } from "./UnitToken";
+import { gunAim, missileAimHit, type HpForecast } from "./damagePreview";
 import { SquadArt } from "./SquadArt";
 import { ExplosionFx } from "./ExplosionFx";
 import { SgBrackets, sgIcon } from "./UiChrome";
@@ -94,8 +95,11 @@ import {
   missileDivePath,
   missileLevelDropPath,
   MISSILE_STEP_MS,
+  evenDurations,
   nextAirPattern,
+  pointOnTrack,
   reversePath,
+  type TimedTrack,
   spreadMarchPaths,
 } from "./airStrike";
 
@@ -104,7 +108,8 @@ const FORMATION_MS = 420;
 const ARTILLERY_TURN_MS = 320;
 const RECOIL_MS = 160;
 const MUZZLE_MS = 180;
-const SHOT_MS = 320;
+const GUN_FLIGHT_MS = 500;
+const GUN_PAINT_MS = 32;
 const PHASE_MS = 520;
 const LANE_MS = 260;
 const KEYWORD_MS = 700;
@@ -137,7 +142,41 @@ type ShotMark = {
   angle: number;
   src: string;
   size: number;
+  moveMs?: number;
 };
+
+type GunRound = {
+  key: string;
+  x: number;
+  y: number;
+  angle: number;
+  src: string;
+  size: number;
+  moveMs: number;
+  to: Point;
+  released: boolean;
+  arrived: boolean;
+};
+
+function projMotion(ms: number): { transition: string } {
+  return { transition: ms > 0 ? `left ${ms}ms linear, top ${ms}ms linear` : "none" };
+}
+
+function gunMarks(rounds: GunRound[]): ShotMark[] {
+  return rounds.filter((round) => !round.arrived).map((round) => ({
+    key: round.key,
+    x: round.x,
+    y: round.y,
+    angle: round.angle,
+    src: round.src,
+    size: round.size,
+    moveMs: round.moveMs,
+  }));
+}
+
+function withGunTracers(rounds: GunRound[], existing: ShotMark[]): ShotMark[] {
+  return [...gunMarks(rounds), ...existing.filter((mark) => mark.key.endsWith("-bounce"))];
+}
 
 type DroneFlyer = {
   key: string;
@@ -247,7 +286,7 @@ const EMPTY_PLAY: PlayFx = {
   shotMissileScale: 1,
   shotFalling: false,
   shotAngle: 0,
-  shotMoveMs: SHOT_MS,
+  shotMoveMs: 0,
   missileWakes: [],
   muzzles: [],
   tracers: [],
@@ -260,7 +299,7 @@ let explosionSeq = 0;
 const HQ_TILES = [
   "B01", "B02", "B09", "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20",
   "B21", "B22", "B23", "B24", "B25", "B26", "P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08",
-].map((name) => `/ui/hq-building-rng/${name}.png`);
+].map((name) => `/ui/hq-building-rng/${name}.webp`);
 
 function shuffleTiles(items: string[]): string[] {
   const next = [...items];
@@ -327,13 +366,21 @@ function aimArcPath(from: Point, to: Point): string {
   return `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`;
 }
 
+function aimStraightPath(from: Point, to: Point): string {
+  return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+}
+
+type BoardAim = { kind: "missile" | "atk"; unitId: string };
+
 export function BoardView({
   match,
   selectedIds,
+  kwFocusId = null,
   hostileAimIds = [],
   deployPlayer,
   deployEnabled,
   reachableCells = [],
+  reachableLabel = "Move here",
   dropKind = null,
   fxQueue,
   fxStartBoard = null,
@@ -354,14 +401,18 @@ export function BoardView({
   surrenderDisabled = false,
   onToggleExit,
   onRequestSurrender,
+  opponentIntel = null,
 }: {
   match: MatchState;
   selectedIds: string[];
+  /** Mobile inspect focus: keywords visible until a second tap or an outside tap. */
+  kwFocusId?: string | null;
   /** Valid enemy targets while a card is waiting for an enemy pick. */
   hostileAimIds?: string[];
   deployPlayer: PlayerId | null;
   deployEnabled: boolean;
   reachableCells?: BoardPos[];
+  reachableLabel?: string;
   dropKind?: DragKind | null;
   fxQueue: FxEvent[];
   /** Board before card-move FX resolved; keeps tokens from teleporting to final cells. */
@@ -385,6 +436,8 @@ export function BoardView({
   surrenderDisabled?: boolean;
   onToggleExit?: () => void;
   onRequestSurrender?: () => void;
+  /** Hand, supply, reserve, and deck tracker for the seat across the table. */
+  opponentIntel?: ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -407,11 +460,14 @@ export function BoardView({
   const jetStationsRef = useRef<JetStation[]>([]);
   const [droneStations, setDroneStations] = useState<DroneStation[]>([]);
   const droneStationsRef = useRef<DroneStation[]>([]);
+  const airTracks = useRef(new Map<string, TimedTrack>());
+  const jetPlans = useRef(new Map<string, Point[]>());
+  const dronePlans = useRef(new Map<string, Point[][]>());
   const boardAlive = useRef(true);
   const [pose, setPose] = useState<Record<string, { hull: number; turret: number }>>({});
   const [squadGround, setSquadGround] = useState<SquadGround>({ leftover: [], phase: {} });
-  const [missileAimId, setMissileAimId] = useState<string | null>(null);
-  const [missileArc, setMissileArc] = useState<{ from: Point; to: Point } | null>(null);
+  const [aim, setAim] = useState<BoardAim | null>(null);
+  const [aimLine, setAimLine] = useState<{ from: Point; to: Point; straight: boolean } | null>(null);
   const groundTimers = useRef<number[]>([]);
   poseRef.current = pose;
 
@@ -472,6 +528,77 @@ export function BoardView({
       if (moving) return moving;
     }
     return pointOfTarget(to);
+  }
+
+  function trackAir(unitId: string, points: Point[], durations: number[]) {
+    if (points.length === 0) return;
+    airTracks.current.set(unitId, { points, durations, index: 0, commandedAt: performance.now() });
+  }
+
+  function commandAir(unitId: string, index: number) {
+    const track = airTracks.current.get(unitId);
+    if (!track) return;
+    track.index = index;
+    track.commandedAt = performance.now();
+  }
+
+  function endAir(unitId: string) {
+    airTracks.current.delete(unitId);
+    jetPlans.current.delete(unitId);
+    dronePlans.current.delete(unitId);
+  }
+
+  /** Fixed gun aim: parked units stay put; a jet or drone is led by one bullet flight. */
+  function bulletAim(to: FxTarget | undefined, fallback: Point): Point {
+    if (!to) return fallback;
+    const current = liveTo(to) ?? fallback;
+    if ("hq" in to) return current;
+    const boardNow = visualRef.current ?? match.board;
+    const occupant = boardNow[to.col]?.[to.row];
+    if (!occupant || (occupant.class !== "Jet Plane" && occupant.class !== "Drone")) return current;
+    const track = airTracks.current.get(occupant.instanceId);
+    if (!track) return current;
+    return pointOnTrack(track, performance.now() + GUN_FLIGHT_MS);
+  }
+
+  function ensureJetPlan(unit: UnitInstance, origin: Point, end: Point): Point[] {
+    const cached = jetPlans.current.get(unit.instanceId);
+    if (cached) return cached;
+    const loop = jetLoopPath(origin, end, nextAirPattern("jet"));
+    jetPlans.current.set(unit.instanceId, loop);
+    trackAir(unit.instanceId, loop, evenDurations(loop.length, JET_STEP_MS));
+    return loop;
+  }
+
+  function ensureDronePlan(unit: UnitInstance, origin: Point, end: Point): Point[][] {
+    const cached = dronePlans.current.get(unit.instanceId);
+    if (cached) return cached;
+    const facing = poseRef.current[unit.instanceId]?.hull ?? parkedHullDeg(unit.class, unit.owner);
+    const members = squadLayout(unit.defId, true)?.members ?? [];
+    const fallbackSrc = getSquadArt(unit.defId)?.pieces[0]?.src ?? "/units-art/drone/recon.svg";
+    const spawned = (members.length > 0 ? members : [{ x: 0, y: 0, src: fallbackSrc }]).slice(0, DRONE_COUNT);
+    const starts = spawned.map((member) => {
+      const local = rotateOffset(member.x, member.y, facing);
+      return { x: origin.x + local.x, y: origin.y + local.y };
+    });
+    while (starts.length < DRONE_COUNT && starts[0]) starts.push({ ...starts[0] });
+    const paths = droneAttackPaths(starts, end, nextAirPattern("drone"));
+    dronePlans.current.set(unit.instanceId, paths);
+    if (paths[0]) trackAir(unit.instanceId, paths[0], evenDurations(paths[0].length, DRONE_STEP_MS));
+    return paths;
+  }
+
+  function primeAirborneGuns(shots: { unitId: string; from: { col: number; row: number }; to: FxTarget }[]) {
+    const boardNow = visualRef.current ?? match.board;
+    for (const step of shots) {
+      const shooter = findUnit(boardNow, step.unitId);
+      if (!shooter) continue;
+      const origin = liveFrom(shooter.instanceId, step.from);
+      const end = liveTo(step.to);
+      if (!origin || !end) continue;
+      if (shooter.class === "Jet Plane") ensureJetPlan(shooter, origin, end);
+      if (shooter.class === "Drone" && getSquadArt(shooter.defId)) ensureDronePlan(shooter, origin, end);
+    }
   }
 
   function syncDroneStations(next: DroneStation[]) {
@@ -541,37 +668,69 @@ export function BoardView({
     missileLocks.add(`${unit.missileTarget.col}-${unit.missileTarget.row}`);
   }
 
+  const previewState: MatchState = board === match.board ? match : { ...match, board };
+
   useLayoutEffect(() => {
-    const unit = missileAimId ? findUnit(board, missileAimId) : null;
-    const target = unit?.missileTarget;
+    const unit = aim ? findUnit(board, aim.unitId) : null;
     const root = rootRef.current?.getBoundingClientRect();
-    if (!unit || !target || !root) {
-      setMissileArc(null);
+    if (!unit || !root) {
+      setAimLine(null);
       return;
     }
     const from = parkPoint(unit.col, unit.row, root);
-    const to = centerOfCell(target, root);
-    setMissileArc(from && to ? { from, to } : null);
-  }, [missileAimId, board]);
+    if (aim.kind === "missile") {
+      const target = unit.missileTarget;
+      const to = target ? centerOfCell(target, root) : null;
+      setAimLine(from && to ? { from, to, straight: false } : null);
+      return;
+    }
+    const shot = gunAim(previewState, unit);
+    if (!shot || !from) {
+      setAimLine(null);
+      return;
+    }
+    const to = "hq" in shot.to ? centerOfHq(shot.to.hq, root) : centerOfCell(shot.to, root);
+    setAimLine(to ? { from, to, straight: true } : null);
+  }, [aim, board, match]);
 
   useEffect(() => {
-    if (!missileAimId) return;
+    if (!aim) return;
     const onDown = (event: PointerEvent) => {
-      if (event.pointerType === "mouse") return;
       const t = event.target;
-      if (t instanceof Element && t.closest(`[data-missile-aim="${missileAimId}"]`)) return;
-      setMissileAimId(null);
+      if (!(t instanceof Element)) return;
+      if (aim.kind === "missile") {
+        if (event.pointerType === "mouse") return;
+        if (t.closest(`[data-missile-aim="${aim.unitId}"]`)) return;
+        setAim(null);
+        return;
+      }
+      if (t.closest(`[data-atk-aim="${aim.unitId}"]`)) return;
+      setAim(null);
     };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);
-  }, [missileAimId]);
+  }, [aim]);
 
   function aimMissile(unitId: string, mode: "on" | "off" | "toggle") {
-    setMissileAimId((prev) => {
-      if (mode === "on") return unitId;
-      if (mode === "off") return prev === unitId ? null : prev;
-      return prev === unitId ? null : unitId;
+    setAim((prev) => {
+      if (mode === "on") return { kind: "missile", unitId };
+      if (mode === "off") return prev?.kind === "missile" && prev.unitId === unitId ? null : prev;
+      return prev?.kind === "missile" && prev.unitId === unitId ? null : { kind: "missile", unitId };
     });
+  }
+
+  function aimAtk(unitId: string) {
+    const unit = findUnit(board, unitId);
+    if (!unit || !gunAim(previewState, unit)) return;
+    setAim((prev) => (prev?.kind === "atk" && prev.unitId === unitId ? null : { kind: "atk", unitId }));
+  }
+
+  const hpForecast = new Map<string, number>();
+  if (aim) {
+    const unit = findUnit(board, aim.unitId);
+    const hits: HpForecast[] =
+      !unit ? [] : aim.kind === "missile" ? [missileAimHit(previewState, unit)].filter((hit): hit is HpForecast => Boolean(hit)) : (gunAim(previewState, unit)?.hits ?? []);
+    for (const hit of hits) hpForecast.set(hit.unitId, hit.hp);
   }
   const hq0 = visualHq ? visualHq[0] : holdHq ? holdHq[0] : match.players[0].hqHp;
   const hq1 = visualHq ? visualHq[1] : holdHq ? holdHq[1] : match.players[1].hqHp;
@@ -1012,6 +1171,13 @@ export function BoardView({
     const destNow = settledRoot ? parkPoint(to.col, to.row, settledRoot) : null;
     if (destNow && path.length > 0) path[path.length - 1] = destNow;
     const travelCap = unitClass === "Jet Plane" ? 240 : airborne ? 380 : 220;
+    const trackingAir = unitClass === "Jet Plane" || unitClass === "Drone";
+    if (trackingAir) {
+      const durations = path.map((_, i) =>
+        i === 0 ? 0 : Math.max(70, Math.min(travelCap, dist(path[i - 1], path[i]) * 1.15)),
+      );
+      trackAir(unitId, path, durations);
+    }
     const reverseFrom = hull;
     const backing =
       unitClass === "Motorcycle" && path.length >= 2
@@ -1048,19 +1214,26 @@ export function BoardView({
               p.flyer ? { ...p, flyer: { ...p.flyer, hullDeg: hull, turretExtra: 0, moveMs: turnMs } } : p,
             );
             await wait(turnMs);
-            if (cancelled()) return;
+            if (cancelled()) {
+              if (trackingAir) endAir(unitId);
+              return;
+            }
           }
         }
       }
       const travel =
         reversing && backing ? backing.ms / reverseSegs : Math.max(70, Math.min(travelCap, dist(a, b) * 1.15));
+      if (trackingAir) commandAir(unitId, i + 1);
       write((p) =>
         p.flyer
           ? { ...p, flyer: { ...p.flyer, x: b.x, y: b.y, hullDeg: hull, turretExtra: 0, moveMs: travel } }
           : p,
       );
       await wait(travel);
-      if (cancelled()) return;
+      if (cancelled()) {
+        if (trackingAir) endAir(unitId);
+        return;
+      }
     }
     if (steer) {
       const extra = combatTurretExtra(hull, owner);
@@ -1088,9 +1261,13 @@ export function BoardView({
     } else {
       setPose((prev) => ({ ...prev, [unitId]: { hull: parkFacing, turret: 0 } }));
     }
-    if (cancelled()) return;
+    if (cancelled()) {
+      if (trackingAir) endAir(unitId);
+      return;
+    }
     if (defId) arriveSquadGround(unitId, defId);
     placeMovedUnit(unitId, to, boardPlace, opts?.unit);
+    if (trackingAir) endAir(unitId);
     write(EMPTY_PLAY);
   }
 
@@ -1240,7 +1417,7 @@ export function BoardView({
     if (shooter && shooter.class === "Drone" && getSquadArt(shooter.defId)) {
       const parked = droneStationsRef.current.find((s) => s.unitId === shooter.instanceId);
       if (parked || !opts.direct) {
-        return playDroneStrike(shooter, origin, end, damage, wait, cancelled, nested);
+        return playDroneStrike(shooter, origin, end, damage, wait, cancelled, nested, to);
       }
     }
     if (shooter && shooter.class === "Jet Plane") {
@@ -1255,9 +1432,10 @@ export function BoardView({
     const power = opts.power ?? 0;
     const targetMaxHp = opts.targetMaxHp ?? 1;
     if (shooter) {
-      await aimBipedTorso(shooter, start, liveTo(to) ?? end, wait, cancelled);
+      await aimBipedTorso(shooter, start, bulletAim(to, end), wait, cancelled);
       if (cancelled()) return;
     }
+    const muzzleAim = bulletAim(to, end);
     write({
       ...EMPTY_PLAY,
       recoilId: unitId,
@@ -1268,13 +1446,13 @@ export function BoardView({
       bulletSize: bulletHeight(power),
       shotMissile: missile,
       shotFalling: false,
-      shotAngle: headingDeg(start, liveTo(to) ?? end),
-      shotMoveMs: 40,
-      missileWakes: missile ? emitMissileWake([], start, headingDeg(start, liveTo(to) ?? end), 1) : [],
+      shotAngle: headingDeg(start, muzzleAim),
+      shotMoveMs: 0,
+      missileWakes: missile ? emitMissileWake([], start, headingDeg(start, muzzleAim), 1) : [],
     });
     await wait(RECOIL_MS);
     if (cancelled()) return;
-    const aim = liveTo(to) ?? end;
+    const aim = missile ? (liveTo(to) ?? end) : bulletAim(to, end);
     if (missile) {
       const arc = missileArcPath(start, aim);
       let nose = arc.length >= 2 ? headingDeg(arc[0], arc[1]) : headingDeg(start, aim);
@@ -1296,11 +1474,11 @@ export function BoardView({
         if (cancelled()) return;
       }
     } else {
-      write((p) => ({ ...p, recoilId: null, shot: aim, shotAngle: headingDeg(start, aim), shotMoveMs: SHOT_MS }));
-      await wait(SHOT_MS);
+      write((p) => ({ ...p, recoilId: null, shot: aim, shotAngle: headingDeg(start, aim), shotMoveMs: GUN_FLIGHT_MS }));
+      await wait(GUN_FLIGHT_MS);
     }
     if (cancelled()) return;
-    return resolveShot(split, () => finishImpact(start, aim, damage, targetMaxHp, wait, cancelled, false, missile, write, split), async () => {
+    return resolveShot(split, () => finishImpact(start, aim, damage, targetMaxHp, wait, cancelled, false, missile, write), async () => {
       write(EMPTY_PLAY);
     });
   }
@@ -1310,10 +1488,83 @@ export function BoardView({
     impact: () => Promise<void>,
     settle: () => Promise<void>,
   ): Promise<ShotAftermath | undefined> {
-    if (split) return { impact, settle };
     await impact();
+    if (split) return { impact: async () => {}, settle };
     await settle();
     return undefined;
+  }
+
+  function scheduleGunImpact(
+    round: GunRound,
+    rounds: GunRound[],
+    write: PlayWriter,
+    damage: number,
+    targetMaxHp: number,
+    origin: Point,
+    wait: (ms: number) => Promise<unknown>,
+    cancelled: () => boolean,
+  ): Promise<void> {
+    return (async () => {
+      await wait(GUN_FLIGHT_MS);
+      if (cancelled() || round.arrived) return;
+      round.arrived = true;
+      if (damage <= 0) {
+        const outward = round.to.x >= origin.x ? 1 : -1;
+        const bounce = { x: round.to.x + outward * 92, y: round.to.y - 78 };
+        const bounceKey = `${round.key}-bounce`;
+        write((p) => ({
+          ...p,
+          muzzles: [],
+          shotRicochet: true,
+          tracers: [
+            ...gunMarks(rounds),
+            ...p.tracers.filter((mark) => mark.key.endsWith("-bounce") && mark.key !== bounceKey),
+            {
+              key: bounceKey,
+              x: bounce.x,
+              y: bounce.y,
+              angle: headingDeg(round.to, bounce),
+              src: round.src,
+              size: round.size,
+              moveMs: RICOCHET_MS,
+            },
+          ],
+        }));
+        await wait(RICOCHET_MS);
+        if (cancelled()) return;
+        write((p) => ({ ...p, tracers: p.tracers.filter((mark) => mark.key !== bounceKey) }));
+        return;
+      }
+      const blasts = explosionPlacements(round.to, damage, targetMaxHp);
+      const keys = blasts.map(() => `dmg-${explosionSeq++}`);
+      let ownsFloat = false;
+      write((p) => {
+        ownsFloat = !p.dmgFloat;
+        return {
+          ...p,
+          muzzles: [],
+          tracers: withGunTracers(rounds, p.tracers),
+          explosions: [
+            ...p.explosions,
+            ...blasts.map((blast, i) => ({
+              key: keys[i],
+              x: blast.x,
+              y: blast.y,
+              frames: DAMAGE_EXPLOSION,
+              scale: blast.scale,
+            })),
+          ],
+          dmgFloat: p.dmgFloat ?? { x: round.to.x, y: round.to.y, amount: damage },
+        };
+      });
+      await wait(Math.max(explosionDuration(DAMAGE_EXPLOSION), FLOAT_MS));
+      if (cancelled()) return;
+      write((p) => ({
+        ...p,
+        explosions: p.explosions.filter((blast) => !keys.includes(blast.key)),
+        dmgFloat: ownsFloat ? null : p.dmgFloat,
+      }));
+    })();
   }
 
   async function playKamikazeDive(
@@ -1377,7 +1628,7 @@ export function BoardView({
     }
     return resolveShot(
       Boolean(opts.split),
-      () => finishImpact(origin, end, damage, opts.targetMaxHp ?? 1, wait, cancelled, true, false, write, Boolean(opts.split)),
+      () => finishImpact(origin, end, damage, opts.targetMaxHp ?? 1, wait, cancelled, true, false, write),
       async () => {
         write(EMPTY_PLAY);
       },
@@ -1392,6 +1643,7 @@ export function BoardView({
     wait: (ms: number) => Promise<unknown>,
     cancelled: () => boolean,
     opts: { missile?: boolean; power?: number; targetMaxHp?: number; write?: PlayWriter; split?: boolean },
+    to?: FxTarget,
   ): Promise<ShotAftermath | undefined> {
     const write = opts.write ?? setPlay;
     const split = Boolean(opts.split);
@@ -1415,8 +1667,7 @@ export function BoardView({
     while (spawned.length < DRONE_COUNT) {
       spawned.push({ ...spawned[0], key: `${unit.instanceId}-d${spawned.length}` });
     }
-    const starts = spawned.map((drone) => ({ x: drone.x, y: drone.y }));
-    const paths = droneAttackPaths(starts, end, nextAirPattern("drone"));
+    const paths = ensureDronePlan(unit, origin, end);
     const fireAt = droneFireSteps(paths, end);
     const missileDrone = (() => {
       let best = 0;
@@ -1437,20 +1688,21 @@ export function BoardView({
       drones: spawned,
     });
     await wait(40);
-    if (cancelled()) return;
-    const aimNow = () => end;
+    if (cancelled()) {
+      endAir(unit.instanceId);
+      return;
+    }
     let drones = spawned;
     const fired = new Set<number>();
-    const tracerFrom: Point[] = [];
-    let tracerAge = 0;
+    const rounds: GunRound[] = [];
+    const landings: Promise<void>[] = [];
     let missilePath: Point[] | null = null;
     let missileIdx = 0;
     let missileNose = 0;
     const steps = Math.max(...paths.map((path) => path.length));
-    const lastFire = Math.max(...fireAt);
-    const tracerTravel = 4;
     for (let i = 1; i < steps || (missilePath && missileIdx < missilePath.length - 1); i += 1) {
       if (i < steps) {
+        commandAir(unit.instanceId, Math.min(i, (paths[0]?.length ?? 1) - 1));
         drones = drones.map((drone, di) => {
           const path = paths[di] ?? paths[0];
           const prev = path[Math.min(i - 1, path.length - 1)];
@@ -1465,82 +1717,117 @@ export function BoardView({
           };
         });
       }
-      const aim = aimNow();
       const muzzles: ShotMark[] = [];
+      let spawnedRound = false;
       for (let di = 0; di < drones.length; di += 1) {
         if (i !== fireAt[di] || fired.has(di)) continue;
         fired.add(di);
         const drone = drones[di];
         if (missileFollowup && di === missileDrone) {
+          const aim = end;
           missilePath = missileDivePath({ x: drone.x, y: drone.y }, aim);
           missileIdx = 0;
           missileNose = missilePath.length >= 2 ? headingDeg(missilePath[0], missilePath[1]) : headingDeg(drone, aim);
         } else if (!missileFollowup) {
-          tracerFrom.push({ x: drone.x, y: drone.y });
-          tracerAge = 0;
+          const from = { x: drone.x, y: drone.y };
+          const toPoint = bulletAim(to, end);
+          rounds.push({
+            key: `${unit.instanceId}-tr-${di}`,
+            x: from.x,
+            y: from.y,
+            to: toPoint,
+            angle: headingDeg(from, toPoint),
+            src: "/units-art/bullets/bulletRed1.png",
+            size: tankRed1BulletH() * DRONE_SHOT_SCALE,
+            moveMs: 0,
+            released: false,
+            arrived: false,
+          });
+          spawnedRound = true;
           muzzles.push({
             key: `${drone.key}-mz`,
             x: drone.x,
             y: drone.y,
-            angle: headingDeg({ x: drone.x, y: drone.y }, aim),
+            angle: headingDeg(from, toPoint),
             src: "/units-art/shot/shotThin.png",
             size: tankThinShotH() * DRONE_SHOT_SCALE,
           });
         }
       }
-      if (tracerFrom.length > 0) tracerAge += 1;
-      const t = Math.min(1, tracerAge / tracerTravel);
-      const tracers: ShotMark[] = tracerFrom.map((from, ti) => ({
-        key: `${unit.instanceId}-tr-${ti}`,
-        x: from.x + (aim.x - from.x) * t,
-        y: from.y + (aim.y - from.y) * t,
-        angle: headingDeg(from, aim),
-        src: "/units-art/bullets/bulletRed1.png",
-        size: tankRed1BulletH() * DRONE_SHOT_SCALE,
-      }));
       if (missilePath && missileIdx < missilePath.length - 1) missileIdx += 1;
       const missilePt = missilePath ? missilePath[Math.min(missileIdx, missilePath.length - 1)] : null;
       if (missilePath && missileIdx > 0) {
         missileNose = headingAlong(missilePath[missileIdx - 1], missilePt!, missileNose);
       }
-      write((p) => ({
-        ...p,
-        hideArtId: unit.instanceId,
-        drones,
-        muzzles,
-        tracers: missileFollowup ? [] : tracers,
-        shot: missilePt,
-        shotMissile: Boolean(missilePath),
-        shotMissileScale: DRONE_MISSILE_SCALE,
-        shotFalling: Boolean(missilePath),
-        shotAngle: missileNose,
-        shotMoveMs: missilePath ? DRONE_MISSILE_STEP_MS : DRONE_STEP_MS,
-        missileWakes:
-          missilePt && missilePath
-            ? emitMissileWake(p.missileWakes, missilePt, missileNose, DRONE_MISSILE_SCALE)
-            : [],
-      }));
-      await wait(missilePath ? Math.max(DRONE_STEP_MS, DRONE_MISSILE_STEP_MS) : DRONE_STEP_MS);
-      if (cancelled()) return;
-      if (i >= lastFire + tracerTravel && (!missilePath || missileIdx >= missilePath.length - 1) && i >= steps - 1) break;
-    }
-    const aim = end;
-    return resolveShot(
-      split,
-      async () => {
-        if (damage > 0) {
-          await showDroneImpact(aim, damage, targetMaxHp, wait, write);
-          return;
-        }
-        const outward = aim.x >= origin.x ? 1 : -1;
-        const bounce = { x: aim.x + outward * 92, y: aim.y - 78 };
+      const writeFrame = () =>
         write((p) => ({
           ...p,
-          tracers: p.tracers.map((tr) => ({ ...tr, x: bounce.x, y: bounce.y, angle: headingDeg(aim, bounce) })),
-          shotRicochet: true,
+          hideArtId: unit.instanceId,
+          drones,
+          muzzles,
+          tracers: missileFollowup ? [] : withGunTracers(rounds, p.tracers),
+          shot: missilePt,
+          shotMissile: Boolean(missilePath),
+          shotMissileScale: DRONE_MISSILE_SCALE,
+          shotFalling: Boolean(missilePath),
+          shotAngle: missileNose,
+          shotMoveMs: missilePath ? DRONE_MISSILE_STEP_MS : 0,
+          missileWakes:
+            missilePt && missilePath
+              ? emitMissileWake(p.missileWakes, missilePt, missileNose, DRONE_MISSILE_SCALE)
+              : [],
         }));
-        await wait(RICOCHET_MS);
-      },
+      writeFrame();
+      if (spawnedRound) {
+        await wait(GUN_PAINT_MS);
+        if (cancelled()) {
+          endAir(unit.instanceId);
+          return;
+        }
+        for (const round of rounds) {
+          if (round.released) continue;
+          const from = { x: round.x, y: round.y };
+          round.to = bulletAim(to, end);
+          round.angle = headingDeg(from, round.to);
+          round.released = true;
+          round.x = round.to.x;
+          round.y = round.to.y;
+          round.moveMs = GUN_FLIGHT_MS;
+          landings.push(scheduleGunImpact(round, rounds, write, damage, targetMaxHp, origin, wait, cancelled));
+        }
+        writeFrame();
+        await wait(Math.max(0, DRONE_STEP_MS - GUN_PAINT_MS));
+      } else {
+        await wait(missilePath ? Math.max(DRONE_STEP_MS, DRONE_MISSILE_STEP_MS) : DRONE_STEP_MS);
+      }
+      if (cancelled()) {
+        endAir(unit.instanceId);
+        return;
+      }
+    }
+    if (!missileFollowup) await Promise.all(landings);
+    if (cancelled()) {
+      endAir(unit.instanceId);
+      return;
+    }
+    endAir(unit.instanceId);
+    if (missileFollowup) {
+      return resolveShot(
+        split,
+        async () => {
+          if (damage > 0) {
+            await showDroneImpact(end, damage, targetMaxHp, wait, write);
+            return;
+          }
+        },
+        async () => {
+          write(EMPTY_PLAY);
+        },
+      );
+    }
+    return resolveShot(
+      split,
+      async () => {},
       async () => {
         write(EMPTY_PLAY);
       },
@@ -1709,6 +1996,7 @@ export function BoardView({
     takeJetStation(unit.instanceId);
     const aim = (to ? liveTo(to) : null) ?? end;
     const loop = jetLoopPath(origin, aim, nextAirPattern("jet"));
+    trackAir(unit.instanceId, loop, evenDurations(loop.length, JET_STEP_MS));
     const fireAt = jetFireIndex(loop, aim);
     let hull = poseRef.current[unit.instanceId]?.hull ?? parkFacing;
     write({
@@ -1729,7 +2017,10 @@ export function BoardView({
       },
     });
     await wait(30);
-    if (cancelled()) return;
+    if (cancelled()) {
+      endAir(unit.instanceId);
+      return;
+    }
     let missilePath: Point[] | null = null;
     let missileIdx = 0;
     let nose = 0;
@@ -1738,6 +2029,7 @@ export function BoardView({
       if (i < loop.length) {
         const prev = loop[i - 1];
         const next = loop[i];
+        commandAir(unit.instanceId, i);
         hull = i === loop.length - 1 ? parkFacing : headingAlong(prev, next, hull);
         if (i === fireAt) {
           missilePath = missileLevelDropPath(next, aim);
@@ -1772,11 +2064,15 @@ export function BoardView({
         }));
       }
       await wait(missilePath ? Math.max(JET_STEP_MS, MISSILE_STEP_MS) : JET_STEP_MS);
-      if (cancelled()) return;
+      if (cancelled()) {
+        endAir(unit.instanceId);
+        return;
+      }
     }
+    endAir(unit.instanceId);
     return resolveShot(
       split,
-      () => finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, false, true, write, split),
+      () => finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, false, true, write),
       async () => {
         write(EMPTY_PLAY);
       },
@@ -1820,7 +2116,7 @@ export function BoardView({
     const parked = takeJetStation(unit.instanceId);
     const takeoff = parked ? { x: parked.flyer.x, y: parked.flyer.y } : origin;
     const home = parked?.origin ?? origin;
-    const loop = jetLoopPath(takeoff, end, nextAirPattern("jet"));
+    const loop = ensureJetPlan(unit, takeoff, end);
     const fireAt = jetFireIndex(loop, end);
     const power = opts.power ?? 0;
     const targetMaxHp = opts.targetMaxHp ?? 1;
@@ -1843,103 +2139,96 @@ export function BoardView({
       },
     });
     await wait(30);
-    if (cancelled()) return;
-    const tracerTravel = 4;
-    let tracerFrom: Point | null = null;
-    let tracerAge = 0;
+    if (cancelled()) {
+      endAir(unit.instanceId);
+      return;
+    }
+    const rounds: GunRound[] = [];
+    const landings: Promise<void>[] = [];
     for (let i = 1; i < loop.length; i += 1) {
       const prev = loop[i - 1];
       const next = loop[i];
+      commandAir(unit.instanceId, i);
       hull = i === loop.length - 1 ? parkFacing : headingAlong(prev, next, hull);
-      const gunEnd = (to ? liveTo(to) : null) ?? end;
+      const muzzles: ShotMark[] = [];
       if (i === fireAt) {
-        tracerFrom = { x: next.x, y: next.y };
-        tracerAge = 0;
+        const from = { x: next.x, y: next.y };
+        const toPoint = bulletAim(to, end);
+        rounds.push({
+          key: `${unit.instanceId}-jet-tr`,
+          x: from.x,
+          y: from.y,
+          to: toPoint,
+          angle: headingDeg(from, toPoint),
+          src: "/units-art/bullets/bulletRed1.png",
+          size: tankRed1BulletH() * 0.55,
+          moveMs: 0,
+          released: false,
+          arrived: false,
+        });
+        muzzles.push({
+          key: `${unit.instanceId}-jet-mz`,
+          x: next.x,
+          y: next.y,
+          angle: headingDeg(from, toPoint),
+          src: "/units-art/shot/shotThin.png",
+          size: tankThinShotH() * 0.55,
+        });
       }
-      if (tracerFrom) tracerAge += 1;
-      const t = tracerFrom ? Math.min(1, tracerAge / tracerTravel) : 0;
-      const tracers: ShotMark[] = tracerFrom
-        ? [
-            {
-              key: `${unit.instanceId}-jet-tr`,
-              x: tracerFrom.x + (gunEnd.x - tracerFrom.x) * t,
-              y: tracerFrom.y + (gunEnd.y - tracerFrom.y) * t,
-              angle: headingDeg(tracerFrom, gunEnd),
-              src: "/units-art/bullets/bulletRed1.png",
-              size: tankRed1BulletH() * 0.55,
-            },
-          ]
-        : [];
-      const muzzles: ShotMark[] =
-        i === fireAt
-          ? [
-              {
-                key: `${unit.instanceId}-jet-mz`,
-                x: next.x,
-                y: next.y,
-                angle: headingDeg(next, gunEnd),
-                src: "/units-art/shot/shotThin.png",
-                size: tankThinShotH() * 0.55,
-              },
-            ]
-          : [];
-      write((p) =>
-        p.flyer
-          ? {
-              ...p,
-              hideArtId: unit.instanceId,
-              flyer: { ...p.flyer, x: next.x, y: next.y, hullDeg: hull, moveMs: JET_STEP_MS },
-              muzzles,
-              tracers,
-              shotSrc: shotSprite(power),
-              bulletSrc: bulletSprite(power),
-            }
-          : p,
-      );
-      await wait(JET_STEP_MS);
-      if (cancelled()) return;
+      const writeFrame = () =>
+        write((p) =>
+          p.flyer
+            ? {
+                ...p,
+                hideArtId: unit.instanceId,
+                flyer: { ...p.flyer, x: next.x, y: next.y, hullDeg: hull, moveMs: JET_STEP_MS },
+                muzzles,
+                tracers: withGunTracers(rounds, p.tracers),
+                shotSrc: shotSprite(power),
+                bulletSrc: bulletSprite(power),
+              }
+            : p,
+        );
+      writeFrame();
+      if (i === fireAt) {
+        await wait(GUN_PAINT_MS);
+        if (cancelled()) {
+          endAir(unit.instanceId);
+          return;
+        }
+        for (const round of rounds) {
+          if (round.released) continue;
+          const from = { x: round.x, y: round.y };
+          round.to = bulletAim(to, end);
+          round.angle = headingDeg(from, round.to);
+          round.released = true;
+          round.x = round.to.x;
+          round.y = round.to.y;
+          round.moveMs = GUN_FLIGHT_MS;
+          landings.push(scheduleGunImpact(round, rounds, write, damage, targetMaxHp, takeoff, wait, cancelled));
+        }
+        writeFrame();
+        await wait(Math.max(0, JET_STEP_MS - GUN_PAINT_MS));
+      } else {
+        await wait(JET_STEP_MS);
+      }
+      if (cancelled()) {
+        endAir(unit.instanceId);
+        return;
+      }
     }
-    const gunEnd = (to ? liveTo(to) : null) ?? end;
-    const hit =
-      damage > 0
-        ? {
-            explosions: explosionPlacements(gunEnd, damage, targetMaxHp).map((blast) => ({
-              key: `dmg-${explosionSeq++}`,
-              x: blast.x,
-              y: blast.y,
-              frames: DAMAGE_EXPLOSION,
-              scale: blast.scale,
-            })),
-            dmgFloat: { x: gunEnd.x, y: gunEnd.y, amount: damage },
-            tracers: [] as ShotMark[],
-            shotRicochet: false,
-          }
-        : {
-            explosions: [] as ExplosionPlay[],
-            dmgFloat: null,
-            tracers: [] as ShotMark[],
-            shotRicochet: true,
-          };
+    await Promise.all(landings);
+    if (cancelled()) {
+      endAir(unit.instanceId);
+      return;
+    }
+    endAir(unit.instanceId);
     if (parked) {
       startJetReturn(unit, loop[loop.length - 1], jetHomePath(loop[loop.length - 1], home, 1), hull, parkFacing);
     }
     return resolveShot(
       split,
-      async () => {
-        write((p) => ({ ...p, muzzles: [], flyer: p.flyer, hideArtId: p.hideArtId, ...hit }));
-        if (damage <= 0) {
-          const outward = gunEnd.x >= takeoff.x ? 1 : -1;
-          const bounce = { x: gunEnd.x + outward * 92, y: gunEnd.y - 78 };
-          write((p) => ({
-            ...p,
-            tracers: [{ key: `${unit.instanceId}-jet-tr`, x: bounce.x, y: bounce.y, angle: headingDeg(gunEnd, bounce), src: "/units-art/bullets/bulletRed1.png", size: tankRed1BulletH() * 0.55 }],
-            shotRicochet: true,
-          }));
-          await wait(RICOCHET_MS);
-          return;
-        }
-        await wait(Math.max(explosionDuration(DAMAGE_EXPLOSION), FLOAT_MS));
-      },
+      async () => {},
       async () => {
         write(EMPTY_PLAY);
       },
@@ -1961,7 +2250,7 @@ export function BoardView({
     const facing = poseRef.current[unit.instanceId]?.hull ?? parkedHullDeg(unit.class, unit.owner);
     const turret = poseRef.current[unit.instanceId]?.turret ?? 0;
     const muzzles = squadMuzzles(unit.defId);
-    const aimNow = () => (to ? liveTo(to) : null) ?? end;
+    const aimNow = () => bulletAim(to, end);
     if (muzzles.length === 0) {
       const start = origin;
       write({
@@ -1973,16 +2262,17 @@ export function BoardView({
         shotSize: tankThinShotH() * 0.25,
         bulletSize: tankRed1BulletH() * 0.25,
         shotAngle: headingDeg(start, aimNow()),
+        shotMoveMs: 0,
       });
       await wait(RECOIL_MS);
       if (cancelled()) return;
       const aim = aimNow();
-      write((p) => ({ ...p, recoilId: null, shot: aim, shotAngle: headingDeg(start, aim) }));
-      await wait(SHOT_MS);
+      write((p) => ({ ...p, recoilId: null, shot: aim, shotAngle: headingDeg(start, aim), shotMoveMs: GUN_FLIGHT_MS }));
+      await wait(GUN_FLIGHT_MS);
       if (cancelled()) return;
       return resolveShot(
         split,
-        () => finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, false, false, write, split),
+        () => finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, false, false, write),
         async () => {
           write(EMPTY_PLAY);
         },
@@ -2017,6 +2307,7 @@ export function BoardView({
         angle: w.angle,
         src: "/units-art/bullets/bulletRed1.png",
         size: tankRed1BulletH() * w.spec.shotScale,
+        moveMs: 0,
       }));
     write({
       ...EMPTY_PLAY,
@@ -2037,9 +2328,10 @@ export function BoardView({
           x: aim.x,
           y: aim.y,
           angle: headingDeg({ x: tr.x, y: tr.y }, aim),
+          moveMs: GUN_FLIGHT_MS,
         })),
       }));
-      await wait(SHOT_MS);
+      await wait(GUN_FLIGHT_MS);
     } else {
       write((p) => ({ ...p, recoilId: null, muzzles: [] }));
       await wait(120);
@@ -2049,7 +2341,7 @@ export function BoardView({
       split,
       async () => {
         if (damage > 0) {
-          await finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, true, false, write, split);
+          await finishImpact(origin, aim, damage, targetMaxHp, wait, cancelled, true, false, write);
           return;
         }
         if (tracerStarts.length > 0) {
@@ -2057,7 +2349,7 @@ export function BoardView({
           const bounce = { x: aim.x + outward * 92, y: aim.y - 78 };
           write((p) => ({
             ...p,
-            tracers: p.tracers.map((tr) => ({ ...tr, x: bounce.x, y: bounce.y, angle: headingDeg(aim, bounce) })),
+            tracers: p.tracers.map((tr) => ({ ...tr, x: bounce.x, y: bounce.y, angle: headingDeg(aim, bounce), moveMs: RICOCHET_MS })),
             shotRicochet: true,
           }));
           await wait(RICOCHET_MS);
@@ -2079,7 +2371,6 @@ export function BoardView({
     fromSquad = false,
     missile = false,
     write: PlayWriter = setPlay,
-    skipClear = false,
   ) {
     if (damage > 0) {
       const blasts = explosionPlacements(end, damage, targetMaxHp);
@@ -2107,10 +2398,11 @@ export function BoardView({
         shotRicochet: true,
         shot: bounce,
         shotAngle: headingDeg(end, bounce),
+        shotMoveMs: RICOCHET_MS,
       }));
       await wait(RICOCHET_MS);
     }
-    if (cancelled() || skipClear) return;
+    if (cancelled()) return;
     write(EMPTY_PLAY);
   }
 
@@ -2119,6 +2411,7 @@ export function BoardView({
     wait: (ms: number) => Promise<unknown>,
     cancelled: () => boolean,
   ) {
+    primeAirborneGuns(exchange.shots);
     const aftermaths = (
       await Promise.all(
         exchange.shots.map((step) =>
@@ -2515,6 +2808,7 @@ export function BoardView({
             deployed
             groundPhase={groundPhase}
             selected={selectedIds.includes(unit.instanceId)}
+            kwFocus={kwFocusId === unit.instanceId}
             hostileAim={hostileAimIds.includes(unit.instanceId)}
             hideArt={artHidden(unit.instanceId)}
             fadeInfo={Object.values(fxLayers).some((layer) => layer.fadeId === unit.instanceId)}
@@ -2527,9 +2821,12 @@ export function BoardView({
             }
             onClick={() => onSelectUnit(unit)}
             onMissileAim={(mode) => aimMissile(unit.instanceId, mode)}
+            onAtkAim={() => aimAtk(unit.instanceId)}
+            forecastHp={hpForecast.get(unit.instanceId)}
+            atkAiming={aim?.kind === "atk" && aim.unitId === unit.instanceId}
           />
         ) : (
-          <span className="empty">{deployable ? "Drop here" : reachable ? "Move here" : ""}</span>
+          <span className="empty">{deployable ? "Drop here" : reachable ? reachableLabel : ""}</span>
         )}
       </div>
     );
@@ -2574,6 +2871,7 @@ export function BoardView({
         innerRef={(el) => {
           hqRefs.current[0] = el;
         }}
+        intel={viewer === 1 ? opponentIntel : null}
       />
       <HqFaceFlank
         player={0}
@@ -2619,10 +2917,11 @@ export function BoardView({
         innerRef={(el) => {
           hqRefs.current[1] = el;
         }}
+        intel={viewer === 0 ? opponentIntel : null}
       />
-      {missileArc ? (
+      {aimLine ? (
         <svg className="missile-arc" aria-hidden>
-          <path d={aimArcPath(missileArc.from, missileArc.to)} />
+          <path d={aimLine.straight ? aimStraightPath(aimLine.from, aimLine.to) : aimArcPath(aimLine.from, aimLine.to)} />
         </svg>
       ) : null}
       <div className="fx-layer" aria-hidden>
@@ -2684,6 +2983,7 @@ export function BoardView({
                     top: layer.shot.y,
                     height: layer.shotSize,
                     transform: `translate(-50%, -50%) rotate(${layer.shotAngle}deg)`,
+                    ...projMotion(layer.shotMoveMs),
                   }}
                 />
                 <img
@@ -2695,6 +2995,7 @@ export function BoardView({
                     top: layer.shot.y,
                     height: layer.bulletSize,
                     transform: `translate(-50%, -50%) rotate(${layer.shotAngle}deg)`,
+                    ...projMotion(layer.shotMoveMs),
                   }}
                 />
               </>
@@ -2724,6 +3025,7 @@ export function BoardView({
                   top: tr.y,
                   height: tr.size,
                   transform: `translate(-50%, -50%) rotate(${tr.angle}deg)`,
+                  ...projMotion(tr.moveMs ?? 0),
                 }}
               />
             ))}
@@ -2778,6 +3080,7 @@ function HqPillar({
   active,
   onClick,
   innerRef,
+  intel = null,
 }: {
   player: PlayerId;
   showSurrender?: boolean;
@@ -2796,6 +3099,7 @@ function HqPillar({
   active: boolean;
   onClick: () => void;
   innerRef: (el: HTMLButtonElement | null) => void;
+  intel?: ReactNode;
 }) {
   const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const nextBp = nextHqBreakpoint(hp, triggered);
@@ -2806,7 +3110,8 @@ function HqPillar({
         ? `+${supplyBonus} Supply · +${drawBonus} Draw`
         : null;
   return (
-    <div className={`hq-slot p${player}`}>
+    <div className={`hq-slot p${player} ${intel ? "with-intel" : ""}`}>
+    <div className="hq-top">
     {player === 0 && onToggleExit ? (
       <button
         type="button"
@@ -2818,6 +3123,7 @@ function HqPillar({
         <img src={sgIcon("back", "cyan")} alt="" width={22} height={22} draggable={false} />
       </button>
     ) : null}
+    <div className="hq-stack">
     <button
       type="button"
       className={`hq ${active ? "active" : ""} ${crack ? "crack" : ""}`}
@@ -2850,6 +3156,8 @@ function HqPillar({
       <div className="hq-hp">{hp}</div>
       {note ? <div className="hq-break-note">{note}</div> : null}
     </button>
+    {intel ? <div className={`hq-intel ${note ? "under-note" : ""}`}>{intel}</div> : null}
+    </div>
     {showSurrender ? (
       <button
         type="button"
@@ -2861,6 +3169,7 @@ function HqPillar({
         <WhiteFlagIcon />
       </button>
     ) : null}
+    </div>
     </div>
   );
 }

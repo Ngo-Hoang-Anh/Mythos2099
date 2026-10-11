@@ -1,4 +1,4 @@
-import { consumeMissileSplash, missileDamage, missilePowerOf } from "../combat";
+import { missileDamage, missilePowerOf } from "../combat";
 import { unitsOf } from "../board";
 import { log, withLogGroup } from "../state";
 import { isUntargetableBy } from "../status";
@@ -12,6 +12,14 @@ import {
   sideUnitsInLane,
   type CombatCtx,
 } from "./helpers";
+
+/** Living enemy standing on the missile lock. Untargetable units still count as present. */
+export function missileLockHasEnemy(state: MatchState, shooter: UnitInstance): boolean {
+  const pos = shooter.missileTarget;
+  if (!pos) return false;
+  const unit = state.board[pos.col]?.[pos.row];
+  return Boolean(unit && unit.hp > 0 && unit.owner !== shooter.owner);
+}
 
 /** Living enemy in the locked cell. Untargetable units do not count, so the lock is replaced. */
 function enemyOnLock(state: MatchState, shooter: UnitInstance, pos: BoardPos): UnitInstance | null {
@@ -76,10 +84,6 @@ export function resolveMissileShot(
     target.hp -= dmg;
     log(state, `${shooter.name} deals ${dmg} with Missile to ${target.name} (${Math.max(target.hp, 0)} HP)`, "missile");
     if (ctx) ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
-  }
-  for (const splash of consumeMissileSplash(state, target, shooter.owner, { lane: ctx?.extra?.lane })) {
-    log(state, `${shooter.name} deals 1 with Missile splash to ${splash.name} (${Math.max(splash.hp, 0)} HP)`, "missile");
-    if (ctx) ctx.steps.push({ kind: "hp", unitId: splash.instanceId, hp: splash.hp, lost: 1 });
   }
   if (!ctx) resolveDestroyedUnits(state);
 }

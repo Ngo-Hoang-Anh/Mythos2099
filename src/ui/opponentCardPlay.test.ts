@@ -37,13 +37,11 @@ describe("opponentCardPlay", () => {
     expect(opponentCardPlay(prev, next, 1)).toBeNull();
   });
 
-  it("reports a fizzled special", () => {
+  it("ignores a rejected special that never left the hand", () => {
     const prev = createMatch(DEFAULT_P1, DEFAULT_P2, 3);
     const next = cloneState(prev);
     const card = next.players[0].hand[0];
-    next.players[0].hand = next.players[0].hand.slice(1);
-    next.players[0].discard = [...next.players[0].discard, card];
-    next.log = [...next.log, { text: `${card.name} fizzles — source unit not on board (-1 CP)` }];
-    expect(opponentCardPlay(prev, next, 1)?.card.instanceId).toBe(card.instanceId);
+    next.log = [...next.log, { text: `That unit must be on the board to play ${card.name}` }];
+    expect(opponentCardPlay(prev, next, 1)).toBeNull();
   });
 });

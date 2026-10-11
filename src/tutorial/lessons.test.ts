@@ -664,22 +664,27 @@ describe("tutorial lessons", () => {
     expect(lesson.steps.every((s) => s.done(match))).toBe(true);
   });
 
-  it("15 playstyle missile/arty: Barrage then Support salvo + splash", () => {
+  it("15 playstyle missile/arty: Heatseeking then Support salvo", () => {
     const { lesson, match: start } = startLesson("playstyle-missile-arty");
     expect(start.phase).toBe("maneuver");
     expect(hint(lesson, start)?.anchor).toBe("unit-3");
     expect(hint(lesson, start, ["wall"])?.anchor).toBe("kw-artillery-10");
     expect(hint(lesson, start, ["wall", "arty"])?.anchor).toBe("kw-missile-10");
-    expect(hint(lesson, start, ["wall", "arty", "missile"])?.anchor).toBe("card-missile_barrage");
+    expect(hint(lesson, start, ["wall", "arty", "missile"])?.anchor).toBe("card-heatseeking");
 
-    const barrage = start.players[0].hand.find((c) => c.templateId === "missile_barrage")!;
-    let match = play(lesson, start, { type: "playCard", cardId: barrage.instanceId, targets: {} });
+    const card = start.players[0].hand.find((c) => c.templateId === "heatseeking")!;
+    let match = play(lesson, start, {
+      type: "playCard",
+      cardId: card.instanceId,
+      targets: { cells: [{ col: P2_FRONT, row: 2 }] },
+    });
+    expect(unitByDef(match, 10, 0)?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
     expect(hint(lesson, match)?.anchor).toBe("hp-4");
     expect(hint(lesson, match, ["predict"])?.anchor).toBe("hourglass");
 
     match = play(lesson, match, { type: "endManeuver" });
     expect(unitByDef(match, 4, 1)?.hp).toBe(1);
-    expect(unitByDef(match, 22, 1)?.hp).toBe(3);
+    expect(unitByDef(match, 22, 1)?.hp).toBe(4);
     expect(unitByDef(match, 10, 0)?.hp).toBe(8);
     expect(lesson.steps.every((s) => s.done(match))).toBe(true);
   });

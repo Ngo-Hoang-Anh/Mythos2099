@@ -6,7 +6,7 @@ export interface OpponentCardPlay {
 }
 
 function playedThisCard(text: string, name: string): boolean {
-  return text === `Played ${name}` || text.startsWith(`${name} fizzles`);
+  return text === `Played ${name}`;
 }
 
 /**

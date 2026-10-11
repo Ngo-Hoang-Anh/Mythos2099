@@ -9,8 +9,9 @@ import {
   supportCol,
   unitsOf,
 } from "./board";
-import { combatDamage, computeStrikeDamage, defenseArmor, extraGunDamage } from "./combat";
+import { combatDamage, computeStrikeDamage, defenseArmor, extraGunDamage, missilePowerOf } from "./combat";
 import { canCounter, canVolley, fightsFromSupport, nearestEnemyLane, sideUnitsInLane, strikeAtk } from "./combat/helpers";
+import { missileLockHasEnemy } from "./combat/missile";
 import { discardsNeeded, needsDesperateMeasure } from "./desperateMeasure";
 import { armorPiercingOf, hasKeyword, keywordValue, retaliateOf } from "./keywords";
 import { applyAction } from "./match";
@@ -281,6 +282,7 @@ function hasLosingTrades(state: MatchState, player: PlayerId): boolean {
 // ---------------------------------------------------------------------------
 
 function isMoveCard(card: CardInstance): boolean {
+  if (card.effectId === "diversionDown" || card.effectId === "diversionUp") return false;
   return Boolean(dirsForEffect(card.effectId)) || card.type === "move";
 }
 
@@ -805,8 +807,22 @@ function targetsForSpecial(
     }
     case "diversionDown":
     case "diversionUp": {
-      const enemy = livingEnemiesByWeakness(state, current(state).id)[0];
-      return enemy ? { unitIds: [enemy.instanceId] } : null;
+      const dirs = dirsForEffect(card.effectId);
+      if (!dirs) return null;
+      const playerId = current(state).id;
+      let best: { enemy: UnitInstance; cell: BoardPos; score: number } | null = null;
+      for (const enemy of livingEnemiesByWeakness(state, playerId)) {
+        for (const cell of legalDestinations(state, enemy, dirs)) {
+          const leavingFight = Boolean(enemyFirstInRow(state.board, playerId, enemy.row));
+          const enteringFight = Boolean(enemyFirstInRow(state.board, playerId, cell.row));
+          let score = 0;
+          if (leavingFight && cell.row !== enemy.row) score += 40;
+          if (!enteringFight) score += 15;
+          if (cell.row !== enemy.row) score += 5;
+          if (!best || score > best.score) best = { enemy, cell, score };
+        }
+      }
+      return best ? { unitIds: [best.enemy.instanceId], cells: [best.cell] } : null;
     }
     case "diversionToLane": {
       if (!source) return null;
@@ -835,7 +851,6 @@ function targetsForSpecial(
       return { hq: true };
     }
     case "hqRepair":
-    case "missileBarrage":
     case "targetRegistration":
     case "visionSupport":
     case "deathFromAbove":
@@ -853,6 +868,14 @@ function targetsForSpecial(
     case "silentDeath":
     case "targetAcquired":
       return source ? { unitIds: [source.instanceId] } : null;
+    case "heatseeking": {
+      const wasted = allies.some(
+        (unit) => unit.hp > 0 && missilePowerOf(state, unit) > 0 && unit.missileTarget && !missileLockHasEnemy(state, unit),
+      );
+      if (!wasted) return null;
+      const enemy = livingEnemiesByWeakness(state, current(state).id)[0];
+      return enemy ? { cells: [{ col: enemy.col, row: enemy.row }] } : null;
+    }
     case "supply":
       return null; // Never burn Supply cards just to spend CP.
     default:
@@ -913,7 +936,6 @@ function isHighValueSpecial(
       return hq <= 25;
     }
     case "tacticalStrike":
-    case "missileBarrage":
     case "deathFromAbove":
     case "targetAcquired":
     case "stormCaller":
@@ -1128,6 +1150,8 @@ function* maneuverCandidates(state: MatchState): Generator<Action> {
   if (!playedNonKillThisManeuver(state)) {
     for (const action of allSpecialCards(state)) yield action;
     for (const action of allEngageCards(state)) yield action;
+    const heatseeking = heatseekingAction(state);
+    if (heatseeking) yield heatseeking;
 
     const losing = hasLosingTrades(state, current(state).id);
     if (losing) {
@@ -1187,6 +1211,17 @@ function allSpecialCards(state: MatchState): Action[] {
     return [{ type: "playCard", cardId: card.instanceId, targets }];
   }
   return [];
+}
+
+function heatseekingAction(state: MatchState): Action | null {
+  const player = current(state);
+  const card = player.hand.find((c) => c.effectId === "heatseeking" && affordable(c, player.commandPoints));
+  if (!card) return null;
+  const allies = unitsOf(state.board, player.id).filter((u) => u.hp > 0);
+  if (allies.length === 0) return null;
+  const targets = targetsForSpecial(state, card, allies[0]!, null, allies);
+  if (!targets) return null;
+  return { type: "playCard", cardId: card.instanceId, targets };
 }
 
 function allEngageCards(state: MatchState): Action[] {

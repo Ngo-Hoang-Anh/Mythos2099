@@ -29,6 +29,7 @@ import {
   missileLevelDropPath,
   nearestPathIndex,
   nextAirPattern,
+  pointOnTrack,
   pickOverheadDrone,
   reversePath,
   spreadMarchPaths,
@@ -240,5 +241,23 @@ describe("air strike paths", () => {
     const home = jetHomePath(land, from, 0);
     expect(home[home.length - 1].x).toBeCloseTo(from.x, 0);
     expect(home[home.length - 1].y).toBeCloseTo(from.y, 0);
+  });
+
+  it("leads a timed flight and clamps past the end", () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 200, y: 0 },
+      { x: 300, y: 0 },
+    ];
+    const durations = [0, 100, 100, 100];
+    const parked = pointOnTrack({ points, durations, index: 0, commandedAt: 0 }, 0);
+    expect(parked.x).toBeCloseTo(0);
+    const lead = pointOnTrack({ points, durations, index: 0, commandedAt: 0 }, 250);
+    expect(lead.x).toBeCloseTo(250);
+    const midHop = pointOnTrack({ points, durations, index: 2, commandedAt: 1000 }, 1050);
+    expect(midHop.x).toBeCloseTo(150);
+    const clamped = pointOnTrack({ points, durations, index: 1, commandedAt: 0 }, 5000);
+    expect(clamped.x).toBeCloseTo(300);
   });
 });

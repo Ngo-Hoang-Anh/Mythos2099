@@ -69,9 +69,9 @@ export function SgIconBtn({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
-      <img src={src} alt="" width={size} height={size} draggable={false} />
+      <img src={src} alt="" width={size} height={size} draggable={false} style={{ width: size, height: size }} />
     </button>
   );
 }
@@ -90,12 +90,33 @@ export function SgIconImg({
   framed?: boolean;
 }) {
   const src = framed ? sgButton(name, tone) : sgIcon(name, tone);
-  return <img className="sg-icon-img" src={src} alt={title ?? ""} title={title} width={size} height={size} draggable={false} />;
+  return (
+    <img
+      className="sg-icon-img"
+      src={src}
+      alt={title ?? ""}
+      title={title}
+      width={size}
+      height={size}
+      draggable={false}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
+    />
+  );
 }
 
 /** Unstretched kit glyph sitting beside a text label. */
 export function KitMark({ file, size = 32 }: { file: string; size?: number }) {
-  return <img className="kit-mark" src={kitAsset(file)} alt="" width={size} height={size} draggable={false} />;
+  return (
+    <img
+      className="kit-mark"
+      src={kitAsset(file)}
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
+    />
+  );
 }
 
 /** Square bevel button from the usable UI kit. Do not stretch into a wide label. */
@@ -122,9 +143,16 @@ export function KitIconBtn({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
-      <img src={kitButton(name)} alt="" width={size} height={size} draggable={false} />
+      <img
+        src={kitButton(name)}
+        alt=""
+        width={size}
+        height={size}
+        draggable={false}
+        style={{ width: size, height: size }}
+      />
     </button>
   );
 }

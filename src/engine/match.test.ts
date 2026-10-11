@@ -5,7 +5,7 @@ import { applyHqDamage, healHq } from "./attack";
 import { countUnits, placeUnit } from "./board";
 import { resolveDestroyedUnits } from "./combat/cleanup";
 import { cloneState, drawCards, flattenLog } from "./state";
-import { createMatch, must } from "./match";
+import { applyAction, createMatch, must } from "./match";
 import { INITIATIVE_CARD_NAME } from "../data/initiative";
 import { BASE_SUPPLY, DRAW_PER_TURN, HAND_LIMIT, HQ_BREAKPOINTS, HQ_MAX_HP, INITIATIVE_TEMPLATE_ID, OPENING_HAND, nextHqBreakpoint, type CardInstance, type MatchState } from "./types";
 
@@ -263,8 +263,8 @@ describe("HQ / unit comeback", () => {
   });
 });
 
-describe("special fizzle", () => {
-  it("charges 1 CP and does nothing when the source unit is not on the board", () => {
+describe("special source", () => {
+  it("rejects the card when the source unit is not on the board", () => {
     let match = createMatch(DEFAULT_P1, DEFAULT_P2, 2);
     match = must(match, { type: "endDeployment" });
     const special: CardInstance = {
@@ -274,17 +274,20 @@ describe("special fizzle", () => {
       name: "Test Special",
       type: "special",
       cost: 0,
-      text: "Fizzle test",
+      text: "Source test",
       effectId: "fortify",
       targets: [],
       requiresSourceOnField: true,
     };
     match.players[0].hand = [special, ...match.players[0].hand];
     const cp = match.players[0].commandPoints;
-    match = must(match, { type: "playCard", cardId: special.instanceId, targets: {} });
-    expect(match.players[0].commandPoints).toBe(cp - 1);
-    expect(match.players[0].discard[0].instanceId).toBe(special.instanceId);
-    expect(flattenLog(match.log).some((line) => line.includes("fizzles"))).toBe(true);
+    const result = applyAction(match, { type: "playCard", cardId: special.instanceId, targets: {} });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/must be on the board/);
+    expect(match.players[0].commandPoints).toBe(cp);
+    expect(match.players[0].hand.some((card) => card.instanceId === special.instanceId)).toBe(true);
+    expect(match.players[0].discard.some((card) => card.instanceId === special.instanceId)).toBe(false);
   });
 });
 

@@ -309,6 +309,7 @@ export function TipHost({
         if (!isMobileShellUi()) return;
         e.preventDefault();
         e.stopPropagation();
+        if (rest["data-atk-aim"]) return;
         setOpen((v) => !v);
       }}
     >

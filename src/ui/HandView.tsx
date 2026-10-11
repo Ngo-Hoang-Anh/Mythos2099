@@ -24,6 +24,8 @@ export function HandView({
   selectedIds,
   disabled,
   pickMode,
+  supply,
+  allowDiscard = false,
   boardUnitDefIds,
   facing = 0,
   onDragStart,
@@ -36,6 +38,10 @@ export function HandView({
   disabled?: boolean;
   /** Click-to-select for Desperate Measure (no drag). */
   pickMode?: boolean;
+  /** Current Supply while cards can be played. Omit outside Maneuver. */
+  supply?: number;
+  /** Unaffordable cards can still be dragged onto the deck. */
+  allowDiscard?: boolean;
   boardUnitDefIds: Set<number>;
   /** Seat of the hand owner — flips forward/retreat art for P2. */
   facing?: PlayerId;
@@ -95,9 +101,13 @@ export function HandView({
         const needsSource = Boolean(card.requiresSourceOnField);
         const sourceReady =
           !source || !needsSource || boardUnitDefIds.has(source.id);
+        const playCost = card.cost;
+        const sourceMissing = Boolean(needsSource && source && !sourceReady && !pickMode && supply != null);
+        const unaffordable = supply != null && !pickMode && playCost > supply;
         const isSelected =
           selectedId === card.instanceId || multiSelected.has(card.instanceId);
-        const canDrag = !disabled && !pickMode;
+        const canPlay = !disabled && !pickMode && !unaffordable && !sourceMissing;
+        const canDrag = canPlay || ((unaffordable || sourceMissing) && allowDiscard && !disabled);
         return (
           <div
             key={card.instanceId}
@@ -111,14 +121,24 @@ export function HandView({
               data-tut={`card-${card.templateId}`}
               draggable={canDrag}
               className={`card ${card.type} ${isInitiativeCard(card) ? "initiative" : ""} ${isSelected ? "selected" : ""} ${
-                needsSource && source && !sourceReady ? "source-missing" : ""
-              } ${disabled && !pickMode ? "no-drag" : ""} ${pickMode ? "pickable" : ""} ${lifted ? "lifted" : ""}`}
+                unaffordable || sourceMissing ? "unaffordable" : ""
+              } ${needsSource && source && !sourceReady ? "source-missing" : ""} ${
+                !canDrag ? "no-drag" : ""
+              } ${pickMode ? "pickable" : ""} ${lifted ? "lifted" : ""}`}
               title={
                 pickMode
                   ? "Click to discard for Desperate Measure"
-                  : disabled
-                    ? undefined
-                    : "Drag onto the board to play · onto the deck to discard and draw"
+                  : sourceMissing
+                    ? allowDiscard
+                      ? `${source?.name ?? "That unit"} must be on the board · drag onto the deck to discard and draw`
+                      : `${source?.name ?? "That unit"} must be on the board`
+                    : unaffordable
+                      ? allowDiscard
+                        ? `Need ${playCost} Supply (have ${supply}) · drag onto the deck to discard and draw`
+                        : `Need ${playCost} Supply (have ${supply})`
+                      : disabled
+                      ? undefined
+                      : "Drag onto the board to play · onto the deck to discard and draw"
               }
               onMouseEnter={() => setHoverId(card.instanceId)}
               onClick={() => {

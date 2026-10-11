@@ -11,7 +11,9 @@ import {
 import { destCountForEffect, dirsForEffect, samePos, unitsNeededForMove, allowsPartialMove, minDestCountForEffect, minUnitsNeededForMove } from "../engine/move";
 import { isUntargetableBy } from "../engine/status";
 import {
+  COLS,
   DISCARD_REDRAW_LIMIT,
+  ROWS,
   type Action,
   type BoardPos,
   type CardInstance,
@@ -30,13 +32,14 @@ import { EnemyDeckTracker, OwnDeckTracker } from "./DeckTracker";
 import { HandView } from "./HandView";
 import { MobileHandView } from "../mobile/MobileHandView";
 import { resolvePointerDropZone } from "../mobile/pointerCardDrag";
-import { RecycleIcon, SupplyIcon } from "./icons";
+import { CardTypeIcon, RecycleIcon, SupplyIcon } from "./icons";
 import { KitIconBtn, kitAsset, kitButton } from "./UiChrome";
 import { UnitCardPills } from "./CardTip";
 import { LogView } from "./LogView";
 import { UnitKeywords, UnitPortrait } from "./UnitToken";
 import { UnitDetailDialog, type UnitDetailTarget } from "./UnitDetailDialog";
 import { AnchoredPanel } from "./AnchoredTip";
+import { isMobileShellUi } from "./tipExclusive";
 import { heldPlaybackAfterState } from "./combatPlayback";
 import {
   OPPONENT_CARD_FLY_MS,
@@ -128,6 +131,8 @@ function promptFor(kind: TargetKind | undefined, picked: number): string {
       return picked === 0 ? "Click the first friendly unit" : "Click the second friendly unit";
     case "boardDest":
       return picked === 0 ? "Click a friendly unit on the board" : "Click a highlighted cell";
+    case "boardCell":
+      return "Click a cell to retarget missiles";
     case "twoDirectionsSameUnit":
       if (picked === 0) return "Click the unit that will move";
       return `Click destination ${picked} (or Done after 1)`;
@@ -191,6 +196,7 @@ function draftReady(draft: TargetDraft): boolean {
   if (needed.includes("enemy") || needed.includes("anyEnemy") || needed.includes("enemySupport") || needed.includes("anyUnit")) {
     return draft.unitIds.length === 1;
   }
+  if (needed.includes("boardCell")) return draft.cells.length === 1;
   return false;
 }
 
@@ -286,10 +292,11 @@ export function MatchView({
   const [fxStartHq, setFxStartHq] = useState<[number, number] | null>(null);
   /** FX batch whose flight has finished. Win/lose stays hidden until this matches match.fx. */
   const [settledFx, setSettledFx] = useState<FxEvent[] | null>(null);
-  const [dropKind, setDropKind] = useState<DragKind | null>(null);
+  const [dropKind, setDropKind] = useState<DragKind | "discard" | null>(null);
   const [flight, setFlight] = useState<{ name: string; x: number; y: number } | null>(null);
   const [heldPlayback, setHeldPlayback] = useState(match.combatPlayback);
   const [inspect, setInspect] = useState<UnitDetailTarget | null>(null);
+  const [kwFocusId, setKwFocusId] = useState<string | null>(null);
   const [cardNotice, setCardNotice] = useState<CardNotice | null>(null);
 
   const finishingCombat = useRef(false);
@@ -315,6 +322,7 @@ export function MatchView({
 
   const viewer = you;
   const player = match.players[viewer];
+  const foe = match.players[viewer === 0 ? 1 : 0];
   const inCombat = Boolean(heldPlayback);
   const myTurn = match.currentPlayer === viewer && match.phase !== "gameover";
   const waitingOnOther = !myTurn && !inCombat && match.winner === null;
@@ -636,6 +644,15 @@ export function MatchView({
     setDraft({ ...next, prompt });
   }
 
+  function sourceOnField(card: CardInstance): boolean {
+    if (!card.requiresSourceOnField || !card.ownerUnitId) return true;
+    return allies.some((unit) => unit.defId === card.ownerUnitId);
+  }
+
+  function canPayFor(card: CardInstance): boolean {
+    return sourceOnField(card) && player.commandPoints >= card.cost;
+  }
+
   function onPlayCard(card: CardInstance) {
     if (committedMove) {
       setError("Finish moving both units");
@@ -643,6 +660,15 @@ export function MatchView({
     }
     if (match.phase !== "maneuver") {
       setError("Cards can only be played during Maneuver");
+      return;
+    }
+    if (!sourceOnField(card)) {
+      const name = card.ownerUnitId ? getUnitDef(card.ownerUnitId).name : "That unit";
+      setError(`${name} must be on the board to play this Special`);
+      return;
+    }
+    if (player.commandPoints < card.cost) {
+      setError(`Need ${card.cost} Supply (have ${player.commandPoints})`);
       return;
     }
     if (isInitiativeCard(card)) {
@@ -678,8 +704,31 @@ export function MatchView({
     act({ type: "playCard", cardId: card.instanceId, targets: { choice } });
   }
 
+  useEffect(() => {
+    if (draft) setKwFocusId(null);
+  }, [draft]);
+
+  useEffect(() => {
+    if (!kwFocusId) return;
+    function onDocPointerDown(event: PointerEvent) {
+      const target = event.target;
+      const token = target instanceof Element ? target.closest<HTMLElement>(".unit-token.board-token") : null;
+      if (token?.dataset.unitId === kwFocusId) return;
+      setKwFocusId(null);
+    }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown);
+  }, [kwFocusId]);
+
   function onSelectUnit(unit: UnitInstance) {
     if (!draft) {
+      if (isMobileShellUi()) {
+        if (kwFocusId !== unit.instanceId) {
+          setKwFocusId(unit.instanceId);
+          return;
+        }
+        setKwFocusId(null);
+      }
       setInspect({ mode: "board", unit, match });
       return;
     }
@@ -691,6 +740,10 @@ export function MatchView({
     }
     const next: TargetDraft = { ...draft, unitIds: [...draft.unitIds], cells: [...draft.cells] };
     const kinds = draft.kinds;
+    if (kinds.includes("boardCell")) {
+      updateDraft({ ...draft, cells: [{ col: unit.col, row: unit.row }] });
+      return;
+    }
     const moveUnits = unitsNeededForMove(effect);
     if (kinds.includes("lure")) {
       if (next.unitIds.length === 0 && unit.owner === viewer) next.unitIds.push(unit.instanceId);
@@ -758,6 +811,10 @@ export function MatchView({
       });
       return;
     }
+    if (draft?.kinds.includes("boardCell")) {
+      updateDraft({ ...draft, cells: [{ col, row }] });
+      return;
+    }
     if (draft && awaitingMoveDest(targetingEffect(draft), draft.unitIds, draft.cells)) {
       const dests = moveHighlights(match, draft);
       if (!dests.some((pos) => samePos(pos, { col, row }))) {
@@ -771,6 +828,11 @@ export function MatchView({
   function clearDrag() {
     dragRef.current = null;
     setDropKind(null);
+  }
+
+  function beginCardDrag(card: CardInstance) {
+    dragRef.current = { kind: "card", id: card.instanceId };
+    setDropKind(canPayFor(card) ? "card" : "discard");
   }
 
   function takePayload(event?: DragEvent) {
@@ -842,14 +904,20 @@ export function MatchView({
     updateDraft({ ...draft, hq: true });
   }
 
-  const reachableCells = draft ? moveHighlights(match, draft) : [];
+  const reachableCells = draft
+    ? draft.kinds.includes("boardCell")
+      ? Array.from({ length: COLS * ROWS }, (_, i) => ({ col: Math.floor(i / ROWS), row: i % ROWS }))
+      : moveHighlights(match, draft)
+    : [];
   const hostileIds = hostileAimIds(match, draft, viewer);
   const canDiscard =
     myTurn &&
     player.discardRedrawsUsed < DISCARD_REDRAW_LIMIT &&
     player.deck.length > 0 &&
     match.phase === "maneuver";
-  const showDiscardDrop = dropKind === "card" && canDiscard;
+  const showDiscardDrop = (dropKind === "card" || dropKind === "discard") && canDiscard;
+  const handSupply =
+    match.phase === "maneuver" && !locked && !committedMove ? player.commandPoints : undefined;
   const pendingDef = pendingDeploy ? getUnitDef(pendingDeploy) : null;
   const visibleReserve = player.undeployed.filter((id) => id !== 0);
   const visibleHand = player.hand.filter((card) => card.templateId !== "hidden");
@@ -950,9 +1018,9 @@ export function MatchView({
                 alt={viewerWon ? "You win" : "You lose"}
               />
               <div className="match-end-stars" aria-hidden>
-                <img src={kitAsset("star-01.png")} alt="" />
-                <img src={kitAsset("star-02.png")} alt="" />
-                <img src={kitAsset("star-03.png")} alt="" />
+                <img src={kitAsset("star-01.webp")} alt="" />
+                <img src={kitAsset("star-02.webp")} alt="" />
+                <img src={kitAsset("star-03.webp")} alt="" />
               </div>
               <p className="match-end-reason">{endReason}</p>
               <div className="match-end-actions">
@@ -980,11 +1048,13 @@ export function MatchView({
         <BoardView
           match={match}
           selectedIds={selectedIds}
+          kwFocusId={kwFocusId}
           hostileAimIds={hostileIds}
           deployPlayer={match.phase === "deployment" && myTurn ? viewer : null}
           deployEnabled={match.phase === "deployment" && desperateReady && !locked}
           reachableCells={reachableCells}
-          dropKind={dropKind}
+          reachableLabel={draft?.kinds.includes("boardCell") ? "Aim here" : "Move here"}
+          dropKind={dropKind === "discard" ? null : dropKind}
           fxQueue={fxQueue}
           fxStartBoard={fxStartBoard}
           fxStartHq={fxStartHq}
@@ -1026,6 +1096,58 @@ export function MatchView({
           surrenderDisabled={Boolean(heldPlayback) || waitingForCombatAck}
           onToggleExit={() => setConfirm("lobby")}
           onRequestSurrender={() => setConfirm("surrender")}
+          opponentIntel={
+            <div className="foe-intel">
+              <span className="foe-stat" title="Cards in hand">
+                <CardTypeIcon type="special" size={16} />
+                <span>Hand</span>
+                <b>{foe.hand.length}</b>
+              </span>
+              <span
+                className="foe-stat"
+                title={
+                  foe.nextTurnSupplyBonus > 0 || foe.nextTurnDrawBonus > 0
+                    ? `Supply. Next turn +${foe.nextTurnSupplyBonus} Supply · +${foe.nextTurnDrawBonus} Draw`
+                    : "Supply"
+                }
+              >
+                <SupplyIcon size={16} />
+                <b>{foe.commandPoints}</b>
+              </span>
+              <span className="foe-stat" title="Reserved units">
+                <span>Reserve</span>
+                <b>{foe.undeployed.length}</b>
+              </span>
+              <div className={`enemy-deck-zone ${enemyTrackerOpen ? "open" : ""}`} ref={enemyDeckRef}>
+                <button
+                  type="button"
+                  className="deck-pile enemy tip-host"
+                  aria-expanded={enemyTrackerOpen}
+                  aria-label="Enemy deck tracker"
+                  data-tip="Click to open tracker"
+                  data-tut="enemy-deck"
+                  onClick={() => {
+                    setEnemyTrackerOpen((v) => !v);
+                    setOwnTrackerOpen(false);
+                  }}
+                >
+                  <span>Deck</span>
+                  <b>{foe.deck.length}</b>
+                </button>
+                {enemyTrackerOpen && (
+                  <AnchoredPanel
+                    open={enemyTrackerOpen}
+                    anchorRef={enemyDeckRef}
+                    panelRef={enemyTrackerPanelRef}
+                    prefer="below"
+                    maxWidth={480}
+                  >
+                    <EnemyDeckTracker player={foe} />
+                  </AnchoredPanel>
+                )}
+              </div>
+            </div>
+          }
         />
       </div>
 
@@ -1167,12 +1289,11 @@ export function MatchView({
                 (match.phase !== "maneuver" && !(pendingDeploy && desperateNeed > 0))
               }
               pickMode={Boolean(pendingDeploy) && desperateNeed > 0}
+              supply={handSupply}
+              allowDiscard={canDiscard}
               boardUnitDefIds={new Set(allies.map((u) => u.defId))}
               facing={viewer}
-              onDragStart={(card) => {
-                dragRef.current = { kind: "card", id: card.instanceId };
-                setDropKind("card");
-              }}
+              onDragStart={beginCardDrag}
               onDragEnd={clearDrag}
               onPointerDrop={onPointerCardDrop}
               onPickCard={(card) => {
@@ -1195,12 +1316,11 @@ export function MatchView({
                 (match.phase !== "maneuver" && !(pendingDeploy && desperateNeed > 0))
               }
               pickMode={Boolean(pendingDeploy) && desperateNeed > 0}
+              supply={handSupply}
+              allowDiscard={canDiscard}
               boardUnitDefIds={new Set(allies.map((u) => u.defId))}
               facing={viewer}
-              onDragStart={(card) => {
-                dragRef.current = { kind: "card", id: card.instanceId };
-                setDropKind("card");
-              }}
+              onDragStart={beginCardDrag}
               onDragEnd={clearDrag}
               onPickCard={(card) => {
                 if (!pendingDeploy || desperateNeed <= 0) return;
@@ -1240,37 +1360,6 @@ export function MatchView({
                 title={logOpen ? "Hide log" : "Log"}
                 onClick={() => setLogOpen((v) => !v)}
               />
-              <div
-                className={`enemy-deck-zone ${enemyTrackerOpen ? "open" : ""}`}
-                ref={enemyDeckRef}
-              >
-                <button
-                  type="button"
-                  className="deck-pile enemy tip-host"
-                  aria-expanded={enemyTrackerOpen}
-                  aria-label="Enemy deck tracker"
-                  data-tip="Click to open tracker"
-                  data-tut="enemy-deck"
-                  onClick={() => {
-                    setEnemyTrackerOpen((v) => !v);
-                    setOwnTrackerOpen(false);
-                  }}
-                >
-                  <b>{match.players[viewer === 0 ? 1 : 0].deck.length}</b>
-                  <span>Enemy</span>
-                </button>
-                {enemyTrackerOpen && (
-                  <AnchoredPanel
-                    open={enemyTrackerOpen}
-                    anchorRef={enemyDeckRef}
-                    panelRef={enemyTrackerPanelRef}
-                    prefer="above"
-                    maxWidth={480}
-                  >
-                    <EnemyDeckTracker player={match.players[viewer === 0 ? 1 : 0]} />
-                  </AnchoredPanel>
-                )}
-              </div>
             </div>
             <div
               className={`deck-zone ${ownTrackerOpen ? "open" : ""} ${showDiscardDrop ? "drop-ready" : ""}`}
@@ -1362,6 +1451,14 @@ export function MatchView({
             role="dialog"
             aria-label="Reserved units"
           >
+            <KitIconBtn
+              className="kit-window-close"
+              name="close"
+              title="Close"
+              onClick={() => setReserveOpen(false)}
+              size={44}
+            />
+            <div className="kit-dialog-body">
             <header>
               <h2>Reserved units</h2>
               <p>
@@ -1371,7 +1468,6 @@ export function MatchView({
                     : "Click a unit you can afford with Supply, then click an empty Support cell."
                   : "View only — summon during Deployment."}
               </p>
-              <KitIconBtn name="close" title="Close" onClick={() => setReserveOpen(false)} size={44} />
             </header>
             <div className="reserve-row kit-table alt">
               {visibleReserve.map((id) => {
@@ -1455,6 +1551,7 @@ export function MatchView({
                 );
               })}
               {visibleReserve.length === 0 && <p className="muted">No reserved units.</p>}
+            </div>
             </div>
           </div>
         </div>

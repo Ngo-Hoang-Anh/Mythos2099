@@ -128,7 +128,7 @@ export const UNITS: UnitDef[] = [
     ap: 1,
     cost: 4,
     keywords: "Blitz; Missile 4",
-    cards: cardsOf(C.tactical_strike, C.missile_barrage, C.up_or_down_1),
+    cards: cardsOf(C.tactical_strike, C.heatseeking, C.up_or_down_1),
   }),
   unit({
     id: 9,
@@ -151,7 +151,7 @@ export const UNITS: UnitDef[] = [
     ap: 5,
     cost: 5,
     keywords: "Artillery; Missile 5",
-    cards: cardsOf(C.storm_caller, C.missile_barrage, C.down_0),
+    cards: cardsOf(C.storm_caller, C.heatseeking, C.down_0),
   }),
   unit({
     id: 11,
@@ -321,7 +321,7 @@ export const UNITS: UnitDef[] = [
     ap: 2,
     cost: 4,
     keywords: "Jet Plane, Missile 4",
-    cards: cardsOf(C.death_from_above, C.missile_barrage, C.down_0),
+    cards: cardsOf(C.death_from_above, C.heatseeking, C.down_0),
   }),
   unit({
     id: 26,

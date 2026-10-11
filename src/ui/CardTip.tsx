@@ -27,6 +27,8 @@ function reachForEffect(effectId: EffectId): Reach[] | null {
       return ["up", "down", "forward", "back"];
     case "intelAcquired":
     case "moveUnitTwice":
+    case "diversionDown":
+    case "diversionUp":
       return ["up", "down", "forward", "back", "forwardUp", "forwardDown", "upBack", "downBack"];
     case "swiftManeuver":
     case "moveTwoUnits":

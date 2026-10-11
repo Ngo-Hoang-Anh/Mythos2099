@@ -7,7 +7,7 @@
  * - Ambush: Frontline extra engage at buffed ATK, plus +2 ATK on the regular attack volley. Armor buff ignored vs 0 armor.
  * - Sticky Bomb: this-turn ATK buff × 2 hits (1 extra attack + 1 normal engagement).
  * - Other stat buffs, heals, moves, extra engagements, and armor shred vs 0 armor = 0.
- * - Maneuver cards (Artillery Call, Quick Engagement, Missile Barrage) are not specials.
+ * - Maneuver cards (Artillery Call, Quick Engagement, Heatseeking) are not specials.
  *
  * The breakdown tool must only read these constants — it does not infer special damage.
  */

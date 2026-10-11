@@ -15,21 +15,21 @@ export const BUILD_GUIDE_STEPS: readonly LessonHint[] = [
     id: "count",
     anchor: "builder-catalog",
     title: "Pick 8 unique units",
-    body: "An army is exactly 8 different units — no duplicates. Click a portrait to add or remove it. The counter on the right must read 8/8.",
+    body: "An army is exactly 8 different units — no duplicates. Press Select beside a portrait to add or remove it. The counter on the right must read 8/8.",
     next: true,
   },
   {
     id: "unit",
     anchor: "builder-unit",
     title: "Read the token",
-    body: "Supply, HP, Armor, ATK, and AP sit on the portrait. Keyword icons sit under the name. Hover a keyword for the short rule — that is the same icon you will see in a match.",
+    body: "Click the portrait — not Select — to put that unit on the detail screen. Supply, HP, Armor, ATK, AP, keywords, and cards show there.",
     next: true,
   },
   {
     id: "cards",
     anchor: "builder-cards",
     title: "Units are the deck",
-    body: "Every unit adds one Special, one Maneuver, and one Move. Those 24 cards are shuffled into your deck automatically. Hover a card name to read it. You do not pick cards one by one.",
+    body: "Every unit adds one Special, one Maneuver, and one Move. Open Decklist to see those cards. They are shuffled into your deck automatically.",
     next: true,
   },
   {
@@ -43,7 +43,7 @@ export const BUILD_GUIDE_STEPS: readonly LessonHint[] = [
     id: "deck",
     anchor: "builder-deck",
     title: "Deck panel",
-    body: "The right column totals your 8 units, average stats, keywords, and every card that will be in the match. Click a unit here to remove it.",
+    body: "The right column keeps average stats visible. Decklist lifts the unit list into the screen. Click a unit there to remove it.",
     next: true,
   },
   {

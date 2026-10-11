@@ -59,7 +59,7 @@ describe("unit catalog", () => {
     expect(of(19).cards.some((c) => c.effectId === "maintenance")).toBe(true);
     expect(of(16).cards.some((c) => c.effectId === "maintenance")).toBe(true);
     expect(of(7).cards.some((c) => c.effectId === "reorganize")).toBe(true);
-    expect(of(10).cards.some((c) => c.templateId === "missile_barrage")).toBe(true);
+    expect(of(10).cards.some((c) => c.templateId === "heatseeking")).toBe(true);
     expect(special(11).name).toBe("First Strike");
     expect(of(12)).toMatchObject({ atk: 7 });
     expect(of(10)).toMatchObject({ atk: 5, ap: 5 });

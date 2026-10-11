@@ -2578,18 +2578,18 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
   hubStats: ["armor"],
   units: [3, 10, 4, 22],
   keywords: parseKeywords("Cover; Artillery; Missile 5"),
-  formula: "Artillery on Support. Missile = half armor, no AP. Barrage splashes 1",
+  formula: "Artillery on Support. Missile = half armor, no AP. Heatseeking retargets wasted locks",
   coach: [
     "Cover wall on Front. Artillery/Missiles erase from Support.",
     "Tiamat (Artillery + Missile) never trades return fire.",
-    "Missile Barrage: next missile splashes 1 to surrounding enemies.",
+    "Heatseeking: Missile units locked on a cell with no enemy retarget to the chosen cell.",
   ],
-  success: "Barrage + gun + missile hit Sarama, splash Horus.",
+  success: "Heatseeking pulls Tiamat's missile onto Sarama, then the Support salvo hits.",
   setup() {
     const state = createSandboxMatch();
     spawnUnit(state, { defId: 3, owner: 0, col: P1_FRONT, row: LANE_MID });
     const tiamat = spawnUnit(state, { defId: 10, owner: 0, col: P1_SUPPORT, row: LANE_MID });
-    tiamat.missileTarget = { col: P2_FRONT, row: LANE_MID };
+    tiamat.missileTarget = { col: P2_FRONT, row: 0 };
     spawnUnit(state, {
       defId: 4,
       owner: 1,
@@ -2604,7 +2604,7 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
       row: 1,
       keywords: [],
     });
-    giveUnitCard(state, 0, 10, "missile_barrage");
+    giveUnitCard(state, 0, 10, "heatseeking");
     giveUnitCard(state, 1, 13, "forward");
     giveUnitCard(state, 1, 5, "repair");
     setSupply(state, 0, 3);
@@ -2614,21 +2614,30 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
   allow(match, action) {
     if (action.type === "playCard") {
       const card = cardOf(match, action);
-      if (!card) return "Play Missile Barrage.";
-      if (card.templateId === "missile_barrage") return null;
-      return "Play Missile Barrage.";
-    }
-    if (action.type === "endManeuver") {
-      if (!discardedTemplate(match, 0, "missile_barrage"))
-        return "Play Missile Barrage first.";
+      if (!card || card.templateId !== "heatseeking") return "Play Heatseeking.";
+      const cell = action.targets.cells?.[0];
+      if (!cell || cell.col !== P2_FRONT || cell.row !== LANE_MID) return "Click Sarama's cell.";
       return null;
     }
-    return "Play Missile Barrage, then the hourglass.";
+    if (action.type === "endManeuver") {
+      if (!discardedTemplate(match, 0, "heatseeking"))
+        return "Play Heatseeking first.";
+      return null;
+    }
+    return "Play Heatseeking on Sarama, then the hourglass.";
   },
-  pickHint(match, _hud, dismissed) {
+  pickHint(match, hud, dismissed) {
     if (match.phase === "engagement") return null;
 
-    if (!discardedTemplate(match, 0, "missile_barrage")) {
+    if (!discardedTemplate(match, 0, "heatseeking")) {
+      if (targeting(hud, "heatseeking")) {
+        return hintGo(
+          "aim",
+          `cell-${P2_FRONT}-${LANE_MID}`,
+          "Aim",
+          "Click Sarama. Wasted missile locks jump to that cell.",
+        );
+      }
       if (!dismissed.has("wall")) {
         return hintNext(
           "wall",
@@ -2658,9 +2667,9 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
       }
       return hintGo(
         "barrage",
-        "card-missile_barrage",
-        "Barrage",
-        "Drag onto board. Splashes 1 to adjacent enemies.",
+        "card-heatseeking",
+        "Heatseeking",
+        "Drag onto the board, then click Sarama's cell.",
       );
     }
 
@@ -2669,7 +2678,7 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
         "predict",
         "hp-4",
         "Result",
-        "Gun + Missile hit Sarama. Splash hits Horus.",
+        "Gun + Missile hit Sarama. The wasted lock was moved onto her.",
       );
     }
     return hintGo(
@@ -2682,13 +2691,13 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
   steps: [
     {
       id: "barrage",
-      label: "Play Missile Barrage",
-      done: (m) => discardedTemplate(m, 0, "missile_barrage"),
+      label: "Play Heatseeking",
+      done: (m) => discardedTemplate(m, 0, "heatseeking"),
     },
     {
       id: "salvo",
-      label: "Gun + Missile + Splash",
-      done: (m) => hp(m, 4, 1) <= 1 && hp(m, 22, 1) <= 3,
+      label: "Gun + Missile on the new lock",
+      done: (m) => hp(m, 4, 1) <= 1 && hp(m, 22, 1) === 4,
     },
   ],
 };

@@ -55,6 +55,7 @@ export type TargetKind =
   | "direction"
   | "upOrDown"
   | "boardDest"
+  | "boardCell"
   | "upMove"
   | "downMove"
   | "anyDirection"
@@ -78,7 +79,7 @@ export type EffectId =
   | "forceEngage"
   | "quickEngage"
   | "artilleryCall"
-  | "missileBarrage"
+  | "heatseeking"
   | "targetRegistration"
   | "extraCombat"
   | "moveAnyDirection"
@@ -142,7 +143,7 @@ export interface CardDef {
   text: string;
   effectId: EffectId;
   targets: TargetKind[];
-  /** When true, playing this special fizzles if the owner unit is not on the board. */
+  /** When true, this special cannot be played unless the owner unit is on the board. */
   requiresSourceOnField?: boolean;
 }
 
@@ -174,7 +175,7 @@ export interface CardInstance {
   text: string;
   effectId: EffectId;
   targets: TargetKind[];
-  /** When true, playing this special fizzles if the owner unit is not on the board. */
+  /** When true, this special cannot be played unless the owner unit is on the board. */
   requiresSourceOnField?: boolean;
 }
 
@@ -290,7 +291,6 @@ export type StatusKind =
   | "modArmor"
   | "modMissile"
   | "missileIgnoreArmor"
-  | "missileSplash"
   | "artilleryRepeat"
   | "atkUnmodifiable"
   | "supportFireGrantsAp"

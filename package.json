@@ -16,6 +16,7 @@
     "balance:value": "tsx src/tools/writeUnitValueReport.ts",
     "balance": "tsx src/tools/writeVacuumDuelReport.ts && tsx src/tools/writeUnitValueReport.ts",
     "balance:pdf": "tsx src/tools/writeBalancePdf.ts",
+    "assets:webp": "node scripts/pngToWebp.mjs",
     "deploy:api": "fly deploy . --config server/fly.toml --dockerfile server/Dockerfile --yes",
     "deploy:web": "fly deploy . --config web/fly.toml --dockerfile web/Dockerfile --yes"
   },
@@ -31,6 +32,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
+    "sharp": "^0.35.5",
     "tsx": "^4.20.5",
     "typescript": "^7.0.2",
     "vite": "^6.4.3",

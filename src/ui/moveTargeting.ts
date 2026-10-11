@@ -138,7 +138,10 @@ export function moveDestPrompt(
     if (moveHighlights(match, effectId, unitIds, cells).length === 0) return "No legal cells — Cancel";
     return `Click a highlighted cell to move ${unit?.name ?? "unit"}`;
   }
-  if (unitIds.length < needUnits) return "Click a friendly unit on the board";
+  const enemyMove = effectId === "diversionDown" || effectId === "diversionUp";
+  if (unitIds.length < needUnits) {
+    return enemyMove ? "Click an enemy unit on the board" : "Click a friendly unit on the board";
+  }
   if (moveHighlights(match, effectId, unitIds, cells).length === 0) {
     return "No legal cells — pick another unit or Cancel";
   }

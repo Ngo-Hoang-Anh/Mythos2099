@@ -212,13 +212,35 @@ export function HpChip({ value, max }: { value: number; max?: number }) {
   );
 }
 
-export function AtkChip({ value, boost }: { value: number; boost?: boolean }) {
+export function AtkChip({
+  value,
+  boost,
+  aiming,
+  aimId,
+  onAim,
+}: {
+  value: number;
+  boost?: boolean;
+  aiming?: boolean;
+  aimId?: string;
+  onAim?: () => void;
+}) {
   const help = STAT_HELP.atk;
   return (
     <TipHost
-      className={`stat-chip atk ${boost ? "boost" : ""}`}
+      className={`stat-chip atk ${boost ? "boost" : ""} ${onAim ? "aimable" : ""} ${aiming ? "aiming" : ""}`}
       tipClassName="chip-tip stat-tip"
       aria-label={`ATK ${value}`}
+      data-atk-aim={onAim && aimId ? aimId : undefined}
+      onClick={
+        onAim
+          ? (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onAim();
+            }
+          : undefined
+      }
       tip={
         <>
           <b>

@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { getUnitDef } from "../data/units";
 import { isInitiativeCard } from "../data/initiative";
 import type { CardInstance, PlayerId } from "../engine/types";
@@ -13,6 +13,10 @@ type Props = {
   selectedIds?: string[];
   disabled?: boolean;
   pickMode?: boolean;
+  /** Current Supply while cards can be played. Omit outside Maneuver. */
+  supply?: number;
+  /** Unaffordable cards can still be dragged onto the deck. */
+  allowDiscard?: boolean;
   boardUnitDefIds: Set<number>;
   facing?: PlayerId;
   onDragStart: (card: CardInstance) => void;
@@ -41,6 +45,8 @@ export function MobileHandView({
   selectedIds,
   disabled,
   pickMode,
+  supply,
+  allowDiscard = false,
   boardUnitDefIds,
   facing = 0,
   onDragStart,
@@ -51,6 +57,23 @@ export function MobileHandView({
   const [expanded, setExpanded] = useState(true);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const dragRef = useRef<LiveDrag | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inspectOnly = Boolean(disabled) && !pickMode;
+
+  useEffect(() => {
+    if (!inspectOnly) setHoverId(null);
+  }, [inspectOnly]);
+
+  useEffect(() => {
+    if (!hoverId || !inspectOnly) return;
+    function onDocPointerDown(event: PointerEvent) {
+      const root = rootRef.current;
+      const target = event.target;
+      if (!(target instanceof Node) || !root?.contains(target)) setHoverId(null);
+    }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown);
+  }, [hoverId, inspectOnly]);
   const hoverCard = cards.find((card) => card.instanceId === hoverId) ?? null;
   const hoverSource =
     hoverCard?.type === "special" && hoverCard.ownerUnitId
@@ -118,7 +141,8 @@ export function MobileHandView({
 
   return (
     <div
-      className={`hand fan ${expanded ? "expanded" : ""} ${pickMode ? "pick-mode" : ""} mobile-hand`}
+      ref={rootRef}
+      className={`hand fan ${expanded ? "expanded" : ""} ${pickMode ? "pick-mode" : ""} ${inspectOnly ? "inspect-only" : ""} mobile-hand`}
       onPointerDown={() => setExpanded(true)}
     >
       {hoverCard && (
@@ -148,9 +172,13 @@ export function MobileHandView({
           card.type === "special" && card.ownerUnitId ? getUnitDef(card.ownerUnitId) : null;
         const needsSource = Boolean(card.requiresSourceOnField);
         const sourceReady = !source || !needsSource || boardUnitDefIds.has(source.id);
+        const playCost = card.cost;
+        const sourceMissing = Boolean(needsSource && source && !sourceReady && !pickMode && supply != null);
+        const unaffordable = supply != null && !pickMode && playCost > supply;
         const isSelected =
           selectedId === card.instanceId || multiSelected.has(card.instanceId);
-        const canDrag = !disabled && !pickMode;
+        const canPlay = !disabled && !pickMode && !unaffordable && !sourceMissing;
+        const canDrag = canPlay || ((unaffordable || sourceMissing) && allowDiscard && !disabled);
         return (
           <div
             key={card.instanceId}
@@ -165,19 +193,34 @@ export function MobileHandView({
               data-tut={`card-${card.templateId}`}
               draggable={false}
               className={`card ${card.type} ${isInitiativeCard(card) ? "initiative" : ""} ${isSelected ? "selected" : ""} ${
-                needsSource && source && !sourceReady ? "source-missing" : ""
-              } ${disabled && !pickMode ? "no-drag" : ""} ${pickMode ? "pickable" : ""} ${lifted ? "lifted" : ""} ${
+                unaffordable || sourceMissing ? "unaffordable" : ""
+              } ${needsSource && source && !sourceReady ? "source-missing" : ""} ${
+                !canDrag ? "no-drag" : ""
+              } ${pickMode ? "pickable" : ""} ${lifted ? "lifted" : ""} ${
                 canDrag ? "mobile-card-draggable" : ""
               }`}
               title={
                 pickMode
                   ? "Tap to discard for Desperate Measure"
-                  : disabled
-                    ? undefined
-                    : "Drag onto the board to play · onto the deck to discard and draw"
+                  : sourceMissing
+                    ? allowDiscard
+                      ? `${source?.name ?? "That unit"} must be on the board · drag onto the deck to discard and draw`
+                      : `${source?.name ?? "That unit"} must be on the board`
+                    : unaffordable
+                      ? allowDiscard
+                        ? `Need ${playCost} Supply (have ${supply}) · drag onto the deck to discard and draw`
+                        : `Need ${playCost} Supply (have ${supply})`
+                      : inspectOnly
+                      ? "Tap to view"
+                      : "Drag onto the board to play · onto the deck to discard and draw"
               }
               onClick={() => {
-                if (pickMode && onPickCard) onPickCard(card);
+                if (pickMode && onPickCard) {
+                  onPickCard(card);
+                  return;
+                }
+                if (!inspectOnly) return;
+                setHoverId((id) => (id === card.instanceId ? null : card.instanceId));
               }}
               onPointerDown={(event) => onCardPointerDown(event, card, canDrag)}
               onPointerMove={onCardPointerMove}

@@ -371,19 +371,23 @@ describe("all special skills resolve", () => {
     const card = give(state, 18, "first_aid_kit");
     const before = state.players[0].commandPoints;
     const result = applyAction(state, { type: "playCard", cardId: card.instanceId, targets: {} });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // Fizzle: source missing → −1 CP, no heal.
-    expect(result.state.players[0].commandPoints).toBe(before - 1);
-    expect(result.state.board[P1_FRONT][2]?.hp).toBe(getUnitDef(17).hp);
-    expect(statusesOf(result.state, "regen")).toHaveLength(0);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/must be on the board/);
+    expect(state.players[0].commandPoints).toBe(before);
+    expect(state.players[0].hand.some((entry) => entry.instanceId === card.instanceId)).toBe(true);
+    expect(state.board[P1_FRONT][2]?.hp).toBe(getUnitDef(17).hp);
+    expect(statusesOf(state, "regen")).toHaveLength(0);
   });
 
   it("Phantom Speeder Diversion moves an enemy down one lane", () => {
     const state = blankMatch();
     spawn(state, 19, 0, P1_FRONT, 1);
     const enemy = spawn(state, 4, 1, P2_FRONT, 1);
-    const next = play(state, 19, "diversion", { unitIds: [enemy.instanceId] });
+    const next = play(state, 19, "diversion", {
+      unitIds: [enemy.instanceId],
+      cells: [{ col: P2_FRONT, row: 2 }],
+    });
     expect(next.board[P2_FRONT][1]).toBeNull();
     expect(next.board[P2_FRONT][2]?.instanceId).toBe(enemy.instanceId);
     expect(next.board[P2_FRONT][2]?.tempAtk).toBe(-1);
@@ -399,11 +403,27 @@ describe("all special skills resolve", () => {
     expect(unit.tempAtk).toBe(2);
   });
 
+  it("Phantom Speeder Diversion can move an enemy diagonally", () => {
+    const state = blankMatch();
+    spawn(state, 19, 0, P1_FRONT, 1);
+    const enemy = spawn(state, 4, 1, P2_FRONT, 1);
+    const next = play(state, 19, "diversion", {
+      unitIds: [enemy.instanceId],
+      cells: [{ col: P2_SUPPORT, row: 2 }],
+    });
+    expect(next.board[P2_FRONT][1]).toBeNull();
+    expect(next.board[P2_SUPPORT][2]?.instanceId).toBe(enemy.instanceId);
+    expect(next.board[P2_SUPPORT][2]?.tempAtk).toBe(-1);
+  });
+
   it("Scout Biker Diversion moves an enemy up one lane", () => {
     const state = blankMatch();
     spawn(state, 21, 0, P1_FRONT, 2);
     const enemy = spawn(state, 4, 1, P2_FRONT, 2);
-    const next = play(state, 21, "diversion", { unitIds: [enemy.instanceId] });
+    const next = play(state, 21, "diversion", {
+      unitIds: [enemy.instanceId],
+      cells: [{ col: P2_FRONT, row: 1 }],
+    });
     expect(next.board[P2_FRONT][2]).toBeNull();
     expect(next.board[P2_FRONT][1]?.instanceId).toBe(enemy.instanceId);
     expect(next.board[P2_FRONT][1]?.tempArmor).toBe(-1);
@@ -465,5 +485,32 @@ describe("all special skills resolve", () => {
     expect(next.board[P1_FRONT][2]).toBeNull();
     expect(next.players[0].undeployed).toContain(27);
     expect(next.board[P2_FRONT][2]?.hp).toBe(expected);
+  });
+});
+
+describe("Heatseeking", () => {
+  it("retargets missile locks on cells with no enemy and leaves valid or null locks", () => {
+    const state = blankMatch();
+    const wasted = spawn(state, 10, 0, P1_SUPPORT, 1);
+    const valid = spawn(state, 8, 0, P1_FRONT, 2);
+    const idle = spawn(state, 1, 0, P1_FRONT, 0);
+    const enemy = spawn(state, 4, 1, P2_FRONT, 2);
+    wasted.missileTarget = { col: P2_FRONT, row: 0 };
+    valid.missileTarget = { col: enemy.col, row: enemy.row };
+    idle.missileTarget = null;
+    const next = play(state, 10, "heatseeking", { cells: [{ col: enemy.col, row: enemy.row }] });
+    expect(next.board[P1_SUPPORT][1]?.missileTarget).toEqual({ col: enemy.col, row: enemy.row });
+    expect(next.board[P1_FRONT][2]?.missileTarget).toEqual({ col: enemy.col, row: enemy.row });
+    expect(next.board[P1_FRONT][0]?.missileTarget ?? null).toBeNull();
+  });
+
+  it("refuses to play when no missile is locked on an empty cell", () => {
+    const state = blankMatch();
+    const shooter = spawn(state, 10, 0, P1_SUPPORT, 1);
+    const enemy = spawn(state, 4, 1, P2_FRONT, 1);
+    shooter.missileTarget = { col: enemy.col, row: enemy.row };
+    expect(() => play(state, 10, "heatseeking", { cells: [{ col: enemy.col, row: enemy.row }] })).toThrow(
+      /no missile is locked/i,
+    );
   });
 });

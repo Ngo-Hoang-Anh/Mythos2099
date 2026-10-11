@@ -57,6 +57,9 @@ export function dirsForEffect(effectId: EffectId): Direction[] | null {
     case "moveAnyDirection":
     case "moveTwoUnits":
       return ["up", "down", "forward", "back"];
+    case "diversionDown":
+    case "diversionUp":
+      return ["up", "down", "forward", "back", "forwardUp", "forwardDown", "upBack", "downBack"];
     case "initiative":
     case "moveUnitTwice":
     case "intelAcquired":

@@ -5,7 +5,9 @@ import {
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   isMobileClient,
+  isSafariBrowser,
   MOBILE_SHORT_EDGE,
+  layoutWidthStillApplied,
   physicalViewportSize,
   viewportMetaContent,
 } from "./mobileFit";
@@ -42,6 +44,35 @@ describe("isMobileClient", () => {
         screenShortEdge: 1080,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isSafariBrowser", () => {
+  it("accepts iPhone Safari", () => {
+    expect(
+      isSafariBrowser(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects Chrome, Edge, and Firefox even when the UA mentions Safari", () => {
+    expect(
+      isSafariBrowser(
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1",
+      ),
+    ).toBe(false);
+    expect(
+      isSafariBrowser(
+        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+      ),
+    ).toBe(false);
+    expect(
+      isSafariBrowser(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+      ),
+    ).toBe(false);
+    expect(isSafariBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/121.0 Mobile/15E148 Safari/605.1.15")).toBe(false);
   });
 });
 
@@ -113,6 +144,20 @@ describe("viewportMetaContent", () => {
     ).toBe(DEFAULT_VIEWPORT);
   });
 
+  it("locks scale on device-width mobile viewports", () => {
+    for (const isPortraitMobile of [true, false]) {
+      const content = viewportMetaContent({
+        active: true,
+        scale: 1,
+        layoutWidth: "device-width",
+        isPortraitMobile,
+      });
+      expect(content).toContain("user-scalable=no");
+      expect(content).toContain("minimum-scale=1");
+      expect(content).toContain("maximum-scale=1");
+    }
+  });
+
   it("pins scale for active landscape fit", () => {
     const content = viewportMetaContent({
       active: true,
@@ -123,5 +168,17 @@ describe("viewportMetaContent", () => {
     expect(content).toContain("width=1600");
     expect(content).toContain("initial-scale=0.5");
     expect(content).toContain("user-scalable=no");
+    expect(content).toContain("shrink-to-fit=no");
+  });
+});
+
+describe("layoutWidthStillApplied", () => {
+  it("treats a widened layout viewport as not yet reset", () => {
+    expect(layoutWidthStillApplied(1561, 393, 852)).toBe(true);
+  });
+
+  it("treats device-width innerWidth as an honest measurement", () => {
+    expect(layoutWidthStillApplied(852, 393, 852)).toBe(false);
+    expect(layoutWidthStillApplied(860, 393, 852)).toBe(false);
   });
 });

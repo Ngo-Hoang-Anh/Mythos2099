@@ -1,4 +1,4 @@
-import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { PREMADE_ARMIES } from "../data/premadeArmies";
 import { UNITS } from "../data/units";
 import {
@@ -12,9 +12,9 @@ import { formatAvg, summarizeArmy, type ArmySummary } from "../engine/armySummar
 import { ARMY_SIZE, type CardType, type UnitClass, type UnitDef } from "../engine/types";
 import { ArmorChip, ApChip, AtkChip, CardTypeIcon, HpChip, KeywordChip, SupplyChip } from "./icons";
 import { UnitCardPills } from "./CardTip";
-import { UnitKeywords, UnitPortrait } from "./UnitToken";
+import { UnitArt, UnitKeywords, UnitPortrait } from "./UnitToken";
 import { UnitDetailDialog, type UnitDetailTarget } from "./UnitDetailDialog";
-import { SgIconBtn, SgIconImg } from "./UiChrome";
+import { SgIconImg } from "./UiChrome";
 
 const CLASSES: UnitClass[] = [
   "Tank",
@@ -66,8 +66,9 @@ export function ArmyBuilder({
   const [p1, setP1] = useState<number[]>(defaultP1);
   const [p2, setP2] = useState<number[]>(defaultP2);
   const [edit, setEdit] = useState<"p1" | "p2">(joinOnly ? "p2" : "p1");
+  const [focusedId, setFocusedId] = useState<number | null>(null);
   const [inspect, setInspect] = useState<UnitDetailTarget | null>(null);
-  const [deckOpen, setDeckOpen] = useState(false);
+  const [deckListOpen, setDeckListOpen] = useState(false);
   const [aiDifficulty, setAiDifficulty] = useState<AiDifficulty>("easy");
   const vsAi = intent.kind === "create" && intent.mode === "ai";
   const selected = edit === "p1" ? p1 : p2;
@@ -103,96 +104,85 @@ export function ArmyBuilder({
     else if (selected.length < ARMY_SIZE) setter([...selected, id]);
   }
 
-  function openDetail(unit: UnitDef, event: MouseEvent) {
-    event.stopPropagation();
-    setInspect({ mode: "catalog", def: unit });
+  function focusUnit(id: number) {
+    setFocusedId(id);
+    setDeckListOpen(false);
   }
+
+  const focused = focusedId == null ? null : (UNITS.find((unit) => unit.id === focusedId) ?? null);
 
   return (
     <div className={`builder${deckDrawer ? " deck-drawer" : ""}`}>
       {inspect && <UnitDetailDialog target={inspect} onClose={() => setInspect(null)} />}
-      {!guide && (
-        <header className="builder-hero">
-          <p className="eyebrow">Army</p>
-          <h1>Mythos2099</h1>
-          <p>{title}. Pick 8 units. The server owns the rules.</p>
-        </header>
-      )}
-
-      <div className="premade-row" data-tut="builder-premade">
-        <span className="sg-tab">Premade</span>
-        {Object.entries(PREMADE_ARMIES).map(([key, army]) => (
-          <button
-            key={key}
-            type="button"
-            className={selected.join() === army.units.join() ? "primary" : undefined}
-            onClick={() => setter(army.units)}
-          >
-            {edit.toUpperCase()}: {army.name}
-          </button>
-        ))}
-      </div>
-
-      {!guide && (
-        <div className="picker-tabs">
-          {!joinOnly && (
-            <button type="button" className={edit === "p1" ? "primary" : "ghost"} onClick={() => setEdit("p1")}>
-              {vsAi ? "You" : "P1"} ({p1.length}/{ARMY_SIZE})
-            </button>
-          )}
-          {!hostOnly && (
-            <button type="button" className={edit === "p2" ? "primary" : "ghost"} onClick={() => setEdit("p2")}>
-              {vsAi ? "AI" : "P2"} ({p2.length}/{ARMY_SIZE})
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="builder-layout">
         <div className="catalog" data-tut="builder-catalog">
+          {!guide && (
+            <header className="builder-hero">
+              <p className="eyebrow">Army</p>
+              <h1>Mythos2099</h1>
+              <p>{title}. Pick 8 units. The server owns the rules.</p>
+            </header>
+          )}
+
+          <div className="premade-row" data-tut="builder-premade">
+            <span className="sg-tab">Premade</span>
+            {Object.entries(PREMADE_ARMIES).map(([key, army]) => (
+              <button
+                key={key}
+                type="button"
+                className={selected.join() === army.units.join() ? "primary" : undefined}
+                onClick={() => setter(army.units)}
+              >
+                {edit.toUpperCase()}: {army.name}
+              </button>
+            ))}
+          </div>
+
+          {!guide && (
+            <div className="picker-tabs">
+              {!joinOnly && (
+                <button type="button" className={edit === "p1" ? "primary" : "ghost"} onClick={() => setEdit("p1")}>
+                  {vsAi ? "You" : "P1"} ({p1.length}/{ARMY_SIZE})
+                </button>
+              )}
+              {!hostOnly && (
+                <button type="button" className={edit === "p2" ? "primary" : "ghost"} onClick={() => setEdit("p2")}>
+                  {vsAi ? "AI" : "P2"} ({p2.length}/{ARMY_SIZE})
+                </button>
+              )}
+            </div>
+          )}
+
           {CLASSES.map((unitClass) => (
             <div key={unitClass} className="class-block">
               <h3>{unitClass}</h3>
               <div className="unit-pick-grid">
                 {UNITS.filter((u) => u.class === unitClass).map((unit) => {
                   const on = selected.includes(unit.id);
+                  const focusedOn = focusedId === unit.id;
                   return (
                     <article
                       key={unit.id}
-                      className={`pick-card ${on ? "on" : ""}`}
+                      className={`pick-card${on ? " on" : ""}${focusedOn ? " focus" : ""}`}
                       data-tut={unit.id === 11 ? "builder-unit" : undefined}
                     >
                       <button
                         type="button"
-                        className="pick-select"
-                        aria-pressed={on}
-                        onClick={() => toggle(unit.id)}
+                        className="pick-focus"
+                        aria-pressed={focusedOn}
+                        aria-label={`Inspect ${unit.name}`}
+                        onClick={() => focusUnit(unit.id)}
                       >
-                        <UnitPortrait
-                          name={unit.name}
-                          unitClass={unit.class}
-                          unitId={unit.id}
-                          compact
-                          cost={unit.cost}
-                          hp={unit.hp}
-                          armor={unit.armor}
-                          atk={unit.atk}
-                          ap={unit.ap}
-                        />
-                        <div className="pick-meta">
-                          <strong>{unit.name}</strong>
-                          <UnitKeywords keywords={unit.keywords} />
-                          <UnitCardPills cards={unit.cards} sourceName={unit.name} />
-                        </div>
+                        <UnitArt name={unit.name} unitClass={unit.class} unitId={unit.id} compact />
                       </button>
                       <button
                         type="button"
-                        className="pick-detail-btn"
-                        title={`Details: ${unit.name}`}
-                        aria-label={`View ${unit.name} details`}
-                        onClick={(event) => openDetail(unit, event)}
+                        className={`pick-toggle${on ? " on" : ""}`}
+                        aria-pressed={on}
+                        disabled={!on && selected.length >= ARMY_SIZE}
+                        onClick={() => toggle(unit.id)}
                       >
-                        i
+                        {on ? "Selected" : "Select"}
                       </button>
                     </article>
                   );
@@ -203,49 +193,33 @@ export function ArmyBuilder({
         </div>
 
         <aside className="deck-panel" data-tut="builder-deck">
-          <DeckPanelBody
-            edit={edit}
-            summary={summary}
-            onToggleUnit={toggle}
-            hideCards={deckDrawer}
-            cardsAction={
-              deckDrawer ? (
-                <button
-                  type="button"
-                  className="builder-deck-open"
-                  title="Open cards in deck"
-                  aria-label={`Open cards in deck, ${summary.deckSize} cards`}
-                  onClick={() => setDeckOpen(true)}
-                >
-                  <img src="/icon/card-special.svg" alt="" width={28} height={28} draggable={false} />
-                  <b>{summary.deckSize}</b>
-                  <span>cards</span>
-                </button>
-              ) : null
-            }
-          />
+          <div className="builder-stage">
+            {deckListOpen ? (
+              <DeckListView summary={summary} onToggleUnit={toggle} />
+            ) : (
+              <UnitInspectScreen
+                unit={focused}
+                onInfo={() => {
+                  if (focused) setInspect({ mode: "catalog", def: focused });
+                }}
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            className={`decklist-toggle${deckListOpen ? " open" : ""}`}
+            aria-expanded={deckListOpen}
+            data-tut="builder-cards"
+            onClick={() => setDeckListOpen((open) => !open)}
+          >
+            <span className="decklist-caret" aria-hidden>
+              {deckListOpen ? "▼" : "▲"}
+            </span>
+            decklist
+          </button>
+          <DeckStats edit={edit} summary={summary} />
         </aside>
       </div>
-
-      {deckDrawer && deckOpen && (
-        <div className="builder-deck-modal" onClick={() => setDeckOpen(false)} role="presentation">
-          <div
-            className="builder-deck-dialog deck-panel"
-            role="dialog"
-            aria-label="Cards in deck"
-            data-tut="builder-cards"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="builder-deck-dialog-head">
-              <h2>
-                Cards in deck · {summary.deckSize}
-              </h2>
-              <SgIconBtn name="close" tone="cyan" title="Close" onClick={() => setDeckOpen(false)} size={36} />
-            </header>
-            <DeckCardsList summary={summary} />
-          </div>
-        </div>
-      )}
 
       <footer className="builder-footer">
         {(error || sessionError) && <p className="error">{error ?? sessionError}</p>}
@@ -289,7 +263,7 @@ export function ArmyBuilder({
 function DeckCardsList({ summary }: { summary: ArmySummary }): ReactNode {
   if (summary.count === 0) return <p className="muted">No units selected.</p>;
   return (
-    <div className="deck-cards-only" data-tut="builder-cards">
+    <div className="deck-cards-only">
       {(["special", "maneuver", "move"] as CardType[]).map((type) => {
         const cards = summary.cards.filter((c) => c.type === type);
         if (cards.length === 0) return null;
@@ -317,27 +291,88 @@ function DeckCardsList({ summary }: { summary: ArmySummary }): ReactNode {
   );
 }
 
-function DeckPanelBody({
-  edit,
+function UnitInspectScreen({ unit, onInfo }: { unit: UnitDef | null; onInfo: () => void }) {
+  return (
+    <div className="builder-screen" aria-label={unit ? `${unit.name} details` : "Unit detail"}>
+      <div className="builder-screen-chin" aria-hidden>
+        <i />
+        <span>Detail</span>
+      </div>
+      <div className={`builder-screen-glass${unit ? "" : " empty"}`}>
+        {unit ? (
+          <div className="builder-screen-card">
+            <button
+              type="button"
+              className="pick-detail-btn"
+              title={`Details: ${unit.name}`}
+              aria-label={`View ${unit.name} details`}
+              onClick={onInfo}
+            >
+              i
+            </button>
+            <UnitPortrait
+              name={unit.name}
+              unitClass={unit.class}
+              unitId={unit.id}
+              cost={unit.cost}
+              hp={unit.hp}
+              armor={unit.armor}
+              atk={unit.atk}
+              ap={unit.ap}
+            />
+            <div className="builder-screen-meta">
+              <strong>{unit.name}</strong>
+              <UnitKeywords keywords={unit.keywords} />
+              <UnitCardPills cards={unit.cards} sourceName={unit.name} />
+            </div>
+          </div>
+        ) : (
+          <p>Select a unit</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DeckListView({
   summary,
   onToggleUnit,
-  hideCards = false,
-  cardsAction = null,
 }: {
-  edit: "p1" | "p2";
   summary: ArmySummary;
   onToggleUnit: (id: number) => void;
-  hideCards?: boolean;
-  cardsAction?: ReactNode;
-}): ReactNode {
+}) {
   return (
-    <>
-      <h2 className={hideCards ? "deck-panel-title-row" : undefined}>
-        <span>
-          {edit.toUpperCase()} deck · {summary.count}/{ARMY_SIZE} units
-          {!hideCards ? ` · ${summary.deckSize} cards` : ""}
-        </span>
-        {cardsAction}
+    <div className="builder-decklist">
+      <section>
+        <h3>Units</h3>
+        {summary.count === 0 ? (
+          <p className="muted">No units selected.</p>
+        ) : (
+          <ul className="deck-units">
+            {summary.units.map((unit) => (
+              <li key={unit.id}>
+                <button type="button" className="deck-unit" onClick={() => onToggleUnit(unit.id)}>
+                  <UnitArt name={unit.name} unitClass={unit.class} unitId={unit.id} compact />
+                  <strong>{unit.name}</strong>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section>
+        <h3>Cards in deck · {summary.deckSize}</h3>
+        <DeckCardsList summary={summary} />
+      </section>
+    </div>
+  );
+}
+
+function DeckStats({ edit, summary }: { edit: "p1" | "p2"; summary: ArmySummary }) {
+  return (
+    <div className="builder-stats">
+      <h2>
+        {edit.toUpperCase()} deck · {summary.count}/{ARMY_SIZE} · {summary.deckSize} cards
       </h2>
       <div className="builder-army-meter" aria-label={`${summary.count} of ${ARMY_SIZE} units`}>
         <div className="sg-progress">
@@ -365,44 +400,9 @@ function DeckPanelBody({
               </span>
             ))}
           </div>
-          <div className={`deck-cols${hideCards ? " units-only" : ""}`}>
-            <section>
-              <h3>Units</h3>
-              <ul className="deck-units">
-                {summary.units.map((unit) => (
-                  <li key={unit.id}>
-                    <button type="button" className="deck-unit" onClick={() => onToggleUnit(unit.id)}>
-                      <UnitPortrait
-                        name={unit.name}
-                        unitClass={unit.class}
-                        unitId={unit.id}
-                        compact
-                        cost={unit.cost}
-                        hp={unit.hp}
-                        armor={unit.armor}
-                        atk={unit.atk}
-                        ap={unit.ap}
-                      />
-                      <div className="pick-meta">
-                        <strong>{unit.name}</strong>
-                        <UnitKeywords keywords={unit.keywords} />
-                        <UnitCardPills cards={unit.cards} sourceName={unit.name} />
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            {!hideCards && (
-              <section data-tut="builder-cards">
-                <h3>Cards in deck</h3>
-                <DeckCardsList summary={summary} />
-              </section>
-            )}
-          </div>
         </>
       )}
-    </>
+    </div>
   );
 }
 

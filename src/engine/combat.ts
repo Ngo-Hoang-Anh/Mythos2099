@@ -6,10 +6,8 @@ import {
   keywordValue,
   retaliateOf,
 } from "./keywords";
-import { hasStatusOn, missileMod, removeStatus, statusesOf } from "./status";
+import { hasStatusOn, missileMod, statusesOf } from "./status";
 import {
-  COLS,
-  ROWS,
   type MatchState,
   type PlayerId,
   type UnitInstance,
@@ -47,34 +45,6 @@ export function missileEffectiveArmor(armor: number): number {
 
 export function missilePowerOf(state: MatchState, unit: UnitInstance): number {
   return Math.max(0, keywordValue(unit, "missile") + missileMod(state, unit));
-}
-
-export function consumeMissileSplash(
-  state: MatchState,
-  origin: { col: number; row: number; instanceId?: string },
-  owner: PlayerId,
-  opts?: { lane?: number },
-): UnitInstance[] {
-  const splashStatus = statusesOf(state, "missileSplash", owner)[0];
-  if (!splashStatus) return [];
-  const splash = splashStatus.magnitude || 1;
-  removeStatus(state, splashStatus.id);
-  const hit: UnitInstance[] = [];
-  for (let dc = -1; dc <= 1; dc++) {
-    for (let dr = -1; dr <= 1; dr++) {
-      if (dc === 0 && dr === 0) continue;
-      const col = origin.col + dc;
-      const row = origin.row + dr;
-      if (col < 0 || col >= COLS || row < 0 || row >= ROWS) continue;
-      if (opts?.lane !== undefined && row !== opts.lane) continue;
-      const unit = state.board[col][row];
-      if (!unit || unit.owner === owner || unit.hp <= 0) continue;
-      if (origin.instanceId && unit.instanceId === origin.instanceId) continue;
-      unit.hp -= splash;
-      hit.push(unit);
-    }
-  }
-  return hit;
 }
 
 export function artilleryRepeatBonus(
