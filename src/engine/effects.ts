@@ -868,11 +868,11 @@ export function playEffect(state: MatchState, card: CardInstance, targets: PlayT
         return null;
       }
       if (targets.choice === "nextSupply") {
-        player.nextTurnSupplyBonus += 1;
-        log(state, `${card.name}: +1 Supply next Deployment`);
+        player.nextTurnSupplyBonus += 2;
+        log(state, `${card.name}: +2 Supply next Deployment`);
         return null;
       }
-      return "Choose one: move 1 allied unit, gain 1 Supply, or gain +1 Supply next Deployment";
+      return "Choose one: move 1 allied unit, gain 1 Supply, or gain 2 Supply at the start of your next Deployment";
     }
     default:
       return `Unhandled effect ${card.effectId}`;

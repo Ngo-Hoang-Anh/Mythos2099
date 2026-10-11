@@ -12,7 +12,7 @@ export function makeInitiativeCard(instanceId: string): CardInstance {
     name: INITIATIVE_CARD_NAME,
     type: "special",
     cost: 0,
-    text: "Choose 1: move 1 allied unit 1 space in any direction (including diagonal), gain 1 Supply, or gain +1 Supply at the start of your next Deployment.",
+    text: "Choose 1: move 1 allied unit 1 space in any direction (including diagonal), gain 1 Supply, or gain 2 Supply at the start of your next Deployment.",
     effectId: "initiative",
     targets: [],
   };

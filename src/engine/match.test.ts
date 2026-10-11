@@ -351,7 +351,7 @@ describe("second player opening", () => {
     expect(match.players[1].commandPoints).toBe(BASE_SUPPLY + countUnits(match.board, 1));
   });
 
-  it("lets Fully Prepared gain 1 Supply, move any direction, or bank +1 Supply next Deployment", () => {
+  it("lets Fully Prepared gain 1 Supply, move any direction, or bank +2 Supply next Deployment", () => {
     let match = finishTurn(createMatch(DEFAULT_P1, DEFAULT_P2, 8));
     const card = match.players[1].hand.find((c) => c.templateId === INITIATIVE_TEMPLATE_ID)!;
     match = must(match, { type: "deploy", unitDefId: 6, row: 1 });
@@ -374,7 +374,7 @@ describe("second player opening", () => {
       cardId: bankCard.instanceId,
       targets: { choice: "nextSupply" },
     });
-    expect(bankMatch.players[1].nextTurnSupplyBonus).toBe(1);
+    expect(bankMatch.players[1].nextTurnSupplyBonus).toBe(2);
 
     let fwdMatch = finishTurn(createMatch(DEFAULT_P1, DEFAULT_P2, 10));
     const fwdCard = fwdMatch.players[1].hand.find((c) => c.templateId === INITIATIVE_TEMPLATE_ID)!;
