@@ -373,7 +373,7 @@ describe("tutorial lessons", () => {
     expect(start.board[P2_FRONT].filter(Boolean)).toHaveLength(3);
     expect(start.board[P2_FRONT][0]?.hp).toBe(2);
     expect(start.board[P2_FRONT][2]?.hp).toBe(2);
-    expect(start.board[P2_FRONT][4]?.hp).toBe(2);
+    expect(start.board[P2_FRONT][3]?.hp).toBe(2);
     expect(hint(lesson, start)?.anchor).toBe("hq-0");
     expect(hint(lesson, start, ["marks"])?.anchor).toBe("unit-103");
     expect(hint(lesson, start, ["marks", "enemies"])?.anchor).toBe(`unit-${TUTORIAL_CADET}`);
@@ -388,7 +388,7 @@ describe("tutorial lessons", () => {
     expect(unitByDef(match, TUTORIAL_CADET, 0)).toBeNull();
     expect(match.board[P2_FRONT][2]).toBeNull();
     expect(match.board[P2_FRONT][0]?.defId).toBe(TUTORIAL_DUMMY);
-    expect(match.board[P2_FRONT][4]?.defId).toBe(TUTORIAL_DUMMY);
+    expect(match.board[P2_FRONT][3]?.defId).toBe(TUTORIAL_DUMMY);
     expect(match.players[0].nextTurnSupplyBonus).toBeGreaterThanOrEqual(2);
     expect(match.players[0].nextTurnDrawBonus).toBeGreaterThanOrEqual(2);
 
@@ -476,13 +476,21 @@ describe("tutorial lessons", () => {
     expect(hint(lesson, fighting)).toBeNull();
   });
 
-  it("9 missile: Hornet gun 3 + missile 3 = 6 into Jackal", () => {
+  it("9 missile: first fight marks Sarama, second fight fires for 3", () => {
     const { lesson, match: start } = startLesson("missile");
-    const match = play(lesson, start, { type: "endDeployment" });
-    expect(unitByDef(match, 4, 1)?.hp).toBe(4);
+    let match = play(lesson, start, { type: "endDeployment" });
+    expect(unitByDef(match, 4, 1)?.hp).toBe(7);
+    expect(unitByDef(match, 8, 0)?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
+    match = play(lesson, match, { type: "endEngagement" });
+    expect(match.phase).toBe("deployment");
+    expect(match.currentPlayer).toBe(0);
+    expect(unitByDef(match, 4, 1)?.hp).toBe(7);
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(unitByDef(match, 4, 1)?.hp).toBe(1);
+    expect(lesson.steps.every((step) => step.done(match))).toBe(true);
   });
 
-  it("9 missile: popups point at ATK, Missile, then AP", () => {
+  it("9 missile: popups explain the mark, then half armor, before the second fight", () => {
     const { lesson, match: start } = startLesson("missile");
     expect(hint(lesson, start)?.anchor).toBe("atk-8");
     expect(hint(lesson, start, ["gun"])?.anchor).toBe("kw-missile-8");
@@ -491,6 +499,10 @@ describe("tutorial lessons", () => {
     expect(hint(lesson, start, ["gun", "missile", "ap-no-pen", "predict"])?.anchor).toBe("hourglass");
     const fighting = play(lesson, start, { type: "endDeployment" });
     expect(hint(lesson, fighting)).toBeNull();
+    const marked = play(lesson, fighting, { type: "endEngagement" });
+    expect(hint(lesson, marked)?.anchor).toBe("hp-4");
+    expect(hint(lesson, marked, ["mark"])?.anchor).toBe("kw-missile-8");
+    expect(hint(lesson, marked, ["mark", "half"])?.anchor).toBe("hourglass");
   });
 
   it("10 extra attack then extra engagement, then regular engage", () => {
@@ -613,8 +625,8 @@ describe("tutorial lessons", () => {
     expect(match.board[P2_FRONT][0]?.hp).toBe(8);
     expect(match.board[P1_SUPPORT][2]?.hp).toBe(8);
     expect(match.board[P2_FRONT][2]?.hp).toBe(2);
-    expect(match.board[P1_SUPPORT][4]?.hp).toBe(8);
-    expect(match.board[P2_FRONT][4]?.hp).toBe(5);
+    expect(match.board[P1_SUPPORT][3]?.hp).toBe(8);
+    expect(match.board[P2_FRONT][3]?.hp).toBe(5);
     expect(lesson.steps.every((s) => s.done(match))).toBe(true);
   });
 
@@ -708,11 +720,18 @@ describe("tutorial lessons", () => {
   });
 
   it("hub numbers are 01–17 in curriculum order with no gaps", () => {
-    const hubIds = TUTORIAL_HUB.flatMap((s) => s.cards.map((c) => c.id));
+    const hubIds = TUTORIAL_HUB.flatMap((s) => s.cards.filter((c) => !c.cta).map((c) => c.id));
     expect(hubIds).toEqual(tutorialOrder());
     expect(LESSONS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    const hubNumbers = TUTORIAL_HUB.flatMap((s) => s.cards.map((c) => c.number));
+    const hubNumbers = TUTORIAL_HUB.flatMap((s) => s.cards.filter((c) => !c.cta).map((c) => c.number));
     expect(hubNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+    const ready = TUTORIAL_HUB.find((s) => s.id === "basic")?.cards.at(-1);
+    expect(ready).toMatchObject({
+      id: "basic-complete",
+      number: 6,
+      title: "You are ready for battle",
+      cta: true,
+    });
   });
 
   it("build guide walks the army builder with highlights", () => {

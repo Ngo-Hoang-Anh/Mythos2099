@@ -115,6 +115,8 @@ export interface LessonDef {
 }
 
 const LANE_MID = 2;
+/** Last lane on a 4-lane board (lane 4). */
+const LANE_LAST = 3;
 
 const HINT_HOURGLASS: LessonHint = {
   id: "hourglass",
@@ -250,7 +252,7 @@ const BASIC: LessonDef = {
         return "Cadet is already on the board.";
       if (action.unitDefId !== TUTORIAL_CADET) return "Summon the Cadet.";
       if (action.row !== LANE_MID)
-        return "Drop the Cadet on the middle Support cell (lane 3).";
+        return "Drop the Cadet on the Support cell in lane 3.";
       return null;
     }
     if (action.type === "endDeployment") {
@@ -502,7 +504,7 @@ const RESOURCES: LessonDef = {
       if (action.unitDefId === TUTORIAL_CADET) {
         if (cadets >= 1) return "Summon Recruit next.";
         if (action.row !== LANE_MID)
-          return "Drop the Cadet on the middle Support cell (lane 3).";
+          return "Drop the Cadet on the Support cell in lane 3.";
         return null;
       }
       if (action.unitDefId === TUTORIAL_RECRUIT) {
@@ -1037,10 +1039,10 @@ const COMEBACK: LessonDef = {
       row: LANE_MID,
       hp: 1,
     });
-    // Lanes 0 / 4 open → ATK 2+2 chips HQ 41→37 (first mark). Mid trades with Cadet.
+    // Lanes 0 / 3 open → ATK 2+2 chips HQ 41→37 (first mark). Mid trades with Cadet.
     spawnComebackDummy(state, 0);
     spawnComebackDummy(state, LANE_MID);
-    spawnComebackDummy(state, 4);
+    spawnComebackDummy(state, LANE_LAST);
     for (const [defId, templateId] of COMEBACK_DECK) {
       giveUnitDeckCard(state, 0, defId, templateId);
     }
@@ -1630,15 +1632,16 @@ const MISSILE: LessonDef = {
   id: "missile",
   number: 9,
   title: "Missile",
-  subtitle: "After guns, a missile — half armor, no AP",
+  subtitle: "Delayed attack — mark a cell, fire it next time",
   hubStats: ["ap", "armor"],
   units: [8, 4],
   keywords: parseKeywords("Missile 4"),
   coach: [
-    "After guns, Missile fires. Half armor (round down), no AP.",
-    "Watch two hits: gun, then missile.",
+    "Missile is a delayed attack. The first activation paints a red + and does not fire.",
+    "The next Missile hits that cell. Half armor (round up). AP does not pierce it.",
+    "Fight once to see the mark on Sarama, then fight again to see the Missile land.",
   ],
-  success: "Missile used half armor. AP did not pierce it.",
+  success: "First Missile marked Sarama. The second dealt 3 — half armor, no AP.",
   setup() {
     const state = createSandboxMatch();
     spawnUnit(state, {
@@ -1658,22 +1661,55 @@ const MISSILE: LessonDef = {
     return state;
   },
   allow: skipToFight("deployment"),
+  afterAction(match, action) {
+    const raiju = match.board[P1_FRONT][LANE_MID];
+    if (action.type === "endEngagement" && raiju?.missileTarget && hp(match, 4, 1) > 1) {
+      resumeP1Deploy(match);
+    }
+  },
   pickHint(match, _hud, dismissed) {
+    if (match.phase === "engagement" || match.combatPlayback) return null;
+    const marked = Boolean(match.board[P1_FRONT][LANE_MID]?.missileTarget);
+    if (marked && hp(match, 4, 1) > 1) {
+      if (!dismissed.has("mark")) {
+        return hintNext(
+          "mark",
+          "hp-4",
+          "Red mark",
+          "The first Missile dealt no damage. It locked this cell. Both players see the red +.",
+        );
+      }
+      if (!dismissed.has("half")) {
+        return hintNext(
+          "half",
+          "kw-missile-8",
+          "Half armor",
+          "Missile 4 against half of armor 2 (round up = 1) deals 3. AP does not pierce a Missile.",
+          parseKeywords("Missile 4"),
+        );
+      }
+      return hintGo(
+        "hourglass-2",
+        "hourglass",
+        "Fire the Missile",
+        "Guns shoot again, then the locked Missile hits Sarama.",
+      );
+    }
     if (match.phase !== "deployment") return null;
     if (!dismissed.has("gun")) {
       return hintNext(
         "gun",
         "atk-8",
         "Guns first",
-        "Gun volley fires first. AP pierces on this hit.",
+        "The gun volley still fires immediately. AP pierces on this hit.",
       );
     }
     if (!dismissed.has("missile")) {
       return hintNext(
         "missile",
         "kw-missile-8",
-        "Missile",
-        "After guns, fires Missile. Half armor, no AP.",
+        "Delayed attack",
+        "This Missile only paints a target. It fires on the next activation.",
         parseKeywords("Missile 4"),
       );
     }
@@ -1682,35 +1718,39 @@ const MISSILE: LessonDef = {
         "ap-no-pen",
         "ap-8",
         "AP",
-        "AP only works on the gun hit, not the missile.",
+        "AP works on the gun hit only. It does nothing for the Missile.",
       );
     }
     if (!dismissed.has("predict")) {
       return hintNext(
         "predict",
         "hp-4",
-        "Result",
-        "Gun + Missile hit. Watch the damage.",
-        parseKeywords("Missile 4"),
+        "This fight",
+        "Sarama takes the gun hit now. Watch for the red mark — that cell is the next Missile.",
       );
     }
     return hintGo(
       "hourglass",
       "hourglass",
       "Start Engagement",
-      "Watch gun, then missile.",
+      "Watch the gun, then the Missile lock. No missile damage yet.",
     );
   },
   steps: [
     {
       id: "go",
-      label: "Enter Engagement",
+      label: "Enter the first Engagement",
       done: (m) => m.phase === "engagement" || hp(m, 4, 1) < 10,
     },
     {
-      id: "hit",
-      label: "Gun + Missile hit Sarama",
-      done: (m) => hp(m, 4, 1) <= 4,
+      id: "lock",
+      label: "Gun hits; Missile only marks Sarama",
+      done: (m) => hp(m, 4, 1) <= 7 && Boolean(m.board[P1_FRONT][LANE_MID]?.missileTarget),
+    },
+    {
+      id: "fire",
+      label: "Second Engagement fires the locked Missile",
+      done: (m) => hp(m, 4, 1) <= 1,
     },
   ],
 };
@@ -1745,7 +1785,7 @@ const EXTRA: LessonDef = {
       defId: 3,
       owner: 0,
       col: P1_FRONT,
-      row: 4,
+      row: LANE_LAST,
       keywords: parseKeywords("Retaliate 5"),
     });
     spawnUnit(state, {
@@ -1759,7 +1799,7 @@ const EXTRA: LessonDef = {
       defId: 22,
       owner: 1,
       col: P2_FRONT,
-      row: 4,
+      row: LANE_LAST,
       keywords: [],
     });
     giveUnitCard(state, 0, 11, "first_strike");
@@ -1905,7 +1945,7 @@ function allowSummonOnMidSupport(
       if (onBoard(match, defId, 0)) return `${name} is already on the board.`;
       if (action.unitDefId !== defId) return `Summon ${name}.`;
       if (action.row !== LANE_MID)
-        return `Drop ${name} on the middle Support cell (lane 3).`;
+        return `Drop ${name} on the Support cell in lane 3.`;
       return null;
     }
     if (action.type === "endDeployment") {
@@ -2305,7 +2345,7 @@ const RETURN_FIRE: LessonDef = {
       defId: TEMPEST,
       owner: 0,
       col: P1_SUPPORT,
-      row: 4,
+      row: LANE_LAST,
       keywords: parseKeywords("Jet Plane"),
     });
     jet.armor = 0;
@@ -2314,7 +2354,7 @@ const RETURN_FIRE: LessonDef = {
       defId: TUTORIAL_DUMMY,
       owner: 1,
       col: P2_FRONT,
-      row: 4,
+      row: LANE_LAST,
     });
     dBot.atk = 5;
 
@@ -2353,7 +2393,7 @@ const RETURN_FIRE: LessonDef = {
       return hintNext(
         "lane-jet",
         `unit-${TEMPEST}`,
-        "Lane 5 — Jet",
+        "Lane 4 — Jet",
         "Raijin shoots. Dummy returns fire at Raijin.",
         parseKeywords("Jet Plane"),
       );
@@ -2382,8 +2422,8 @@ const RETURN_FIRE: LessonDef = {
         const d0 = m.board[P2_FRONT][0];
         const gun = m.board[P1_SUPPORT][LANE_MID];
         const dMid = m.board[P2_FRONT][LANE_MID];
-        const jet = m.board[P1_SUPPORT][4];
-        const dBot = m.board[P2_FRONT][4];
+        const jet = m.board[P1_SUPPORT][LANE_LAST];
+        const dBot = m.board[P2_FRONT][LANE_LAST];
         return Boolean(
           cadet &&
           d0 &&
@@ -2548,7 +2588,8 @@ const PLAYSTYLE_MISSILE_ARTY: LessonDef = {
   setup() {
     const state = createSandboxMatch();
     spawnUnit(state, { defId: 3, owner: 0, col: P1_FRONT, row: LANE_MID });
-    spawnUnit(state, { defId: 10, owner: 0, col: P1_SUPPORT, row: LANE_MID });
+    const tiamat = spawnUnit(state, { defId: 10, owner: 0, col: P1_SUPPORT, row: LANE_MID });
+    tiamat.missileTarget = { col: P2_FRONT, row: LANE_MID };
     spawnUnit(state, {
       defId: 4,
       owner: 1,
@@ -2818,6 +2859,8 @@ export interface HubLessonCard {
   hubStats: LessonStat[];
   keywords: Keyword[];
   placeholder?: boolean;
+  /** Graduation card. Opens a choice; it is not a lesson and does not gate later sections. */
+  cta?: boolean;
 }
 
 export interface HubSection {
@@ -2846,7 +2889,18 @@ export const TUTORIAL_HUB: readonly HubSection[] = [
     eyebrow: "Section 01",
     title: "Basics",
     intro: "Supply, summoning, armor, moves, and comeback when you're behind.",
-    cards: LESSONS.filter((l) => l.number <= 5).map(hubCard),
+    cards: [
+      ...LESSONS.filter((l) => l.number <= 5).map(hubCard),
+      {
+        id: BASIC_COMPLETION_CARD_ID,
+        title: "You are ready for battle",
+        subtitle: "Want to learn more and become an expert? Check the Mechanic Codex",
+        number: 6,
+        hubStats: [],
+        keywords: [],
+        cta: true,
+      },
+    ],
   },
   {
     id: "keywords",
