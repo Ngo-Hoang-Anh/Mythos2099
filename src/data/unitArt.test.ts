@@ -170,3 +170,4 @@ describe("unit art specs", () => {
     expect(getUnitArt(102)).toBe(UNIT_ART[13]);
   });
 });
+

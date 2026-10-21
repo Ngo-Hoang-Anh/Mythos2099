@@ -59,7 +59,7 @@ export function TutorialHub({
         <p>
           {tab === "tutorial"
             ? "Sandbox lessons teach the rules. Some lessons use a short scripted enemy opening to set up the scenario. Finish lessons in order — locked ones unlock after the previous lesson."
-            : "Keywords, special units, playstyles, and army building. Guides stay locked until the previous one is finished, including the last Basics lesson."}
+            : "Keywords, special units, and playstyle sandboxes. Guides stay locked until the previous one is finished, including the last Basics lesson."}
         </p>
         <div
           className="picker-tabs tutorial-tabs"
@@ -127,8 +127,8 @@ export function TutorialHub({
         <p
           className="muted"
           style={{ marginTop: "0.75rem" }}>
-          Sandbox lessons teach the rules; the Build Your Army walkthrough is the
-          army builder.
+          Basics ends with Build an army. Codex covers keywords, special units,
+          and playstyles.
         </p>
       ) : null}
       {readyOpen ? (

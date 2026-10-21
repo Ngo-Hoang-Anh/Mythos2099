@@ -181,7 +181,7 @@ export function TutorialSpotlight({
       ) : null}
       <div
         ref={cardRef}
-        className={`tut-spot-card ${hint.keywords?.length ? "kit-window" : "kit-cloud"}${hint.next ? "" : " tut-spot-card-pass"}`}
+        className={`tut-spot-card${hint.next ? "" : " tut-spot-card-pass"}`}
         style={{
           top: card.top,
           left: card.left,

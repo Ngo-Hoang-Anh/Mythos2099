@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BASE_SUPPLY, DRAW_PER_TURN, HQ_MAX_HP, P1_FRONT, P1_SUPPORT, P2_FRONT, P2_SUPPORT } from "../engine/types";
+import { P1_FRONT, P1_SUPPORT, P2_FRONT } from "../engine/types";
 import { TUTORIAL_CADET, TUTORIAL_DUMMY, TUTORIAL_RECRUIT } from "../data/tutorialUnits";
 import { createSandboxMatch, spawnUnit, unitByDef } from "../engine/sandbox";
 import {
@@ -13,7 +13,13 @@ import {
   tutorialOrder,
   type LessonResult,
 } from "./controller";
-import { LESSONS, TUTORIAL_HUB, pickLessonHint, type TutorialHud } from "./lessons";
+import {
+  LESSONS,
+  RETURN_FIRE,
+  TUTORIAL_HUB,
+  pickLessonHint,
+  type TutorialHud,
+} from "./lessons";
 import { BUILD_GUIDE_ID, BUILD_GUIDE_STEPS } from "./buildGuide";
 import type { Action, MatchState } from "../engine/types";
 
@@ -37,19 +43,6 @@ function play(lesson: (typeof LESSONS)[number], match: MatchState, action: Actio
   return must(applyLessonAction(lesson, match, action));
 }
 
-function playP2Opening(lesson: (typeof LESSONS)[number], match: MatchState): MatchState {
-  match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_DUMMY, row: 0 });
-  expect(match.board[P2_SUPPORT][0]?.defId).toBe(TUTORIAL_DUMMY);
-  match = play(lesson, match, { type: "endDeployment" });
-  expect(match.phase).toBe("engagement");
-  expect(match.board[P2_FRONT][0]?.defId).toBe(TUTORIAL_DUMMY);
-  match = play(lesson, match, { type: "endEngagement" });
-  expect(match.currentPlayer).toBe(0);
-  expect(match.phase).toBe("deployment");
-  expect(match.players[0].commandPoints).toBe(BASE_SUPPLY + 1);
-  return match;
-}
-
 describe("sandbox match", () => {
   it("skips 8-unit validation and Initiative", () => {
     const match = createSandboxMatch();
@@ -63,13 +56,15 @@ describe("sandbox match", () => {
 });
 
 describe("tutorial lessons", () => {
-  it("has sixteen sandbox lessons plus a build walkthrough", () => {
-    expect(LESSONS).toHaveLength(16);
+  it("has seventeen sandbox lessons plus a build walkthrough", () => {
+    expect(LESSONS).toHaveLength(17);
     expect(LESSONS.map((l) => l.id)).toEqual([
       "basic",
+      "victory",
       "resources",
+      "movement-forward",
+      "movement-updown",
       "armor",
-      "maneuver",
       "comeback",
       "cover-flank",
       "aggressive",
@@ -78,7 +73,6 @@ describe("tutorial lessons", () => {
       "extra-attack",
       "artillery",
       "jet-plane",
-      "return-fire",
       "playstyle-aggro",
       "playstyle-missile-arty",
       "playstyle-tank-robot",
@@ -104,9 +98,11 @@ describe("tutorial lessons", () => {
   it("hub cards list only the stats and keywords each lesson uses", () => {
     expect(LESSONS.map((l) => ({ id: l.id, stats: l.hubStats, kws: l.keywords.map((k) => k.name) }))).toEqual([
       { id: "basic", stats: ["supply", "hp", "atk"], kws: [] },
+      { id: "victory", stats: ["hp", "atk", "supply"], kws: [] },
       { id: "resources", stats: ["supply"], kws: [] },
+      { id: "movement-forward", stats: [], kws: [] },
+      { id: "movement-updown", stats: [], kws: [] },
       { id: "armor", stats: ["armor", "ap"], kws: [] },
-      { id: "maneuver", stats: [], kws: [] },
       { id: "comeback", stats: ["supply"], kws: [] },
       { id: "cover-flank", stats: [], kws: ["flank", "cover"] },
       { id: "aggressive", stats: [], kws: ["aggressive", "retaliate"] },
@@ -115,536 +111,545 @@ describe("tutorial lessons", () => {
       { id: "extra-attack", stats: ["atk"], kws: [] },
       { id: "artillery", stats: [], kws: ["artillery"] },
       { id: "jet-plane", stats: [], kws: ["jetPlane"] },
-      { id: "return-fire", stats: [], kws: ["artillery", "jetPlane"] },
       { id: "playstyle-aggro", stats: ["hp", "supply"], kws: ["blitz", "flank"] },
       { id: "playstyle-missile-arty", stats: ["armor"], kws: ["cover", "artillery", "missile"] },
       { id: "playstyle-tank-robot", stats: ["atk", "hp"], kws: ["aggressive"] },
     ]);
   });
 
-  it("1 basic: three rounds of exchange, 0 HP still returns damage", () => {
+  it("1 basic: free-play trades then wipe Dummy", () => {
     const { lesson, match: start } = startLesson("basic");
-    expect(start.players[0].commandPoints).toBe(4);
-    const blocked = applyLessonAction(lesson, start, { type: "deploy", unitDefId: 101, row: 0 });
-    expect(blocked.ok).toBe(false);
     let match = play(lesson, start, { type: "deploy", unitDefId: 101, row: 2 });
-    expect(match.players[0].commandPoints).toBe(1);
-    expect(match.board[P1_FRONT][2]?.defId).toBe(101);
-    expect(match.board[P1_FRONT][2]?.keywords).toEqual([]);
-    expect(match.board[P2_FRONT][2]?.hp).toBe(8);
-
     match = play(lesson, match, { type: "endDeployment" });
-    expect(match.phase).toBe("engagement");
     expect(match.board[P2_FRONT][2]?.hp).toBe(5);
-    expect(match.board[P1_FRONT][2]?.hp).toBe(6);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(false);
-
+    expect(match.board[P1_FRONT][2]?.hp).toBe(5);
+    // P2 pokes Cadet; Cadet return leaves Dummy at 2.
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.currentPlayer).toBe(0);
-    expect(match.phase).toBe("deployment");
-
     match = play(lesson, match, { type: "endDeployment" });
-    expect(match.board[P2_FRONT][2]?.hp).toBe(2);
     expect(match.board[P1_FRONT][2]?.hp).toBe(4);
-
+    expect(match.board[P2_FRONT][2]?.hp).toBe(2);
+    // P1's next volley finishes Dummy (ATK 3 into 2 HP).
     match = play(lesson, match, { type: "endEngagement" });
     match = play(lesson, match, { type: "endDeployment" });
     expect(match.board[P2_FRONT][2]).toBeNull();
-    expect(match.board[P1_FRONT][2]?.hp).toBe(2);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
   });
 
-  it("1 basic: popups point at Supply, then HP and ATK chips", () => {
+  it("1 basic: skip deploy — Dummy volleys your 1 HP HQ", () => {
+    const { lesson, match: start } = startLesson("basic");
+    let match = play(lesson, start, { type: "endDeployment" });
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("1 basic: intro stats then reserve / hourglass highlights", () => {
     const { lesson, match } = startLesson("basic");
-    const hud = HUD;
-    expect(pickLessonHint(lesson, match, hud, new Set())?.anchor).toBe("supply");
-    expect(pickLessonHint(lesson, match, hud, new Set(["supply"]))?.anchor).toBe("reserve");
-    expect(pickLessonHint(lesson, match, { reserveOpen: true, pendingDeploy: null }, new Set(["supply"]))?.anchor).toBe(
-      "reserve-unit-101",
+    expect(hint(lesson, match)?.id).toBe("intro-supply");
+    expect(hint(lesson, match, ["intro-supply"])?.id).toBe("intro-hp");
+    expect(hint(lesson, match, ["intro-supply", "intro-hp"])?.id).toBe("intro-atk");
+    const afterIntro = ["intro-supply", "intro-hp", "intro-atk"];
+    expect(hint(lesson, match, afterIntro)?.anchor).toBe("reserve");
+    expect(hint(lesson, match, afterIntro, { reserveOpen: true })?.anchor).toBe(
+      `reserve-unit-${TUTORIAL_CADET}`,
     );
-    expect(
-      pickLessonHint(lesson, match, { reserveOpen: false, pendingDeploy: 101 }, new Set(["supply"]))?.anchor,
-    ).toBe("cell-0-2");
-    const after = play(lesson, match, { type: "deploy", unitDefId: 101, row: 2 });
-    expect(pickLessonHint(lesson, after, hud, new Set(["supply"]))?.anchor).toBe("hp-101");
-    expect(pickLessonHint(lesson, after, hud, new Set(["supply", "hp"]))?.anchor).toBe("atk-101");
-    expect(pickLessonHint(lesson, after, hud, new Set(["supply", "hp", "atk"]))?.anchor).toBe("hp-103");
-    expect(pickLessonHint(lesson, after, hud, new Set(["supply", "hp", "atk", "dummy-hp"]))?.anchor).toBe("hp-103");
-    expect(pickLessonHint(lesson, after, hud, new Set(["supply", "hp", "atk", "dummy-hp", "predict-1"]))?.anchor).toBe(
-      "hourglass",
-    );
-    const fighting = play(lesson, after, { type: "endDeployment" });
-    expect(fighting.combatPlayback).toBeTruthy();
-    expect(pickLessonHint(lesson, fighting, hud, new Set(["supply", "hp", "atk", "dummy-hp", "predict-1"]))).toBeNull();
-    const afterR1 = play(lesson, fighting, { type: "endEngagement" });
-    expect(pickLessonHint(lesson, afterR1, hud, new Set(["supply", "hp", "atk", "dummy-hp", "predict-1"]))?.anchor).toBe(
-      "hp-103",
-    );
-    expect(
-      pickLessonHint(lesson, afterR1, hud, new Set(["supply", "hp", "atk", "dummy-hp", "predict-1", "predict-2"]))?.anchor,
-    ).toBe("hourglass");
-    expect(hint(lesson, after, ["supply", "hp"], { animating: true })).toBeNull();
+    // Pending deploy: no yellow cell spotlight — board uses green Drop here like a real match.
+    expect(hint(lesson, match, afterIntro, { pendingDeploy: TUTORIAL_CADET })).toBeNull();
   });
 
-  it("2 resources: opponent first, spend leftover Supply, special, then HQ shot ends the lesson", () => {
+  it("2 victory: no chrome / supply re-teach spotlight", () => {
+    const { lesson, match } = startLesson("victory");
+    expect(hint(lesson, match)).toBeNull();
+  });
+
+  it("2 victory: free-play empty lanes break the HQ", () => {
+    const { lesson, match: start } = startLesson("victory");
+    expect(start.players[1].hqHp).toBe(6);
+    expect(start.players[0].hqHp).toBe(8);
+    let match = play(lesson, start, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 0 });
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 3 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.players[1].hqHp).toBe(0);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("2 victory: jam the blockers — return fire deletes Cadets (elimination)", () => {
+    const { lesson, match: start } = startLesson("victory");
+    // Both Cadets into armored blockers — 0 gun damage through Armor 8; return ATK 6 deletes them.
+    let match = play(lesson, start, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 1 });
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 2 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.players[1].hqHp).toBe(6);
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("elimination");
+  });
+
+  it("2 victory: one open Cadet only — shortfall, then blockers snipe HQ", () => {
+    const { lesson, match: start } = startLesson("victory");
+    let match = play(lesson, start, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 0 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.players[1].hqHp).toBe(3);
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("2 victory: do nothing — blockers still snipe HQ on their turn", () => {
+    const { lesson, match: start } = startLesson("victory");
+    let match = play(lesson, start, { type: "endDeployment" });
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("1 basic: wrong lane — Dummy volleys your HQ on P2 turn", () => {
+    const { lesson, match: start } = startLesson("basic");
+    let match = play(lesson, start, { type: "deploy", unitDefId: 101, row: 0 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.players[0].hqHp).toBe(1);
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("3 going second: free-play Initiative Move then HQ kill", () => {
     const { lesson, match: start } = startLesson("resources");
     expect(start.currentPlayer).toBe(1);
-    expect(start.players[0].commandPoints).toBe(0);
-    expect(start.players[0].hand).toHaveLength(6);
-    expect(start.players[0].hand[0].templateId).toBe("initiative");
-    expect(start.players[0].deck).toHaveLength(4);
-    expect(start.players[0].undeployed).toEqual([TUTORIAL_CADET, TUTORIAL_RECRUIT]);
-    expect(start.players[1].hqHp).toBe(HQ_MAX_HP);
-    expect(applyLessonAction(lesson, start, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 2 }).ok).toBe(false);
+    expect(start.players[0].hand.map((c) => c.templateId)).toEqual(["initiative"]);
+    expect(start.players[1].hqHp).toBe(3);
+    expect(start.players[0].hqHp).toBe(5);
 
-    let match = playP2Opening(lesson, start);
-    expect(applyLessonAction(lesson, match, { type: "endDeployment" }).ok).toBe(false);
+    let match = play(lesson, start, { type: "endDeployment" });
+    expect(match.players[0].hqHp).toBe(5);
+    expect(match.board[P2_FRONT][0]?.rested).toBe(true);
+    match = play(lesson, match, { type: "endEngagement" });
+    expect(match.currentPlayer).toBe(0);
 
+    // Recruit Blitz on open lane 2 (row 1); Cadet Support lane 3 then Initiative Move.
     match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 2 });
-    expect(match.players[0].commandPoints).toBe(2);
-    expect(match.board[P1_SUPPORT][2]?.defId).toBe(TUTORIAL_CADET);
-    expect(match.board[P1_FRONT][2]).toBeNull();
-    expect(applyLessonAction(lesson, match, { type: "endDeployment" }).ok).toBe(false);
-
-    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_RECRUIT, row: 0 });
-    expect(match.players[0].commandPoints).toBe(0);
-    expect(match.board[P1_SUPPORT][0]?.defId).toBe(TUTORIAL_RECRUIT);
-
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_RECRUIT, row: 1 });
+    expect(match.board[P1_FRONT][1]?.defId).toBe(TUTORIAL_RECRUIT);
     match = play(lesson, match, { type: "endDeployment" });
     expect(match.phase).toBe("maneuver");
-    expect(applyLessonAction(lesson, match, { type: "endManeuver" }).ok).toBe(false);
+    expect(hint(lesson, match)?.id).toBe("ui-card-play");
+    expect(hint(lesson, match, ["ui-card-play"])).toBeNull();
 
     const cadet = unitByDef(match, TUTORIAL_CADET, 0)!;
     const sealed = match.players[0].hand.find((card) => card.templateId === "initiative")!;
-    expect(
-      applyLessonAction(lesson, match, { type: "playCard", cardId: sealed.instanceId, targets: { choice: "supply" } }).ok,
-    ).toBe(false);
     match = play(lesson, match, {
       type: "playCard",
       cardId: sealed.instanceId,
       targets: { choice: "move", unitIds: [cadet.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
     });
-    expect(match.board[P1_FRONT][2]?.defId).toBe(TUTORIAL_CADET);
     expect(match.board[P1_FRONT][2]?.rested).toBe(false);
-    expect(match.board[P1_SUPPORT][2]).toBeNull();
-
-    const redraw = match.players[0].hand[0];
-    match = play(lesson, match, { type: "discardRedraw", cardId: redraw.instanceId });
-    expect(match.players[0].discardRedrawsUsed).toBe(1);
-    expect(match.players[0].hand).toHaveLength(5);
 
     match = play(lesson, match, { type: "endManeuver" });
-    expect(match.phase).toBe("engagement");
-    expect(match.players[1].hqHp).toBe(HQ_MAX_HP - 3);
-    expect(match.players[0].hqHp).toBe(HQ_MAX_HP);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
-
-    match = play(lesson, match, { type: "endEngagement" });
-    expect(match.currentPlayer).toBe(0);
-    expect(match.combatPlayback).toBeNull();
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.players[1].hqHp).toBe(0);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("2 resources: popups point at going second, summon, then the special", () => {
+  it("3 going second: Initiative supply leaves Cadet Resting — Dummy finishes HQ", () => {
     const { lesson, match: start } = startLesson("resources");
-    expect(hint(lesson, start)?.anchor).toBe("phase");
-    expect(hint(lesson, start, ["p2-first"])).toBeNull();
-
-    const ready = playP2Opening(lesson, start);
-    expect(hint(lesson, ready)?.anchor).toBe("hq-1");
-    expect(hint(lesson, ready, ["hq"])?.anchor).toBe("reserve");
-    expect(hint(lesson, ready, ["hq"], { reserveOpen: true })?.anchor).toBe("reserve-unit-101");
-    expect(hint(lesson, ready, ["hq"], { pendingDeploy: TUTORIAL_CADET })?.anchor).toBe("cell-0-2");
-
-    const afterCadet = play(lesson, ready, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 2 });
-    expect(hint(lesson, afterCadet, ["hq"])?.anchor).toBe("reserve");
-    expect(hint(lesson, afterCadet, ["hq"], { reserveOpen: true })?.anchor).toBe("reserve-unit-102");
-    expect(hint(lesson, afterCadet, ["hq"], { pendingDeploy: TUTORIAL_RECRUIT })?.anchor).toBe("cell-0-0");
-
-    const afterRecruit = play(lesson, afterCadet, { type: "deploy", unitDefId: TUTORIAL_RECRUIT, row: 0 });
-    expect(hint(lesson, afterRecruit, ["hq"])?.anchor).toBe("hourglass");
-
-    const maneuver = play(lesson, afterRecruit, { type: "endDeployment" });
-    expect(hint(lesson, maneuver, ["hq"])?.anchor).toBe("card-initiative");
-    expect(hint(lesson, maneuver, ["hq", "sealed"])?.anchor).toBe("card-initiative");
-    expect(hint(lesson, maneuver, ["hq", "sealed"], { initiativeOpen: true })?.anchor).toBe("initiative-forward");
-    expect(hint(lesson, maneuver, ["hq", "sealed"], { targetingTemplateId: "initiative" })?.anchor).toBe(
-      "unit-101",
-    );
-    expect(
-      hint(lesson, maneuver, ["hq", "sealed"], {
-        targetingTemplateId: "initiative",
-        targetingPickedUnits: 1,
-      })?.anchor,
-    ).toBe("cell-1-2");
-
-    const cadet = unitByDef(maneuver, TUTORIAL_CADET, 0)!;
-    const sealed = maneuver.players[0].hand.find((card) => card.templateId === "initiative")!;
-    const moved = play(lesson, maneuver, {
+    let match = play(lesson, start, { type: "endDeployment" });
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 2 });
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_RECRUIT, row: 1 });
+    match = play(lesson, match, { type: "endDeployment" });
+    const sealed = match.players[0].hand.find((card) => card.templateId === "initiative")!;
+    match = play(lesson, match, {
       type: "playCard",
       cardId: sealed.instanceId,
-      targets: { choice: "move", unitIds: [cadet.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
+      targets: { choice: "supply" },
     });
-    expect(hint(lesson, moved, ["hq", "sealed"])?.anchor).toBe("hand");
-    expect(hint(lesson, moved, ["hq", "sealed", "hand"])?.anchor).toBe("deck");
-
-    const redrawn = play(lesson, moved, {
-      type: "discardRedraw",
-      cardId: moved.players[0].hand[0].instanceId,
-    });
-    expect(hint(lesson, redrawn, ["hq", "sealed", "hand"])?.anchor).toBe("hq-1");
-    expect(hint(lesson, redrawn, ["hq", "sealed", "hand", "predict"])?.anchor).toBe("hourglass");
-
-    const fighting = play(lesson, redrawn, { type: "endManeuver" });
-    expect(fighting.players[1].hqHp).toBe(HQ_MAX_HP - 3);
-    expect(lesson.steps.every((s) => s.done(fighting))).toBe(true);
+    match = play(lesson, match, { type: "endManeuver" });
+    // Recruit Blitz alone deals 1; HQ lives. Cadet auto-advanced Resting — no shot.
+    expect(match.players[1].hqHp).toBeGreaterThan(0);
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    // P2 idle script: Dummy (unrefreshed Front) volleys HQ 5.
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("3 armor: Exosuit AP 8 deals 2 through Bastion 8 armor", () => {
-    const { lesson, match: start } = startLesson("armor");
-    const match = play(lesson, start, { type: "endDeployment" });
-    expect(match.board[P2_FRONT][2]?.hp).toBe(8);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
-  });
 
-  it("3 armor: popups point at Armor then AP chips", () => {
-    const { lesson, match } = startLesson("armor");
-    const hud = { reserveOpen: false, pendingDeploy: null };
-    expect(pickLessonHint(lesson, match, hud, new Set())?.anchor).toBe("armor-3");
-    expect(pickLessonHint(lesson, match, hud, new Set(["armor"]))?.anchor).toBe("ap-16");
-    expect(pickLessonHint(lesson, match, hud, new Set(["armor", "ap"]))?.anchor).toBe("hp-3");
-    expect(pickLessonHint(lesson, match, hud, new Set(["armor", "ap", "predict"]))?.anchor).toBe("hourglass");
-    const fighting = play(lesson, match, { type: "endDeployment" });
-    expect(pickLessonHint(lesson, fighting, hud, new Set(["armor", "ap", "predict"]))).toBeNull();
-  });
-
-  it("4 maneuver: Forward then fight, cannot skip to rest", () => {
-    const { lesson, match: start } = startLesson("maneuver");
+  it("4 movement-forward: Forward Lane 2, Lane 1 auto-Advances rested", () => {
+    const { lesson, match: start } = startLesson("movement-forward");
     expect(start.phase).toBe("maneuver");
-    const skip = applyLessonAction(lesson, start, { type: "endManeuver" });
-    expect(skip.ok).toBe(false);
-    const ironclad = unitByDef(start, 15, 0)!;
-    const card = start.players[0].hand[0];
+    expect(start.players[0].hqHp).toBe(5);
+    const thothB = unitByDef(start, 1152, 0)!;
+    const forward = start.players[0].hand.find((c) => c.templateId === "forward")!;
     let match = play(lesson, start, {
       type: "playCard",
-      cardId: card.instanceId,
-      targets: { unitIds: [ironclad.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
+      cardId: forward.instanceId,
+      targets: { unitIds: [thothB.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
     });
-    expect(unitByDef(match, 15, 0)?.col).toBe(P1_FRONT);
-    expect(unitByDef(match, 15, 0)?.rested).toBe(false);
+    expect(unitByDef(match, 1152, 0)?.rested).toBe(false);
     match = play(lesson, match, { type: "endManeuver" });
-    expect(match.phase).toBe("engagement");
-    expect(match.board[P2_FRONT][2]?.hp).toBeLessThan(12);
-  });
-
-  it("4 maneuver: popups point at Support, Forward card, then targets", () => {
-    const { lesson, match: start } = startLesson("maneuver");
-    expect(hint(lesson, start)?.anchor).toBe("unit-15");
-    expect(hint(lesson, start, ["support-pos"])?.anchor).toBe("cell-1-2");
-    expect(hint(lesson, start, ["support-pos", "dest-preview"])?.anchor).toBe("card-forward");
-    expect(
-      hint(lesson, start, ["support-pos", "dest-preview"], { targetingTemplateId: "forward", targetingPickedUnits: 0 })
-        ?.anchor,
-    ).toBe("unit-15");
-    expect(
-      hint(lesson, start, ["support-pos", "dest-preview"], { targetingTemplateId: "forward", targetingPickedUnits: 1 })
-        ?.anchor,
-    ).toBe("cell-1-2");
-    const ironclad = unitByDef(start, 15, 0)!;
-    const card = start.players[0].hand[0];
-    const moved = play(lesson, start, {
-      type: "playCard",
-      cardId: card.instanceId,
-      targets: { unitIds: [ironclad.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
-    });
-    expect(hint(lesson, moved)?.anchor).toBe("hp-4");
-    expect(hint(lesson, moved, ["predict"])?.anchor).toBe("hourglass");
-    const fighting = play(lesson, moved, { type: "endManeuver" });
-    expect(hint(lesson, fighting)).toBeNull();
-  });
-
-  it("5 comeback: real raid banks bonuses, then two Cadets spend them", () => {
-    const { lesson, match: start } = startLesson("comeback");
-    expect(start.players[0].hqHp).toBe(41);
-    expect(start.players[1].hqHp).toBe(HQ_MAX_HP);
-    expect(start.players[0].nextTurnSupplyBonus).toBe(0);
-    expect(start.players[0].undeployed).toEqual([TUTORIAL_CADET, TUTORIAL_CADET]);
-    expect(start.players[1].undeployed).toEqual([]);
-    expect(start.board[P2_FRONT].filter(Boolean)).toHaveLength(3);
-    expect(start.board[P2_FRONT][0]?.hp).toBe(2);
-    expect(start.board[P2_FRONT][2]?.hp).toBe(2);
-    expect(start.board[P2_FRONT][3]?.hp).toBe(2);
-    expect(hint(lesson, start)?.anchor).toBe("hq-0");
-    expect(hint(lesson, start, ["marks"])?.anchor).toBe("unit-103");
-    expect(hint(lesson, start, ["marks", "enemies"])?.anchor).toBe(`unit-${TUTORIAL_CADET}`);
-    expect(hint(lesson, start, ["marks", "enemies", "unit-rule"])?.anchor).toBe("hq-0");
-    expect(hint(lesson, start, ["marks", "enemies", "unit-rule", "predict"])?.anchor).toBe("hourglass");
-
-    let match = play(lesson, start, { type: "endDeployment" });
-    expect(match.phase).toBe("engagement");
-    // Open-lane ATK 2+2 from HQ 41 → 37 crosses the first mark; mid Dummy dies to Cadet return fire.
-    expect(match.players[0].hqHp).toBe(37);
-    expect(match.players[0].triggeredBreakpoints).toContain(40);
-    expect(unitByDef(match, TUTORIAL_CADET, 0)).toBeNull();
+    // Lane 2: Forward shot deletes Enemy B. Lane 1: Thoth A Advanced+Rested (no shot).
     expect(match.board[P2_FRONT][2]).toBeNull();
-    expect(match.board[P2_FRONT][0]?.defId).toBe(TUTORIAL_DUMMY);
-    expect(match.board[P2_FRONT][3]?.defId).toBe(TUTORIAL_DUMMY);
-    expect(match.players[0].nextTurnSupplyBonus).toBeGreaterThanOrEqual(2);
-    expect(match.players[0].nextTurnDrawBonus).toBeGreaterThanOrEqual(2);
-
+    expect(unitByDef(match, 1151, 0)?.col).toBe(P1_FRONT);
+    expect(unitByDef(match, 1151, 0)?.rested).toBe(true);
+    expect(match.board[P2_FRONT][1]?.hp).toBe(5);
+    // P2 auto-skips empty Maneuver; Enemy A's attack draws Thoth A return fire and clears the board.
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.currentPlayer).toBe(1);
-    expect(match.board[P2_FRONT].filter(Boolean)).toHaveLength(2);
-
     match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
+  });
+
+  it("4 movement-forward: skip Forward — Flank Enemy B snipes HQ", () => {
+    const { lesson, match: start } = startLesson("movement-forward");
+    let match = play(lesson, start, { type: "endManeuver" });
+    expect(unitByDef(match, 1151, 0)?.rested).toBe(true);
+    expect(unitByDef(match, 1152, 0)?.rested).toBe(true);
+    expect(match.board[P2_FRONT][2]?.defId).toBe(1142);
     match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("5 movement-updown: discard-redraw Down then block both lanes", () => {
+    const { lesson, match: start } = startLesson("movement-updown");
+    expect(start.phase).toBe("maneuver");
+    expect(start.players[0].hqHp).toBe(1);
+    expect(hint(lesson, start)?.id).toBe("ui-card-discard");
+    expect(start.players[0].hand.map((c) => c.templateId)).toEqual(["up", "up"]);
+    expect(start.players[0].deck.map((c) => c.templateId)).toEqual(["down"]);
+    const discardUp = start.players[0].hand.find((c) => c.templateId === "up")!;
+    let match = play(lesson, start, { type: "discardRedraw", cardId: discardUp.instanceId });
+    expect(match.players[0].hand.some((c) => c.templateId === "down")).toBe(true);
+    const north = unitByDef(match, 1153, 0)!;
+    const south = unitByDef(match, 1154, 0)!;
+    const down = match.players[0].hand.find((c) => c.templateId === "down")!;
+    const up = match.players[0].hand.find((c) => c.templateId === "up")!;
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: down.instanceId,
+      targets: { unitIds: [north.instanceId], cells: [{ col: P1_FRONT, row: 1 }] },
+    });
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: up.instanceId,
+      targets: { unitIds: [south.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
+    });
+    expect(match.board[P1_FRONT][1]?.defId).toBe(1153);
+    expect(match.board[P1_FRONT][2]?.defId).toBe(1154);
+    match = play(lesson, match, { type: "endManeuver" });
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
+  });
+
+  it("5 movement-updown: skip block — Destroyers delete 1 HP HQ", () => {
+    const { lesson, match: start } = startLesson("movement-updown");
+    let match = play(lesson, start, { type: "endManeuver" });
+    // P1 outer lanes open-fire the enemy HQ first; P2 Destroyers then snipe the 1 HP HQ.
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+    expect(match.players[0].hqHp).toBe(0);
+  });
+
+  it("6 armor: Retreat+Forward swap then matched lanes clear both targets", () => {
+    const { lesson, match: start } = startLesson("armor");
+    expect(start.phase).toBe("maneuver");
+    expect(start.players[0].hqHp).toBe(1);
+    expect(start.players[1].hqHp).toBe(60);
+    expect(hint(lesson, start)?.id).toBe("intro-armor");
+    expect(hint(lesson, start, ["intro-armor"])?.id).toBe("intro-ap");
+    expect(hint(lesson, start, ["intro-armor", "intro-ap"])).toBeNull();
+    // Mismatched: Assault row 2 vs Bastion, Rostam row 1 vs Heavy.
+    expect(start.board[P1_FRONT][2]?.defId).toBe(1041);
+    expect(start.board[P1_FRONT][1]?.defId).toBe(1045);
+    let match = start;
+    const assault = unitByDef(match, 1041, 0)!;
+    const rostam = unitByDef(match, 1045, 0)!;
+    // Diagonal Retreat into swapped Support lanes, then Forward onto matched Front.
+    const retreatAssault = match.players[0].hand.find((c) => c.templateId === "retreat" && c.ownerUnitId === 1041)!;
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: retreatAssault.instanceId,
+      targets: { unitIds: [assault.instanceId], cells: [{ col: P1_SUPPORT, row: 1 }] },
+    });
+    const retreatRostam = match.players[0].hand.find((c) => c.templateId === "retreat" && c.ownerUnitId === 1045)!;
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: retreatRostam.instanceId,
+      targets: { unitIds: [rostam.instanceId], cells: [{ col: P1_SUPPORT, row: 2 }] },
+    });
+    const forwardAssault = match.players[0].hand.find((c) => c.templateId === "forward" && c.ownerUnitId === 1041)!;
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: forwardAssault.instanceId,
+      targets: { unitIds: [assault.instanceId], cells: [{ col: P1_FRONT, row: 1 }] },
+    });
+    const forwardRostam = match.players[0].hand.find((c) => c.templateId === "forward" && c.ownerUnitId === 1045)!;
+    match = play(lesson, match, {
+      type: "playCard",
+      cardId: forwardRostam.instanceId,
+      targets: { unitIds: [rostam.instanceId], cells: [{ col: P1_FRONT, row: 2 }] },
+    });
+    expect(match.board[P1_FRONT][1]?.defId).toBe(1041);
+    expect(match.board[P1_FRONT][2]?.defId).toBe(1045);
+    match = play(lesson, match, { type: "endManeuver" });
+    expect(match.board[P2_FRONT][2]).toBeNull();
+    expect(match.board[P2_FRONT][1]?.hp).toBe(10);
+    for (let i = 0; i < 4 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
+    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+  });
+
+  it("6 armor: skip swap — mismatched lanes lose the 1-HP HQ", () => {
+    const { lesson, match: start } = startLesson("armor");
+    let match = play(lesson, start, { type: "endManeuver" });
+    // Wrong lanes: Assault chips Bastion and dies to return fire on the 2nd exchange;
+    // Bastion then open-lanes the 1-HP HQ on P2's attack.
+    for (let i = 0; i < 8 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(1);
+  });
+
+  it("7 comeback: survive opening, Comeback Forward rush, destroy HQ", () => {
+    const { lesson, match: start } = startLesson("comeback");
+    expect(start.phase).toBe("maneuver");
+    expect(start.players[0].commandPoints).toBe(0);
+    expect(start.players[0].hand).toEqual([]);
+    expect(start.players[0].hqHp).toBe(10);
+    expect(start.players[1].hqHp).toBe(5);
+    expect(start.players[0].undeployed).toEqual([TUTORIAL_CADET, TUTORIAL_CADET]);
+    expect(start.board[P1_FRONT][2]?.atk).toBe(5);
+    expect(start.board[P1_FRONT][2]?.hp).toBe(6);
+    expect(hint(lesson, start)).toBeNull();
+
+    // Turn 1: empty Maneuver → Engagement (rested Cadets do not fire).
+    let match = play(lesson, start, { type: "endManeuver" });
+    expect(match.players[0].hqHp).toBe(10);
+    match = play(lesson, match, { type: "endEngagement" });
+
+    // P2 volley: row-0 Cadet dies (Comeback); row-2 Cadet survives ATK 5; open lanes chip HQ.
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.board[P1_FRONT][0]).toBeNull();
+    const survivor = match.board[P1_FRONT][2];
+    expect(survivor?.defId).toBe(TUTORIAL_CADET);
+    expect(survivor!.hp).toBe(1);
+    expect(survivor!.atk).toBe(5);
+    expect(match.players[0].nextTurnSupplyBonus).toBeGreaterThan(0);
+    expect(match.players[0].hqHp).toBeLessThan(10);
+    expect(hint(lesson, match)?.id).toBe("intro-comeback");
+    match = play(lesson, match, { type: "endEngagement" });
+
+    // Turn 2: Comeback Supply + draw both Forwards; Forward reinforcements onto open lanes.
     expect(match.currentPlayer).toBe(0);
-    expect(match.players[0].turnsTaken).toBe(2);
-    expect(match.players[0].commandPoints).toBe(BASE_SUPPLY + 2);
-    expect(match.players[0].hand.length).toBeGreaterThanOrEqual(DRAW_PER_TURN + 2);
-
+    expect(match.phase).toBe("deployment");
+    expect(match.players[0].commandPoints).toBeGreaterThanOrEqual(6);
+    expect(match.players[0].hand.filter((c) => c.templateId === "forward")).toHaveLength(2);
+    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 0 });
     match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 1 });
-    match = play(lesson, match, { type: "deploy", unitDefId: TUTORIAL_CADET, row: 3 });
-    expect(
-      match.board.flat().filter((u) => u?.defId === TUTORIAL_CADET && u.owner === 0),
-    ).toHaveLength(2);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    match = play(lesson, match, { type: "endDeployment" });
+    for (const row of [0, 1]) {
+      const fromSupport = match.board[P1_SUPPORT][row]!;
+      expect(fromSupport.defId).toBe(TUTORIAL_CADET);
+      const card = match.players[0].hand.find((c) => c.templateId === "forward")!;
+      match = play(lesson, match, {
+        type: "playCard",
+        cardId: card.instanceId,
+        targets: { unitIds: [fromSupport.instanceId], cells: [{ col: P1_FRONT, row }] },
+      });
+      expect(match.board[P1_FRONT][row]?.rested).toBe(false);
+    }
+    match = play(lesson, match, { type: "endManeuver" });
+    expect(match.board[P2_FRONT][2]).toBeNull();
+    expect(match.board[P2_FRONT][0]).toBeNull();
+
+    for (let i = 0; i < 10 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("6 cover & flank: Phantom leaves the contested lane, Bastion fills it", () => {
+  it("10 cover-flank: deploy Cover then Flank/Cover save HQ and snipe", () => {
     const { lesson, match: start } = startLesson("cover-flank");
-    const match = play(lesson, start, { type: "endDeployment" });
-    expect(unitByDef(match, 19, 0)?.row).not.toBe(2);
-    const bastion = unitByDef(match, 3, 0)!;
-    expect(bastion.col).toBe(P1_FRONT);
-    expect(bastion.row).toBe(2);
-    expect(bastion.rested).toBe(true);
-    expect(unitByDef(match, 22, 1)?.hp).toBe(4);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(hint(lesson, start)?.id).toMatch(/^intro-kw-/);
+    const intros = ["intro-kw-flank", "intro-kw-cover"];
+    // Drop Cover on empty Support (row 1), not the contested lane.
+    let match = play(lesson, start, { type: "deploy", unitDefId: 1072, row: 1 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(unitByDef(match, 1073, 0)?.row).not.toBe(2);
+    const cover = unitByDef(match, 1072, 0)!;
+    expect(cover.col).toBe(P1_FRONT);
+    expect(cover.row).toBe(2);
+    expect(match.players[0].hqHp).toBe(10);
+    expect(match.players[1].hqHp).toBeLessThan(10);
+    // Keep going until Flank finishes enemy HQ.
+    for (let i = 0; i < 8 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
+    expect(hint(lesson, start, intros)).toBeNull();
   });
 
-  it("6 cover & flank: popups point at Flank, Cover, then enemy", () => {
-    const { lesson, match: start } = startLesson("cover-flank");
-    expect(hint(lesson, start)?.anchor).toBe("kw-flank-19");
-    expect(hint(lesson, start, ["flank"])?.anchor).toBe("cell-1-1");
-    expect(hint(lesson, start, ["flank", "flank-dest"])?.anchor).toBe("kw-cover-3");
-    expect(hint(lesson, start, ["flank", "flank-dest", "cover"])?.anchor).toBe("unit-3");
-    expect(hint(lesson, start, ["flank", "flank-dest", "cover", "cover-dest"])?.anchor).toBe("unit-22");
-    expect(hint(lesson, start, ["flank", "flank-dest", "cover", "cover-dest", "enemy"])?.anchor).toBe("hourglass");
-    const fighting = play(lesson, start, { type: "endDeployment" });
-    expect(hint(lesson, fighting)).toBeNull();
-  });
-
-  it("7 aggressive / retaliate: Apex deals 7, Heimdall returns 9", () => {
+  it("11 aggressive: deploy Fenrir, Retreat scouts, Aggressive snipes HQ", () => {
     const { lesson, match: start } = startLesson("aggressive");
-    const match = play(lesson, start, { type: "endDeployment" });
-    expect(unitByDef(match, 17, 1)?.hp).toBe(13);
-    expect(unitByDef(match, 2, 0)?.hp).toBe(1);
+    expect(hint(lesson, start)?.id).toMatch(/^intro-kw-/);
+    expect(start.players[0].hand.filter((c) => c.templateId === "retreat")).toHaveLength(2);
+    let match = play(lesson, start, { type: "deploy", unitDefId: 1083, row: 2 });
+    expect(unitByDef(match, 1083, 0)?.col).toBe(P1_FRONT);
+    expect(unitByDef(match, 1083, 0)?.rested).toBe(false);
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.phase).toBe("maneuver");
+    for (const row of [0, 1]) {
+      const scout = match.board[P1_FRONT][row]!;
+      const card = match.players[0].hand.find((c) => c.templateId === "retreat")!;
+      match = play(lesson, match, {
+        type: "playCard",
+        cardId: card.instanceId,
+        targets: { unitIds: [scout.instanceId], cells: [{ col: P1_SUPPORT, row }] },
+      });
+      expect(match.board[P1_SUPPORT][row]?.defId).toBe(1081);
+    }
+    match = play(lesson, match, { type: "endManeuver" });
+    // Fenrir Aggressive open-lane: 4+4=8 into HQ 12 (may need a second P1 volley).
+    for (let i = 0; i < 6 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("7 aggressive / retaliate: popups point at Aggressive, ATK, Retaliate, Armor", () => {
-    const { lesson, match: start } = startLesson("aggressive");
-    expect(hint(lesson, start)?.anchor).toBe("kw-aggressive-2");
-    expect(hint(lesson, start, ["aggressive"])?.anchor).toBe("atk-2");
-    expect(hint(lesson, start, ["aggressive", "apex-atk"])?.anchor).toBe("hp-17");
-    expect(hint(lesson, start, ["aggressive", "apex-atk", "predict-agg"])?.anchor).toBe("kw-retaliate-17");
-    expect(hint(lesson, start, ["aggressive", "apex-atk", "predict-agg", "retaliate"])?.anchor).toBe("armor-2");
-    expect(hint(lesson, start, ["aggressive", "apex-atk", "predict-agg", "retaliate", "apex-armor"])?.anchor).toBe(
-      "hp-2",
-    );
-    expect(
-      hint(lesson, start, ["aggressive", "apex-atk", "predict-agg", "retaliate", "apex-armor", "predict-ret"])?.anchor,
-    ).toBe("hourglass");
-    const fighting = play(lesson, start, { type: "endDeployment" });
-    expect(hint(lesson, fighting)).toBeNull();
+  it("10 support-fire: middle SF2 makes exact HQ lethal", () => {
+    const { lesson, match: start } = startLesson("support-fire");
+    expect(hint(lesson, start)?.id).toBe("intro-kw-supportFire");
+    expect(start.players[1].hqHp).toBe(12);
+    // Lane 2 = row 1 — between Assaults on rows 0 and 2.
+    let match = play(lesson, start, { type: "deploy", unitDefId: 1092, row: 1 });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.players[1].hqHp).toBe(0);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("8 support fire: Jackal 3+4 hits the middle Trench for 7", () => {
+  it("10 support-fire: skip SF — 8 damage leaves HQ alive", () => {
     const { lesson, match: start } = startLesson("support-fire");
     const match = play(lesson, start, { type: "endDeployment" });
-    expect(match.board[P2_FRONT][2]?.hp).toBe(13);
+    expect(match.players[1].hqHp).toBe(4);
+    expect(match.winner).toBeNull();
   });
 
-  it("8 support fire: popups point at both Support Fire icons then Jackal ATK", () => {
-    const { lesson, match: start } = startLesson("support-fire");
-    expect(hint(lesson, start)?.anchor).toBe("kw-supportFire-5");
-    expect(hint(lesson, start, ["sf-nomad"])?.anchor).toBe("kw-supportFire-21");
-    expect(hint(lesson, start, ["sf-nomad", "sf-biker"])?.anchor).toBe("atk-4");
-    expect(hint(lesson, start, ["sf-nomad", "sf-biker", "jackal-atk"])?.anchor).toBe("cell-2-2");
-    expect(hint(lesson, start, ["sf-nomad", "sf-biker", "jackal-atk", "predict"])?.anchor).toBe("hourglass");
-    const fighting = play(lesson, start, { type: "endDeployment" });
-    expect(hint(lesson, fighting)).toBeNull();
-  });
-
-  it("9 missile: first fight marks Sarama, second fight fires for 3", () => {
+  it("11 missile: free-play mark then detonate", () => {
     const { lesson, match: start } = startLesson("missile");
+    expect(hint(lesson, start)?.id).toBe("intro-kw-missile");
     let match = play(lesson, start, { type: "endDeployment" });
-    expect(unitByDef(match, 4, 1)?.hp).toBe(7);
+    expect(unitByDef(match, 4, 1)?.hp).toBe(3);
     expect(unitByDef(match, 8, 0)?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.phase).toBe("deployment");
-    expect(match.currentPlayer).toBe(0);
-    expect(unitByDef(match, 4, 1)?.hp).toBe(7);
     match = play(lesson, match, { type: "endDeployment" });
-    expect(unitByDef(match, 4, 1)?.hp).toBe(1);
-    expect(lesson.steps.every((step) => step.done(match))).toBe(true);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
   });
 
-  it("9 missile: popups explain the mark, then half armor, before the second fight", () => {
-    const { lesson, match: start } = startLesson("missile");
-    expect(hint(lesson, start)?.anchor).toBe("atk-8");
-    expect(hint(lesson, start, ["gun"])?.anchor).toBe("kw-missile-8");
-    expect(hint(lesson, start, ["gun", "missile"])?.anchor).toBe("ap-8");
-    expect(hint(lesson, start, ["gun", "missile", "ap-no-pen"])?.anchor).toBe("hp-4");
-    expect(hint(lesson, start, ["gun", "missile", "ap-no-pen", "predict"])?.anchor).toBe("hourglass");
-    const fighting = play(lesson, start, { type: "endDeployment" });
-    expect(hint(lesson, fighting)).toBeNull();
-    const marked = play(lesson, fighting, { type: "endEngagement" });
-    expect(hint(lesson, marked)?.anchor).toBe("hp-4");
-    expect(hint(lesson, marked, ["mark"])?.anchor).toBe("kw-missile-8");
-    expect(hint(lesson, marked, ["mark", "half"])?.anchor).toBe("hourglass");
-  });
-
-  it("10 extra attack then extra engagement, then regular engage", () => {
+  it("12 extra-attack: free-play First Strike + Trap then clear", () => {
     const { lesson, match: start } = startLesson("extra-attack");
     expect(start.phase).toBe("maneuver");
-    const qmob = start.players[0].hand.find((c) => c.templateId === "first_strike")!;
-    let match = play(lesson, start, { type: "playCard", cardId: qmob.instanceId, targets: {} });
-    expect(match.phase).toBe("maneuver");
-    expect(unitByDef(match, 17, 1)?.hp).toBe(14);
-    expect(match.combatResumePhase).toBeNull();
+    expect(hint(lesson, start)).toBeNull();
+    const first = start.players[0].hand.find((c) => c.templateId === "first_strike")!;
+    let match = play(lesson, start, { type: "playCard", cardId: first.instanceId, targets: {} });
+    expect(unitByDef(match, 17, 1)?.hp).toBe(5);
 
     const trap = match.players[0].hand.find((c) => c.templateId === "trap")!;
-    const recon = unitByDef(match, 22, 1)!;
-    match = play(lesson, match, { type: "playCard", cardId: trap.instanceId, targets: { unitIds: [recon.instanceId] } });
-    expect(match.phase).toBe("engagement");
-    expect(match.combatResumePhase).toBe("maneuver");
+    const horus = unitByDef(match, 22, 1)!;
+    match = play(lesson, match, { type: "playCard", cardId: trap.instanceId, targets: { unitIds: [horus.instanceId] } });
     expect(unitByDef(match, 22, 1)).toBeNull();
-    expect(unitByDef(match, 3, 0)?.combatAtkBonus).toBe(5);
-    expect(unitByDef(match, 17, 1)?.hp).toBe(14);
-
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.phase).toBe("maneuver");
     match = play(lesson, match, { type: "endManeuver" });
-    expect(match.phase).toBe("engagement");
-    expect(match.combatResumePhase).toBeNull();
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.winner).toBe(0);
   });
 
-  it("10 extra: popups distinguish extra attack vs extra engagement", () => {
-    const { lesson, match: start } = startLesson("extra-attack");
-    expect(hint(lesson, start)?.anchor).toBe("unit-11");
-    expect(hint(lesson, start, ["extra-atk"])?.anchor).toBe("hp-17");
-    expect(hint(lesson, start, ["extra-atk", "predict-atk"])?.anchor).toBe("card-first_strike");
-    const qmob = start.players[0].hand.find((c) => c.templateId === "first_strike")!;
-    const afterAtk = play(lesson, start, { type: "playCard", cardId: qmob.instanceId, targets: {} });
-    expect(hint(lesson, afterAtk)?.anchor).toBe("unit-3");
-    expect(hint(lesson, afterAtk, ["extra-eng"])?.anchor).toBe("hp-22");
-    expect(hint(lesson, afterAtk, ["extra-eng", "predict-trap"])?.anchor).toBe("card-trap");
-    expect(
-      hint(lesson, afterAtk, ["extra-eng", "predict-trap"], { targetingTemplateId: "trap", targetingPickedUnits: 0 })
-        ?.anchor,
-    ).toBe("unit-22");
-    const trap = afterAtk.players[0].hand.find((c) => c.templateId === "trap")!;
-    const recon = unitByDef(afterAtk, 22, 1)!;
-    const extraFight = play(lesson, afterAtk, {
-      type: "playCard",
-      cardId: trap.instanceId,
-      targets: { unitIds: [recon.instanceId] },
-    });
-    expect(hint(lesson, extraFight)).toBeNull();
-    const back = play(lesson, extraFight, { type: "endEngagement" });
-    expect(hint(lesson, back)?.anchor).toBe("hp-17");
-    expect(hint(lesson, back, ["predict-regular"])?.anchor).toBe("hourglass");
-    const regular = play(lesson, back, { type: "endManeuver" });
-    expect(hint(lesson, regular)).toBeNull();
-  });
-
-  it("11 artillery: rests on drop, then shoots without return fire either way", () => {
+  it("13 artillery: free-play deploy, rest, then safe barrage", () => {
     const { lesson, match: start } = startLesson("artillery");
-    expect(hint(lesson, start)?.anchor).toBe("reserve");
-    expect(start.board[P1_SUPPORT][2]).toBeNull();
+    expect(hint(lesson, start)?.id).toBe("intro-kw-artillery");
     let match = play(lesson, start, { type: "deploy", unitDefId: 11, row: 2 });
     expect(match.board[P1_SUPPORT][2]?.rested).toBe(true);
-    expect(hint(lesson, match)?.anchor).toBe("kw-artillery-11");
-    expect(hint(lesson, match, ["kw"])?.anchor).toBe("rest-11");
-    expect(hint(lesson, match, ["kw", "rest"])?.anchor).toBe(`atk-${TUTORIAL_DUMMY}`);
     match = play(lesson, match, { type: "endDeployment" });
-    expect(match.phase).toBe("engagement");
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(8);
+    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(6);
     expect(unitByDef(match, 11, 0)?.hp).toBe(6);
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.currentPlayer).toBe(0);
-    expect(match.board[P1_SUPPORT][2]?.rested).toBe(false);
     match = play(lesson, match, { type: "endDeployment" });
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(2);
+    expect(match.winner).toBe(0);
     expect(unitByDef(match, 11, 0)?.hp).toBe(6);
-    expect(match.board[P1_FRONT][2]).toBeNull();
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
   });
 
-  it("12 jet plane: rests on drop, then trades return fire both ways", () => {
+  it("14 jet-plane: free-play deploy, rest, then trade to a win", () => {
     const { lesson, match: start } = startLesson("jet-plane");
-    expect(hint(lesson, start)?.anchor).toBe("reserve");
+    expect(hint(lesson, start)?.id).toBe("intro-kw-jetPlane");
     let match = play(lesson, start, { type: "deploy", unitDefId: 25, row: 2 });
     expect(match.board[P1_SUPPORT][2]?.rested).toBe(true);
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.atk).toBe(5);
     match = play(lesson, match, { type: "endDeployment" });
-    // REST skip: jet did not shoot, so Dummy does not return fire.
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(8);
-    expect(unitByDef(match, 25, 0)?.hp).toBe(13);
+    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(6);
     match = play(lesson, match, { type: "endEngagement" });
-    match = play(lesson, match, { type: "endDeployment" });
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(5);
-    expect(unitByDef(match, 25, 0)?.hp).toBe(11);
-    expect(match.board[P1_FRONT][2]).toBeNull();
-    match = play(lesson, match, { type: "endEngagement" });
-    expect(match.currentPlayer).toBe(1);
-    expect(hint(lesson, match)?.anchor).toBe(`atk-${TUTORIAL_DUMMY}`);
-    match = play(lesson, match, { type: "endManeuver" });
-    expect(unitByDef(match, 25, 0)?.hp).toBe(9);
-    expect(unitByDef(match, TUTORIAL_DUMMY, 1)?.hp).toBe(2);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    for (let i = 0; i < 4 && match.winner == null; i++) {
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
   });
 
-  it("13 return fire: REST skip safe, Artillery clean, Jet trades", () => {
-    const { lesson, match: start } = startLesson("return-fire");
-    expect(start.phase).toBe("deployment");
+  it("8 return-fire draft still plays (hub placeholder until rewrite)", () => {
+    const lesson = RETURN_FIRE;
+    const start = lesson.setup();
     expect(start.board[P1_FRONT][0]?.rested).toBe(true);
-    expect(hint(lesson, start)?.anchor).toBe("phase");
-    expect(hint(lesson, start, ["rules"])?.anchor).toBe("unit-101");
-    expect(hint(lesson, start, ["rules", "lane-rest"])?.anchor).toBe("unit-11");
-    expect(hint(lesson, start, ["rules", "lane-rest", "lane-arty"])?.anchor).toBe("unit-25");
-    expect(hint(lesson, start, ["rules", "lane-rest", "lane-arty", "lane-jet"])?.anchor).toBe("hourglass");
-    expect(
-      hint(lesson, start, ["rules", "lane-rest", "lane-arty", "lane-jet", "predict"])?.anchor,
-    ).toBe("hourglass");
-
-    const match = play(lesson, start, { type: "endDeployment" });
-    expect(match.board[P1_FRONT][0]?.hp).toBe(8);
-    expect(match.board[P2_FRONT][0]?.hp).toBe(8);
-    expect(match.board[P1_SUPPORT][2]?.hp).toBe(8);
-    expect(match.board[P2_FRONT][2]?.hp).toBe(2);
-    expect(match.board[P1_SUPPORT][3]?.hp).toBe(8);
-    expect(match.board[P2_FRONT][3]?.hp).toBe(5);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(hint(lesson, start)).toBeNull();
+    let match = play(lesson, start, { type: "endDeployment" });
+    // Rest lane: Cadet did not shoot / take return. Arty shot clean. Jet traded.
+    expect(match.board[P1_FRONT][0]?.hp).toBe(6);
+    expect(match.board[P1_SUPPORT][2]?.hp).toBe(6);
+    for (let i = 0; i < 6 && match.winner == null; i++) {
+      if (match.phase === "engagement") match = play(lesson, match, { type: "endEngagement" });
+      if (match.winner != null) break;
+      if (match.phase === "deployment") match = play(lesson, match, { type: "endDeployment" });
+      if (match.phase === "maneuver") match = play(lesson, match, { type: "endManeuver" });
+    }
+    expect(match.winner).toBe(0);
   });
 
-  it("14 playstyle aggro: Rally then both jets punch HQ", () => {
+  it("17 playstyle-aggro: free-play Rally races HQ to 0", () => {
     const { lesson, match: start } = startLesson("playstyle-aggro");
-    expect(start.phase).toBe("maneuver");
-    expect(start.players[1].hqHp).toBe(HQ_MAX_HP);
-    expect(hint(lesson, start)?.anchor).toBe("hq-1");
-    expect(hint(lesson, start, ["race"])?.anchor).toBe("kw-blitz-27");
-    expect(hint(lesson, start, ["race", "blitz"])?.anchor).toBe("kw-flank-26");
-    expect(hint(lesson, start, ["race", "blitz", "flank"])?.anchor).toBe("card-rally");
-    expect(
-      hint(lesson, start, ["race", "blitz", "flank"], {
-        targetingTemplateId: "rally",
-        targetingPickedUnits: 0,
-      })?.anchor,
-    ).toBe("unit-27");
-
+    expect(start.players[1].hqHp).toBe(17);
+    expect(start.players[0].hqHp).toBe(8);
     const rally = start.players[0].hand.find((c) => c.templateId === "rally")!;
     const komet = unitByDef(start, 27, 0)!;
     let match = play(lesson, start, {
@@ -652,26 +657,28 @@ describe("tutorial lessons", () => {
       cardId: rally.instanceId,
       targets: { unitIds: [komet.instanceId] },
     });
-    expect(unitByDef(match, 27, 0)?.tempAtk).toBe(3);
-    expect(hint(lesson, match)?.anchor).toBe("hq-1");
-    expect(hint(lesson, match, ["predict"])?.anchor).toBe("hourglass");
-
     match = play(lesson, match, { type: "endManeuver" });
-    expect(match.players[1].hqHp).toBe(HQ_MAX_HP - 17);
-    expect(match.players[1].nextTurnSupplyBonus).toBe(0);
-    expect(match.players[1].nextTurnDrawBonus).toBe(0);
-    expect(match.players[1].hand).toHaveLength(2);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.players[1].hqHp).toBe(0);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("hq");
   });
 
-  it("15 playstyle missile/arty: Heatseeking then Support salvo", () => {
+  it("17 playstyle-aggro: skip Rally — shortfall then enemy HQ shots finish you", () => {
+    const { lesson, match: start } = startLesson("playstyle-aggro");
+    let match = play(lesson, start, { type: "endManeuver" });
+    expect(match.players[1].hqHp).toBe(3);
+    expect(match.winner).toBeNull();
+    match = play(lesson, match, { type: "endEngagement" });
+    match = play(lesson, match, { type: "endDeployment" });
+    expect(match.winner).toBe(1);
+    expect(match.winReason).toBe("hq");
+  });
+
+  it("18 playstyle-missile-arty: free-play Heatseeking then eliminate", () => {
     const { lesson, match: start } = startLesson("playstyle-missile-arty");
     expect(start.phase).toBe("maneuver");
-    expect(hint(lesson, start)?.anchor).toBe("unit-3");
-    expect(hint(lesson, start, ["wall"])?.anchor).toBe("kw-artillery-10");
-    expect(hint(lesson, start, ["wall", "arty"])?.anchor).toBe("kw-missile-10");
-    expect(hint(lesson, start, ["wall", "arty", "missile"])?.anchor).toBe("card-heatseeking");
-
+    expect(unitByDef(start, 10, 0)?.missileTarget).toEqual({ col: P2_FRONT, row: 0 });
+    expect(hint(lesson, start)).toBeNull();
     const card = start.players[0].hand.find((c) => c.templateId === "heatseeking")!;
     let match = play(lesson, start, {
       type: "playCard",
@@ -679,28 +686,15 @@ describe("tutorial lessons", () => {
       targets: { cells: [{ col: P2_FRONT, row: 2 }] },
     });
     expect(unitByDef(match, 10, 0)?.missileTarget).toEqual({ col: P2_FRONT, row: 2 });
-    expect(hint(lesson, match)?.anchor).toBe("hp-4");
-    expect(hint(lesson, match, ["predict"])?.anchor).toBe("hourglass");
-
     match = play(lesson, match, { type: "endManeuver" });
-    expect(unitByDef(match, 4, 1)?.hp).toBe(1);
-    expect(unitByDef(match, 22, 1)?.hp).toBe(4);
-    expect(unitByDef(match, 10, 0)?.hp).toBe(8);
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.winner).toBe(0);
+    expect(match.winReason).toBe("elimination");
   });
 
-  it("16 playstyle tank/robot: Quick Engagement then both Aggressive clear", () => {
+  it("19 playstyle-tank-robot: free-play Quick Engagement then clear", () => {
     const { lesson, match: start } = startLesson("playstyle-tank-robot");
     expect(start.phase).toBe("maneuver");
-    expect(hint(lesson, start)?.anchor).toBe("unit-2");
-    expect(hint(lesson, start, ["front"])?.anchor).toBe("card-quick_engagement");
-    expect(
-      hint(lesson, start, ["front", "qe-card"], {
-        targetingTemplateId: "quick_engagement",
-        targetingPickedUnits: 0,
-      })?.anchor,
-    ).toBe("unit-2");
-
+    expect(hint(lesson, start)).toBeNull();
     const qe = start.players[0].hand.find((c) => c.templateId === "quick_engagement")!;
     const fenrir = unitByDef(start, 2, 0)!;
     let match = play(lesson, start, {
@@ -709,45 +703,94 @@ describe("tutorial lessons", () => {
       targets: { unitIds: [fenrir.instanceId] },
     });
     expect(match.phase).toBe("engagement");
-    expect(match.board[P2_FRONT][2]?.hp).toBe(3);
-    expect(match.board[P2_FRONT][0]?.hp).toBe(4);
-
+    // First Aggressive shot only — Sarama needs the regular volley too (HP 14).
+    expect(match.board[P2_FRONT][2]?.hp).toBe(7);
     match = play(lesson, match, { type: "endEngagement" });
-    expect(match.phase).toBe("maneuver");
-    expect(hint(lesson, match)?.anchor).toBe("hp-4");
-    expect(hint(lesson, match, ["chip"])?.anchor).toBe("unit-14");
-    expect(hint(lesson, match, ["chip", "predict"])?.anchor).toBe("hourglass");
-
     match = play(lesson, match, { type: "endManeuver" });
     expect(match.board[P2_FRONT][2]).toBeNull();
     expect(match.board[P2_FRONT][0]).toBeNull();
-    expect(lesson.steps.every((s) => s.done(match))).toBe(true);
+    expect(match.winner).toBe(0);
   });
 
-  it("hub numbers are 01–17 in curriculum order with no gaps", () => {
-    const hubIds = TUTORIAL_HUB.flatMap((s) => s.cards.filter((c) => !c.cta).map((c) => c.id));
+  it("hub numbers are 01–19 with Return fire as a Basics placeholder", () => {
+    const hubIds = TUTORIAL_HUB.flatMap((s) =>
+      s.cards.filter((c) => !c.cta && !c.placeholder).map((c) => c.id),
+    );
     expect(hubIds).toEqual(tutorialOrder());
-    expect(LESSONS.map((l) => l.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    const hubNumbers = TUTORIAL_HUB.flatMap((s) => s.cards.filter((c) => !c.cta).map((c) => c.number));
-    expect(hubNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
-    const ready = TUTORIAL_HUB.find((s) => s.id === "basic")?.cards.at(-1);
+    expect(tutorialOrder()).toEqual([
+      "basic",
+      "victory",
+      "resources",
+      "movement-forward",
+      "movement-updown",
+      "armor",
+      "comeback",
+      BUILD_GUIDE_ID,
+      "cover-flank",
+      "aggressive",
+      "support-fire",
+      "missile",
+      "extra-attack",
+      "artillery",
+      "jet-plane",
+      "playstyle-aggro",
+      "playstyle-missile-arty",
+      "playstyle-tank-robot",
+    ]);
+    expect(LESSONS.map((l) => l.number)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    ]);
+    const hubNumbers = TUTORIAL_HUB.flatMap((s) =>
+      s.cards.filter((c) => !c.cta).map((c) => c.number),
+    );
+    expect(hubNumbers).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    ]);
+    const basic = TUTORIAL_HUB.find((s) => s.id === "basic");
+    expect(basic?.cards.map((c) => c.id)).toEqual([
+      "basic",
+      "victory",
+      "resources",
+      "movement-forward",
+      "movement-updown",
+      "armor",
+      "comeback",
+      "return-fire",
+      "build-army",
+      "basic-complete",
+    ]);
+    expect(basic?.cards.find((c) => c.id === "return-fire")?.placeholder).toBe(true);
+    expect(TUTORIAL_HUB.find((s) => s.id === "comeback")).toBeUndefined();
+    expect(TUTORIAL_HUB.find((s) => s.id === "keywords")?.cards.map((c) => c.id)).toEqual([
+      "cover-flank",
+      "aggressive",
+      "support-fire",
+      "missile",
+      "extra-attack",
+    ]);
+    const ready = basic?.cards.at(-1);
     expect(ready).toMatchObject({
       id: "basic-complete",
-      number: 6,
+      number: 10,
       title: "You are ready for battle",
       cta: true,
     });
   });
 
   it("build guide walks the army builder with highlights", () => {
-    expect(nextTutorialId("jet-plane")).toBe("return-fire");
-    expect(nextTutorialId("return-fire")).toBe("playstyle-aggro");
+    expect(nextTutorialId("comeback")).toBe(BUILD_GUIDE_ID);
+    expect(nextTutorialId(BUILD_GUIDE_ID)).toBe("cover-flank");
+    expect(nextTutorialId("aggressive")).toBe("support-fire");
+    expect(nextTutorialId("jet-plane")).toBe("playstyle-aggro");
     expect(nextTutorialId("playstyle-aggro")).toBe("playstyle-missile-arty");
     expect(nextTutorialId("playstyle-missile-arty")).toBe("playstyle-tank-robot");
-    expect(nextTutorialId("playstyle-tank-robot")).toBe(BUILD_GUIDE_ID);
-    expect(nextTutorialId(BUILD_GUIDE_ID)).toBeNull();
-    expect(nextTutorialId("basic", new Set(["basic", "resources"]))).toBe("armor");
-    expect(firstIncompleteTutorialId(new Set(["basic", BUILD_GUIDE_ID]))).toBe("resources");
+    expect(nextTutorialId("playstyle-tank-robot")).toBeNull();
+    expect(nextTutorialId("basic")).toBe("victory");
+    expect(nextTutorialId("victory")).toBe("resources");
+    expect(nextTutorialId("basic", new Set(["basic", "victory", "resources"]))).toBe("movement-forward");
+    expect(nextTutorialId("movement-forward")).toBe("movement-updown");
+    expect(nextTutorialId("movement-updown")).toBe("armor");
+    expect(firstIncompleteTutorialId(new Set(["basic", BUILD_GUIDE_ID]))).toBe("victory");
     expect(firstIncompleteTutorialId(new Set(tutorialOrder()))).toBeNull();
     expect(BUILD_GUIDE_STEPS.map((s) => s.anchor)).toEqual([
       "builder-catalog",

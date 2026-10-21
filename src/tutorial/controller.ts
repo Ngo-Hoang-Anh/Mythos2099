@@ -1,5 +1,6 @@
 import { applyAction } from "../engine/match";
 import type { Action, ActionResult, MatchState } from "../engine/types";
+import { registerDraftUnits } from "./authored";
 import { BUILD_GUIDE_ID } from "./buildGuide";
 import { LESSONS, type LessonDef, type LessonId, type TutorialId } from "./lessons";
 
@@ -12,6 +13,8 @@ export function getLesson(id: string): LessonDef | undefined {
 export function startLesson(id: LessonId): { lesson: LessonDef; match: MatchState } {
   const lesson = getLesson(id);
   if (!lesson) throw new Error(`Unknown lesson ${id}`);
+  // Drop prior scenario unit overrides so catalog/tutorial defs are clean before setup.
+  registerDraftUnits([]);
   return { lesson, match: lesson.setup() };
 }
 
@@ -35,7 +38,13 @@ export function gateAction(lesson: LessonDef, match: MatchState, action: Action)
     if (!lesson.scriptedAction) return "This lesson is over.";
     return lesson.allow(match, action);
   }
-  if (action.type === "discardRedraw" && lesson.id !== "resources") return "Tutorial: no discard-redraw.";
+  if (
+    action.type === "discardRedraw" &&
+    lesson.id !== "movement-updown" &&
+    !lesson.allowDiscardRedraw
+  ) {
+    return "Tutorial: no discard-redraw.";
+  }
   return lesson.allow(match, action);
 }
 
@@ -48,8 +57,12 @@ export function applyLessonAction(lesson: LessonDef, match: MatchState, action: 
   return { ok: true, state: result.state, complete: lessonComplete(lesson, result.state) };
 }
 
+/** Curriculum order: Basics through Comeback, then Build an army, then Codex lessons. */
 export function tutorialOrder(): TutorialId[] {
-  return [...LESSONS.map((lesson) => lesson.id), BUILD_GUIDE_ID];
+  const ids = LESSONS.map((lesson) => lesson.id);
+  const after = ids.indexOf("comeback");
+  if (after < 0) return [...ids, BUILD_GUIDE_ID];
+  return [...ids.slice(0, after + 1), BUILD_GUIDE_ID, ...ids.slice(after + 1)];
 }
 
 export function nextLessonId(id: LessonId): LessonId | null {
@@ -58,7 +71,7 @@ export function nextLessonId(id: LessonId): LessonId | null {
   return LESSONS[idx + 1].id;
 }
 
-/** Next playable tutorial after `id`. Skips ids already in `done` when provided. */
+/** The lesson that follows `id` in curriculum order. Pass `done` only to skip finished ids. */
 export function nextTutorialId(
   id: TutorialId,
   done?: ReadonlySet<TutorialId>,

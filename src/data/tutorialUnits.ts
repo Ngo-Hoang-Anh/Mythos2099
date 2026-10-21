@@ -11,6 +11,9 @@ export const TUTORIAL_ART_ALIAS: Record<number, number> = {
   [TUTORIAL_RECRUIT]: 13,
 };
 
+/** Armored Infantry / Motorcycle / Drone packs (`squadArt`). */
+export const TUTORIAL_SQUAD_ALIAS: Record<number, number> = {};
+
 export const TUTORIAL_SPRITE_ALIAS: Record<number, number> = {
   [TUTORIAL_DUMMY]: 8,
 };

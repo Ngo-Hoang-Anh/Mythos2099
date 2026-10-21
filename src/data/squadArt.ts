@@ -1,5 +1,7 @@
 /** Composed squad art. Sprites live in `public/units-art/squads`; swap the files (or `src`) to replace placeholders. */
 
+import { TUTORIAL_SQUAD_ALIAS } from "./tutorialUnits";
+
 const INF = "/units-art/squads/infantry";
 const BIKE = "/units-art/squads/motorcycles";
 
@@ -180,7 +182,7 @@ export const SQUAD_ART: Record<number, SquadArtSpec> = {
 
 export function getSquadArt(id: number | undefined): SquadArtSpec | undefined {
   if (id == null) return undefined;
-  return SQUAD_ART[id];
+  return SQUAD_ART[id] ?? SQUAD_ART[TUTORIAL_SQUAD_ALIAS[id]];
 }
 
 export function hasFormationDeploy(id: number | undefined): boolean {

@@ -4,7 +4,7 @@ export const BUILD_GUIDE_ID = "build-army" as const;
 
 export const BUILD_GUIDE = {
   id: BUILD_GUIDE_ID,
-  number: 16,
+  number: 9,
   title: "Build an army",
   subtitle: "8 units. Their cards are the deck.",
   success: "8 unique units. Each one brings 1 Special, 1 Maneuver, and 1 Move into the deck.",

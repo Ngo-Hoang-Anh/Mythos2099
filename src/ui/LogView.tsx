@@ -26,10 +26,11 @@ function LogNode({ entry, depth }: { entry: LogEntry; depth: number }) {
 }
 
 export function LogView({ entries }: { entries: LogEntry[] }) {
-  if (entries.length === 0) return <p>No log yet.</p>;
+  const visible = entries.filter((entry) => !entry.text.startsWith("@@beat:"));
+  if (visible.length === 0) return <p>No log yet.</p>;
   return (
     <>
-      {[...entries].reverse().map((entry, i) => (
+      {[...visible].reverse().map((entry, i) => (
         <LogNode key={`${entry.text}-${i}`} entry={entry} depth={0} />
       ))}
     </>

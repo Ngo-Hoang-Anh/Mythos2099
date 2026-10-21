@@ -5,7 +5,6 @@ import {
   currentStepIndex,
   evaluateSteps,
   lessonComplete,
-  loadCompletedLessons,
   markLessonComplete,
   nextTutorialId,
   pickLessonHint,
@@ -41,9 +40,13 @@ export function TutorialView({
 
   const stepsDone = useMemo(() => evaluateSteps(lesson, match), [lesson, match]);
   const current = currentStepIndex(lesson, match);
-  const nextId = nextTutorialId(lesson.id, loadCompletedLessons());
+  const nextId = nextTutorialId(lesson.id);
   const total = LESSONS.length + 1;
-  const hint = complete ? null : pickLessonHint(lesson, match, hud, dismissed);
+  // While picking card/deploy targets, never cover the board — real green/red reticles must show.
+  const hint =
+    complete || hud.boardTargeting || hud.pendingDeploy
+      ? null
+      : pickLessonHint(lesson, match, hud, dismissed);
 
   useEffect(() => {
     if (complete || match.combatPlayback || hud.animating) return;
@@ -131,6 +134,7 @@ export function TutorialView({
           onAction={sendAction}
           onClearError={() => setError(null)}
           onExit={onExit}
+          onRetry={restart}
           onTutorialHud={setHud}
           pointerCardDrag={pointerCardDrag}
         />
