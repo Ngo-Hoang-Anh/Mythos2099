@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite",
+    "dev:studio": "vite --config studio/vite.config.ts",
     "dev:server": "tsx watch server/index.ts",
     "start:server": "tsx server/index.ts",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "balance:vacuum": "tsx src/tools/writeVacuumDuelReport.ts",
@@ -26,15 +29,22 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^24.5.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/ws": "^8.18.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^9.2.1",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
     "sharp": "^0.35.5",
     "tsx": "^4.20.5",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.72.0",
     "vite": "^6.4.3",
     "vitest": "^4.1.11"
   }

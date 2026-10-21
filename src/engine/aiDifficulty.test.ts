@@ -4,7 +4,7 @@ import { getUnitDef } from "../data/units";
 import { AI_SEAT, HUMAN_SEAT, createRoom } from "../net/session";
 import { countUnits } from "./board";
 import { drawCards, flattenLog } from "./state";
-import { applyAction, createMatch, must } from "./match";
+import { createMatch, must } from "./match";
 import {
   ARMY_SIZE,
   BASE_SUPPLY,

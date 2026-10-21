@@ -97,7 +97,7 @@ export function createMatch(
   const difficulty = options?.aiDifficulty ?? "easy";
   const aiPlayer: PlayerId = options?.aiPlayer ?? 0;
   const profile = aiProfile(difficulty);
-  let armies: [number[], number[]] = [[...p1Army], [...p2Army]];
+  const armies: [number[], number[]] = [[...p1Army], [...p2Army]];
   let rngState = mulberry32State(seed);
   let added: number[] = [];
   if (profile && profile.extraUnits > 0) {

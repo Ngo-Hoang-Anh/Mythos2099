@@ -271,7 +271,7 @@ function resample(points: Point[], spacing: number): Point[] {
   let acc = 0;
   for (let i = 1; i < points.length; i += 1) {
     let a = out[out.length - 1];
-    let b = points[i];
+    const b = points[i];
     let seg = dist(a, b);
     while (acc + seg >= spacing) {
       const t = (spacing - acc) / seg;
