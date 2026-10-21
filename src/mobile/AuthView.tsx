@@ -7,6 +7,9 @@ type Props = {
   onTutorial: () => void;
 };
 
+/** Temporary: hide account login/register until accounts are ready. */
+const SHOW_ACCOUNT_AUTH = false;
+
 /** Mobile-only auth layout (landscape-first). Not shared with desktop AuthView. */
 export function MobileAuthView({ busy, error, onLogin, onRegister, onGuest, onTutorial }: Props) {
   return (
@@ -20,52 +23,56 @@ export function MobileAuthView({ busy, error, onLogin, onRegister, onGuest, onTu
         >
           Play as guest
         </button>
-        <p className="muted mobile-auth-or">Or sign in / register</p>
-        <form
-          className="auth-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const fd = new FormData(e.currentTarget);
-            onLogin(String(fd.get("username") ?? ""), String(fd.get("password") ?? ""));
-          }}
-        >
-          <label>
-            Username
-            <input name="username" autoComplete="username" required disabled={busy} />
-          </label>
-          <label>
-            Password
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              disabled={busy}
-            />
-          </label>
-          {error ? <p className="error">{error}</p> : null}
-          <div className="mobile-auth-actions">
-            <button type="submit" className="primary" disabled={busy}>
-              Sign in
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              disabled={busy}
-              onClick={(e) => {
-                const form = e.currentTarget.form;
-                if (!form) return;
-                const fd = new FormData(form);
-                onRegister(String(fd.get("username") ?? ""), String(fd.get("password") ?? ""));
+        {error ? <p className="error">{error}</p> : null}
+        {SHOW_ACCOUNT_AUTH ? (
+          <>
+            <p className="muted mobile-auth-or">Or sign in / register</p>
+            <form
+              className="auth-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                onLogin(String(fd.get("username") ?? ""), String(fd.get("password") ?? ""));
               }}
             >
-              Register
-            </button>
-            <button type="button" className="ghost" disabled={busy} onClick={onTutorial}>
-              Tutorial
-            </button>
-          </div>
-        </form>
+              <label>
+                Username
+                <input name="username" autoComplete="username" required disabled={busy} />
+              </label>
+              <label>
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <div className="mobile-auth-actions">
+                <button type="submit" className="primary" disabled={busy}>
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy}
+                  onClick={(e) => {
+                    const form = e.currentTarget.form;
+                    if (!form) return;
+                    const fd = new FormData(form);
+                    onRegister(String(fd.get("username") ?? ""), String(fd.get("password") ?? ""));
+                  }}
+                >
+                  Register
+                </button>
+              </div>
+            </form>
+          </>
+        ) : null}
+        <button type="button" className="ghost" disabled={busy} onClick={onTutorial}>
+          Tutorial
+        </button>
       </div>
     </div>
   );

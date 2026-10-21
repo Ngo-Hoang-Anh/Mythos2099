@@ -377,6 +377,7 @@ export function BoardView({
   selectedIds,
   kwFocusId = null,
   hostileAimIds = [],
+  friendlyAimIds = [],
   deployPlayer,
   deployEnabled,
   reachableCells = [],
@@ -409,6 +410,8 @@ export function BoardView({
   kwFocusId?: string | null;
   /** Valid enemy targets while a card is waiting for an enemy pick. */
   hostileAimIds?: string[];
+  /** Valid ally targets while a card is waiting for a friendly pick. */
+  friendlyAimIds?: string[];
   deployPlayer: PlayerId | null;
   deployEnabled: boolean;
   reachableCells?: BoardPos[];
@@ -629,8 +632,10 @@ export function BoardView({
   }
 
   useEffect(() => {
+    const timers = groundTimers;
     return () => {
-      for (const id of groundTimers.current) window.clearTimeout(id);
+      // Read .current at unmount so timers scheduled after mount are cleared.
+      for (const id of timers.current) window.clearTimeout(id);
     };
   }, []);
 
@@ -671,7 +676,11 @@ export function BoardView({
   const previewState: MatchState = board === match.board ? match : { ...match, board };
 
   useLayoutEffect(() => {
-    const unit = aim ? findUnit(board, aim.unitId) : null;
+    if (!aim) {
+      setAimLine(null);
+      return;
+    }
+    const unit = findUnit(board, aim.unitId);
     const root = rootRef.current?.getBoundingClientRect();
     if (!unit || !root) {
       setAimLine(null);
@@ -684,6 +693,7 @@ export function BoardView({
       setAimLine(from && to ? { from, to, straight: false } : null);
       return;
     }
+    const previewState: MatchState = board === match.board ? match : { ...match, board };
     const shot = gunAim(previewState, unit);
     if (!shot || !from) {
       setAimLine(null);
@@ -2810,6 +2820,7 @@ export function BoardView({
             selected={selectedIds.includes(unit.instanceId)}
             kwFocus={kwFocusId === unit.instanceId}
             hostileAim={hostileAimIds.includes(unit.instanceId)}
+            friendlyAim={friendlyAimIds.includes(unit.instanceId)}
             hideArt={artHidden(unit.instanceId)}
             fadeInfo={Object.values(fxLayers).some((layer) => layer.fadeId === unit.instanceId)}
             fadeOut={Object.values(fxLayers).some((layer) => layer.fadeOutId === unit.instanceId)}

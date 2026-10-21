@@ -4,7 +4,7 @@ import { keywordHelp, keywordFullLabel } from "../engine/armySummary";
 import { keywordsWithMods, missileMod } from "../engine/status";
 import type { MatchState, PlayerId, StatusEffect, UnitDef, UnitInstance } from "../engine/types";
 import { ArmorChip, ApChip, AtkChip, HpChip, SupplyChip } from "./icons";
-import { KitIconBtn, kitAsset } from "./UiChrome";
+import { KitIconBtn } from "./UiChrome";
 import { UnitArt, UnitKeywords } from "./UnitToken";
 import { UnitCardPills } from "./CardTip";
 
@@ -126,18 +126,9 @@ export function UnitDetailDialog({
               <div className="unit-detail-face front">
                 <UnitArt name={def.name} unitClass={def.class} unitId={def.id} facingDeg={0} />
                 <div className="unit-detail-stats">
-                  <div className="kit-hp-row">
-                    <img src={kitAsset("hp.png")} alt="" />
-                    <HpChip value={hp} />
-                    {maxHp !== hp ? <span className="unit-detail-maxhp">/{maxHp}</span> : null}
-                    <div className="kit-hp-bar" aria-hidden>
-                      <span style={{ width: `${maxHp > 0 ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0}%` }} />
-                    </div>
-                  </div>
-                  <div className="kit-hp-row">
-                    <img src={kitAsset("armor.png")} alt="" />
-                    <ArmorChip value={armor} />
-                  </div>
+                  <HpChip value={hp} />
+                  {maxHp !== hp ? <span className="unit-detail-maxhp">/{maxHp}</span> : null}
+                  <ArmorChip value={armor} />
                   <AtkChip value={atk} />
                   <ApChip value={ap} />
                 </div>

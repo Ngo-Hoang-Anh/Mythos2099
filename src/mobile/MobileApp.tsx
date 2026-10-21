@@ -142,6 +142,10 @@ export function MobileApp() {
           session.clearError();
         }}
         onConfirm={({ p1, p2, aiDifficulty }) => {
+          if (intent.kind === "decks") {
+            setIntent(null);
+            return;
+          }
           if (intent.kind === "join") {
             session.joinMatch(intent.roomId, p2);
             return;
@@ -172,6 +176,10 @@ export function MobileApp() {
         onTutorial={() => {
           setHubTab("tutorial");
           setTutorial("hub");
+        }}
+        onBuildArmy={() => {
+          session.clearError();
+          setIntent({ kind: "decks" });
         }}
       />
     );

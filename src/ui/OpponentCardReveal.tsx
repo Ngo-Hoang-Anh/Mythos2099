@@ -49,7 +49,7 @@ export function OpponentCardReveal({
   useLayoutEffect(() => {
     const frame = requestAnimationFrame(() => setAt(to));
     return () => cancelAnimationFrame(frame);
-  }, [from.x, from.y, to.x, to.y]);
+  }, [from.x, from.y, to, to.x, to.y]);
 
   const title = vsAi && actor !== viewer ? "AI played" : actor === viewer ? `P${actor + 1} played` : "Opponent played";
   const source = card.type === "special" ? sourceName(card.ownerUnitId) : null;

@@ -22,6 +22,8 @@ type Props = {
   onDragStart: (card: CardInstance) => void;
   onDragEnd: () => void;
   onPickCard?: (card: CardInstance) => void;
+  /** Tap did not play the card (tutorial explains why). */
+  onBlockedClick?: (card: CardInstance) => void;
   /** Called after a drag that moved past slop; ghost already removed. */
   onPointerDrop: (card: CardInstance, clientX: number, clientY: number) => void;
 };
@@ -52,6 +54,7 @@ export function MobileHandView({
   onDragStart,
   onDragEnd,
   onPickCard,
+  onBlockedClick,
   onPointerDrop,
 }: Props) {
   const [expanded, setExpanded] = useState(true);
@@ -217,6 +220,10 @@ export function MobileHandView({
               onClick={() => {
                 if (pickMode && onPickCard) {
                   onPickCard(card);
+                  return;
+                }
+                if (onBlockedClick) {
+                  onBlockedClick(card);
                   return;
                 }
                 if (!inspectOnly) return;

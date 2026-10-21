@@ -19,6 +19,7 @@ export function LobbyView({
   onReconnect,
   onLogout,
   onTutorial,
+  onBuildArmy,
 }: {
   username: string;
   rooms: RoomSummary[];
@@ -31,6 +32,7 @@ export function LobbyView({
   onReconnect: () => void;
   onLogout: () => void;
   onTutorial: () => void;
+  onBuildArmy: () => void;
 }) {
   const mine = rooms.filter((room) => room.youSeated);
   const open = rooms.filter((room) => !room.youSeated && room.status === "waiting");
@@ -82,6 +84,10 @@ export function LobbyView({
             <KitMark file="faq.png" />
             Tutorial
           </button>
+          <button type="button" className="primary kit-btn-row" onClick={onBuildArmy}>
+            <KitMark file="menu.png" />
+            Build army
+          </button>
           <button type="button" className="primary kit-btn-row" onClick={() => onCreate("pvp")}>
             <KitMark file="play.png" />
             Host PvP
@@ -91,7 +97,7 @@ export function LobbyView({
             vs AI
           </button>
           <button type="button" className="kit-btn-row" onClick={() => onCreate("hotseat")}>
-            <KitMark file="menu.png" />
+            <KitMark file="info.png" />
             Hotseat
           </button>
         </div>

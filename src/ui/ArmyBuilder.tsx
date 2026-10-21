@@ -1,4 +1,11 @@
 import { useMemo, useState, type ReactNode } from "react";
+import {
+  deleteCustomArmy,
+  loadCustomArmies,
+  MAX_CUSTOM_ARMIES,
+  saveCustomArmy,
+  type CustomArmy,
+} from "../data/customArmies";
 import { PREMADE_ARMIES } from "../data/premadeArmies";
 import { UNITS } from "../data/units";
 import {
@@ -10,7 +17,18 @@ import {
 import { validateArmy } from "../engine/army";
 import { formatAvg, summarizeArmy, type ArmySummary } from "../engine/armySummary";
 import { ARMY_SIZE, type CardType, type UnitClass, type UnitDef } from "../engine/types";
-import { ArmorChip, ApChip, AtkChip, CardTypeIcon, HpChip, KeywordChip, SupplyChip } from "./icons";
+import {
+  ArmorChip,
+  ApChip,
+  AtkChip,
+  CardTypeIcon,
+  HpChip,
+  KEYWORD_YELLOW,
+  KeywordChip,
+  StatIcon,
+  SupplyChip,
+  type StatName,
+} from "./icons";
 import { UnitCardPills } from "./CardTip";
 import { UnitArt, UnitKeywords, UnitPortrait } from "./UnitToken";
 import { UnitDetailDialog, type UnitDetailTarget } from "./UnitDetailDialog";
@@ -34,9 +52,22 @@ const TYPE_LABEL: Record<CardType, string> = {
   move: "Move",
 };
 
+type PickFilter = StatName | "keywords";
+
+const PICK_FILTERS: { id: PickFilter; label: string }[] = [
+  { id: "supply", label: "Cost" },
+  { id: "hp", label: "HP" },
+  { id: "atk", label: "ATK" },
+  { id: "armor", label: "Armor" },
+  { id: "ap", label: "AP" },
+  { id: "keywords", label: "Keywords" },
+];
+
 export type ArmyIntent =
   | { kind: "create"; mode: "ai" | "hotseat" | "pvp" }
-  | { kind: "join"; roomId: string; hostName: string };
+  | { kind: "join"; roomId: string; hostName: string }
+  /** Lobby deck editor: save custom armies, no match start. */
+  | { kind: "decks" };
 
 export function ArmyBuilder({
   defaultP1,
@@ -61,8 +92,10 @@ export function ArmyBuilder({
   guide?: boolean;
   deckDrawer?: boolean;
 }) {
+  const decksOnly = intent.kind === "decks";
   const joinOnly = intent.kind === "join";
-  const hostOnly = (intent.kind === "create" && intent.mode === "pvp") || Boolean(guide);
+  const hostOnly =
+    decksOnly || (intent.kind === "create" && intent.mode === "pvp") || Boolean(guide);
   const [p1, setP1] = useState<number[]>(defaultP1);
   const [p2, setP2] = useState<number[]>(defaultP2);
   const [edit, setEdit] = useState<"p1" | "p2">(joinOnly ? "p2" : "p1");
@@ -70,36 +103,57 @@ export function ArmyBuilder({
   const [inspect, setInspect] = useState<UnitDetailTarget | null>(null);
   const [deckListOpen, setDeckListOpen] = useState(false);
   const [aiDifficulty, setAiDifficulty] = useState<AiDifficulty>("easy");
+  const [customArmies, setCustomArmies] = useState<CustomArmy[]>(() => loadCustomArmies());
+  const [activeCustomId, setActiveCustomId] = useState<string | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [pickFilter, setPickFilter] = useState<PickFilter>("supply");
   const vsAi = intent.kind === "create" && intent.mode === "ai";
   const selected = edit === "p1" ? p1 : p2;
   const setter = edit === "p1" ? setP1 : setP2;
   const armyError = useMemo(() => {
+    if (decksOnly || guide) return null;
     if (joinOnly) return validateArmy(p2);
     if (hostOnly) return validateArmy(p1);
     return validateArmy(p1) ?? validateArmy(p2);
-  }, [joinOnly, hostOnly, p1, p2]);
+  }, [decksOnly, guide, joinOnly, hostOnly, p1, p2]);
   const error = armyError;
   const summary = useMemo(() => summarizeArmy(selected), [selected]);
+  const selectedValid = validateArmy(selected) == null;
+  const activeCustom = activeCustomId ? customArmies.find((a) => a.id === activeCustomId) : undefined;
+  const canCreateCustom = customArmies.length < MAX_CUSTOM_ARMIES;
+  const canSaveSelected = selectedValid && (Boolean(activeCustom) || canCreateCustom);
   const title = guide
     ? "Build an army"
-    : intent.kind === "join"
-      ? `Join ${intent.hostName}'s room ${intent.roomId}`
-      : intent.mode === "pvp"
-        ? "Host a PvP room"
-        : intent.mode === "ai"
-          ? "vs AI"
-          : "Hotseat";
+    : decksOnly
+      ? "Save up to 5 lists for later matches"
+      : intent.kind === "join"
+        ? `Join ${intent.hostName}'s room ${intent.roomId}`
+        : intent.mode === "pvp"
+          ? "Host a PvP room"
+          : intent.mode === "ai"
+            ? "vs AI"
+            : "Hotseat";
   const confirmLabel = guide
     ? "Finish guide"
-    : busy
-      ? "Connecting…"
-      : intent.kind === "join"
-        ? "Join match"
-        : intent.mode === "pvp"
-          ? "Create room"
-          : "Start match";
+    : decksOnly
+      ? "Done"
+      : busy
+        ? "Connecting…"
+        : intent.kind === "join"
+          ? "Join match"
+          : intent.mode === "pvp"
+            ? "Create room"
+            : "Start match";
+
+  function applyUnits(units: number[], customId: string | null = null) {
+    setter(units);
+    setActiveCustomId(customId);
+  }
 
   function toggle(id: number) {
+    setActiveCustomId(null);
     if (selected.includes(id)) setter(selected.filter((x) => x !== id));
     else if (selected.length < ARMY_SIZE) setter([...selected, id]);
   }
@@ -109,20 +163,138 @@ export function ArmyBuilder({
     setDeckListOpen(false);
   }
 
+  function openSaveDialog() {
+    if (!canSaveSelected) return;
+    const fallback = `Army ${customArmies.length + 1}`;
+    setSaveName(activeCustom?.name ?? fallback);
+    setSaveError(null);
+    setSaveOpen(true);
+  }
+
+  function confirmSave() {
+    const result = saveCustomArmy({
+      name: saveName,
+      units: selected,
+      id: activeCustom?.id,
+    });
+    if (!result.ok) {
+      setSaveError(result.error);
+      return;
+    }
+    setCustomArmies(result.armies);
+    const match =
+      result.armies.find((a) => a.id === activeCustom?.id) ??
+      result.armies.find((a) => a.units.join() === selected.join() && a.name === saveName.trim()) ??
+      result.armies[result.armies.length - 1];
+    setActiveCustomId(match?.id ?? null);
+    setSaveOpen(false);
+    setSaveError(null);
+  }
+
+  function removeCustom(id: string) {
+    const next = deleteCustomArmy(id);
+    setCustomArmies(next);
+    if (activeCustomId === id) setActiveCustomId(null);
+  }
+
   const focused = focusedId == null ? null : (UNITS.find((unit) => unit.id === focusedId) ?? null);
 
   return (
     <div className={`builder${deckDrawer ? " deck-drawer" : ""}`}>
       {inspect && <UnitDetailDialog target={inspect} onClose={() => setInspect(null)} />}
+      {saveOpen && (
+        <div className="confirm-overlay" onClick={() => setSaveOpen(false)}>
+          <div
+            className="confirm-dialog kit-window save-army-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={activeCustom ? "Update army" : "Save army"}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p>{activeCustom ? "Update this army?" : "Save this army?"}</p>
+            <label className="save-army-label">
+              Name
+              <input
+                type="text"
+                value={saveName}
+                maxLength={32}
+                autoFocus
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") confirmSave();
+                  if (e.key === "Escape") setSaveOpen(false);
+                }}
+              />
+            </label>
+            {saveError && <p className="error">{saveError}</p>}
+            <div className="confirm-actions">
+              <button type="button" className="secondary" onClick={() => setSaveOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="primary" onClick={confirmSave}>
+                {activeCustom ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="builder-layout">
         <div className="catalog" data-tut="builder-catalog">
           {!guide && (
             <header className="builder-hero">
-              <p className="eyebrow">Army</p>
+              <p className="eyebrow">{decksOnly ? "Decks" : "Army"}</p>
               <h1>Mythos2099</h1>
-              <p>{title}. Pick 8 units. The server owns the rules.</p>
+              <p>
+                {decksOnly
+                  ? `${title}. Pick 8 units, then Save army.`
+                  : `${title}. Pick 8 units. The server owns the rules.`}
+              </p>
             </header>
           )}
+
+          <div className="premade-row custom-army-row" data-tut="builder-custom">
+            <span className="sg-tab">My armies</span>
+            {customArmies.map((army) => {
+              const on = activeCustomId === army.id || selected.join() === army.units.join();
+              return (
+                <span key={army.id} className={`custom-army-chip${on ? " on" : ""}`}>
+                  <button
+                    type="button"
+                    className={on ? "primary" : undefined}
+                    onClick={() => applyUnits(army.units, army.id)}
+                  >
+                    {edit.toUpperCase()}: {army.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="custom-army-del"
+                    title={`Delete ${army.name}`}
+                    aria-label={`Delete ${army.name}`}
+                    onClick={() => removeCustom(army.id)}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+            <button
+              type="button"
+              className="ghost"
+              disabled={!canSaveSelected}
+              title={
+                !selectedValid
+                  ? `Pick exactly ${ARMY_SIZE} units first`
+                  : !canCreateCustom && !activeCustom
+                    ? `Limit ${MAX_CUSTOM_ARMIES} saved armies`
+                    : activeCustom
+                      ? "Update saved army"
+                      : "Save current army"
+              }
+              onClick={openSaveDialog}
+            >
+              {activeCustom ? "Update" : canCreateCustom ? "Save army" : `Full (${MAX_CUSTOM_ARMIES})`}
+            </button>
+          </div>
 
           <div className="premade-row" data-tut="builder-premade">
             <span className="sg-tab">Premade</span>
@@ -130,15 +302,15 @@ export function ArmyBuilder({
               <button
                 key={key}
                 type="button"
-                className={selected.join() === army.units.join() ? "primary" : undefined}
-                onClick={() => setter(army.units)}
+                className={!activeCustomId && selected.join() === army.units.join() ? "primary" : undefined}
+                onClick={() => applyUnits(army.units, null)}
               >
                 {edit.toUpperCase()}: {army.name}
               </button>
             ))}
           </div>
 
-          {!guide && (
+          {!guide && !decksOnly && (
             <div className="picker-tabs">
               {!joinOnly && (
                 <button type="button" className={edit === "p1" ? "primary" : "ghost"} onClick={() => setEdit("p1")}>
@@ -152,6 +324,25 @@ export function ArmyBuilder({
               )}
             </div>
           )}
+
+          <div className="unit-stat-filter" role="toolbar" aria-label="Unit stat filter">
+            {PICK_FILTERS.map((filter) => {
+              const on = pickFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  className={`unit-stat-filter-btn${on ? " on" : ""}`}
+                  aria-pressed={on}
+                  title={filter.label}
+                  aria-label={filter.label}
+                  onClick={() => setPickFilter(filter.id)}
+                >
+                  {filter.id === "keywords" ? <StarFilterIcon /> : <StatIcon name={filter.id} size={22} />}
+                </button>
+              );
+            })}
+          </div>
 
           {CLASSES.map((unitClass) => (
             <div key={unitClass} className="class-block">
@@ -174,16 +365,20 @@ export function ArmyBuilder({
                         onClick={() => focusUnit(unit.id)}
                       >
                         <UnitArt name={unit.name} unitClass={unit.class} unitId={unit.id} compact />
+                        <PickStatBadge unit={unit} filter={pickFilter} />
                       </button>
-                      <button
-                        type="button"
-                        className={`pick-toggle${on ? " on" : ""}`}
-                        aria-pressed={on}
-                        disabled={!on && selected.length >= ARMY_SIZE}
-                        onClick={() => toggle(unit.id)}
-                      >
-                        {on ? "Selected" : "Select"}
-                      </button>
+                      <div className="pick-meta">
+                        <strong className="pick-name">{unit.name}</strong>
+                        <button
+                          type="button"
+                          className={`pick-toggle${on ? " on" : ""}`}
+                          aria-pressed={on}
+                          disabled={!on && selected.length >= ARMY_SIZE}
+                          onClick={() => toggle(unit.id)}
+                        >
+                          {on ? "Selected" : "Select"}
+                        </button>
+                      </div>
                     </article>
                   );
                 })}
@@ -248,7 +443,7 @@ export function ArmyBuilder({
             type="button"
             className="primary sg-btn-row"
             data-tut="builder-start"
-            disabled={guide ? false : Boolean(error) || busy}
+            disabled={guide || decksOnly ? false : Boolean(error) || busy}
             onClick={() => onConfirm({ p1, p2, aiDifficulty: vsAi ? aiDifficulty : undefined })}
           >
             <SgIconImg name="check" tone="gold" size={20} />
@@ -258,6 +453,38 @@ export function ArmyBuilder({
       </footer>
     </div>
   );
+}
+
+function StarFilterIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill={KEYWORD_YELLOW}
+        d="M12 2.6l2.72 5.72 6.28.72-4.7 4.3 1.3 6.2L12 16.7l-5.6 2.84 1.3-6.2-4.7-4.3 6.28-.72L12 2.6z"
+      />
+    </svg>
+  );
+}
+
+function PickStatBadge({ unit, filter }: { unit: UnitDef; filter: PickFilter }) {
+  let content: ReactNode = null;
+  if (filter === "keywords") {
+    if (unit.keywords.length === 0) return null;
+    content = unit.keywords.map((keyword) => (
+      <KeywordChip key={keyword.name} keyword={keyword} size={16} />
+    ));
+  } else if (filter === "supply") {
+    content = <SupplyChip value={unit.cost} />;
+  } else if (filter === "hp") {
+    content = <HpChip value={unit.hp} />;
+  } else if (filter === "atk") {
+    content = <AtkChip value={unit.atk} />;
+  } else if (filter === "armor") {
+    content = <ArmorChip value={unit.armor} />;
+  } else {
+    content = <ApChip value={unit.ap} />;
+  }
+  return <div className="pick-stat-badge">{content}</div>;
 }
 
 function DeckCardsList({ summary }: { summary: ArmySummary }): ReactNode {

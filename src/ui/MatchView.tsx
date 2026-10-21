@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
+import { createPortal } from "react-dom";
 import { boardFacingDeg } from "../data/unitArt";
 import { getUnitDef } from "../data/units";
 import { INITIATIVE_CARD_NAME, isInitiativeCard } from "../data/initiative";
@@ -167,6 +168,39 @@ function hostileAimIds(match: MatchState, draft: TargetDraft | null, viewer: Pla
     const ally = findUnit(match.board, draft.unitIds[0]);
     if (!ally) return [];
     return enemies.filter((e) => Math.abs(e.row - ally.row) === 1).map((e) => e.instanceId);
+  }
+  return [];
+}
+
+/** Allies that can be clicked for the current draft — gold reticle while picking (same as live match). */
+function friendlyAimIds(match: MatchState, draft: TargetDraft | null, viewer: PlayerId): string[] {
+  if (!draft) return [];
+  const kinds = draft.kinds;
+  const effect = targetingEffect(draft);
+  const moveDirs = dirsForEffect(effect);
+  // Destination step: cells light up; keep gold on already-picked movers only.
+  if (moveDirs && awaitingMoveDest(effect, draft.unitIds, draft.cells)) {
+    return draft.unitIds;
+  }
+  const allies = unitsOf(match.board, viewer).filter((u) => u.hp > 0);
+  if (kinds.includes("lure")) {
+    return draft.unitIds.length === 0 ? allies.map((u) => u.instanceId) : [];
+  }
+  if (kinds.includes("twoAdjacentAllies") || kinds.includes("twoAllies") || kinds.includes("twoUnitsOneStep")) {
+    return allies.filter((u) => !draft.unitIds.includes(u.instanceId)).map((u) => u.instanceId);
+  }
+  if (
+    kinds.includes("friendly") ||
+    kinds.includes("selfOrHq") ||
+    kinds.includes("allyOrHq") ||
+    kinds.includes("hqOrAlly") ||
+    kinds.includes("boardDest")
+  ) {
+    if (moveDirs && draft.unitIds.length >= unitsNeededForMove(effect)) return draft.unitIds;
+    return allies.map((u) => u.instanceId);
+  }
+  if (kinds.includes("anyUnit")) {
+    return allies.map((u) => u.instanceId);
   }
   return [];
 }
@@ -384,6 +418,8 @@ export function MatchView({
   useEffect(() => {
     if (!heldPlayback) return;
     return onPageHidden(() => finishCombat());
+    // finishCombat is a stable action wrapper; re-binding on every render would churn the listener.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- finishCombat
   }, [heldPlayback]);
 
   useEffect(() => {
@@ -457,6 +493,8 @@ export function MatchView({
     } else {
       setBusy(false);
     }
+    // playHandFlight closes over latest DOM/refs; identity changes every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- playHandFlight
   }, [match, viewer, showOwnCardPlays]);
 
   useEffect(() => {
@@ -486,6 +524,8 @@ export function MatchView({
       window.setTimeout(() => finishCardReveal(token, false), OPPONENT_CARD_PAUSE_MS);
     }, OPPONENT_CARD_FLY_MS + OPPONENT_CARD_PAUSE_MS);
     return () => window.clearTimeout(timer);
+    // Keyed by card identity so position/metadata updates don't restart the reveal timer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- cardNotice, finishCardReveal
   }, [cardNotice?.card.instanceId]);
 
   useEffect(() => {
@@ -511,6 +551,7 @@ export function MatchView({
       pendingDeploy,
       targetingTemplateId: draft?.card.templateId ?? (initiativeCard ? initiativeCard.templateId : null),
       targetingPickedUnits: draft?.unitIds.length ?? 0,
+      boardTargeting: Boolean(draft),
       initiativeOpen: Boolean(initiativeCard),
       animating: Boolean(heldPlayback) || busy || Boolean(cardNotice),
     });
@@ -581,6 +622,11 @@ export function MatchView({
   function clearPendingDeploy() {
     setPendingDeploy(null);
     setDesperateDiscards([]);
+  }
+
+  function tutorialMiss(message = "Follow the highlighted step.") {
+    if (!onTutorialHud) return;
+    setError(message);
   }
 
   function act(action: Action) {
@@ -753,17 +799,29 @@ export function MatchView({
           return;
         }
         next.unitIds.push(unit.instanceId);
-      } else return;
+      } else {
+        tutorialMiss();
+        return;
+      }
     } else if (moveUnits === 2) {
-      if (awaitingMoveDest(effect, next.unitIds, next.cells)) return;
-      if (unit.owner !== viewer || next.unitIds.includes(unit.instanceId) || next.unitIds.length >= 2) return;
+      if (awaitingMoveDest(effect, next.unitIds, next.cells)) {
+        tutorialMiss();
+        return;
+      }
+      if (unit.owner !== viewer || next.unitIds.includes(unit.instanceId) || next.unitIds.length >= 2) {
+        tutorialMiss();
+        return;
+      }
       if (!canPickSequentialMoveUnit(match, effect, next.unitIds, next.cells, unit, viewer)) {
         setError(`${unit.name} cannot move`);
         return;
       }
       next.unitIds.push(unit.instanceId);
     } else if (kinds.includes("twoAdjacentAllies") || kinds.includes("twoAllies")) {
-      if (unit.owner !== viewer || next.unitIds.includes(unit.instanceId) || next.unitIds.length >= 2) return;
+      if (unit.owner !== viewer || next.unitIds.includes(unit.instanceId) || next.unitIds.length >= 2) {
+        tutorialMiss();
+        return;
+      }
       next.unitIds.push(unit.instanceId);
     } else if (kinds.includes("anyUnit")) {
       if (isUntargetableBy(match, unit, viewer)) {
@@ -772,17 +830,24 @@ export function MatchView({
       }
       next.unitIds = [unit.instanceId];
     } else if (kinds.includes("enemy") || kinds.includes("anyEnemy") || kinds.includes("enemySupport")) {
-      if (unit.owner === viewer) return;
+      if (unit.owner === viewer) {
+        tutorialMiss();
+        return;
+      }
       if (isUntargetableBy(match, unit, viewer)) {
         setError(`${unit.name} cannot be targeted`);
         return;
       }
       next.unitIds = [unit.instanceId];
     } else if (unit.owner === viewer) {
-      if (moveUnits === 1 && next.cells.length > 0) return;
+      if (moveUnits === 1 && next.cells.length > 0) {
+        tutorialMiss();
+        return;
+      }
       next.unitIds = [unit.instanceId];
       next.cells = [];
     } else {
+      tutorialMiss();
       return;
     }
     updateDraft(next);
@@ -822,7 +887,9 @@ export function MatchView({
         return;
       }
       updateDraft({ ...draft, cells: [...draft.cells, { col, row }] });
+      return;
     }
+    tutorialMiss();
   }
 
   function clearDrag() {
@@ -881,6 +948,23 @@ export function MatchView({
     discardCardById(payload.id);
   }
 
+  function onBlockedCard(card: CardInstance) {
+    if (match.phase !== "maneuver") {
+      tutorialMiss("Cards can only be played during Maneuver");
+      return;
+    }
+    if (!sourceOnField(card)) {
+      const name = card.ownerUnitId ? getUnitDef(card.ownerUnitId).name : "That unit";
+      tutorialMiss(`${name} must be on the board to play this Special`);
+      return;
+    }
+    if (player.commandPoints < card.cost) {
+      tutorialMiss(`Need ${card.cost} Supply (have ${player.commandPoints})`);
+      return;
+    }
+    tutorialMiss("Drag this card onto the board.");
+  }
+
   function onPointerCardDrop(card: CardInstance, clientX: number, clientY: number) {
     const zone = resolvePointerDropZone(clientX, clientY, deckRef.current as import("../mobile/pointerCardDrag").HitNode | null);
     clearDrag();
@@ -890,13 +974,21 @@ export function MatchView({
     }
     if (zone.kind === "cell" || zone.kind === "board") {
       onPlayCard(card);
+      return;
     }
+    tutorialMiss("Drag this card onto the board.");
   }
 
   function onSelectHq(playerId: PlayerId) {
-    if (!draft) return;
+    if (!draft) {
+      tutorialMiss();
+      return;
+    }
     const kinds = draft.kinds;
-    if (!(kinds.includes("selfOrHq") || kinds.includes("allyOrHq") || kinds.includes("hqOrAlly"))) return;
+    if (!(kinds.includes("selfOrHq") || kinds.includes("allyOrHq") || kinds.includes("hqOrAlly"))) {
+      tutorialMiss();
+      return;
+    }
     if (playerId !== viewer) {
       setError("You can only target your own HQ");
       return;
@@ -910,6 +1002,7 @@ export function MatchView({
       : moveHighlights(match, draft)
     : [];
   const hostileIds = hostileAimIds(match, draft, viewer);
+  const friendlyIds = friendlyAimIds(match, draft, viewer);
   const canDiscard =
     myTurn &&
     player.discardRedrawsUsed < DISCARD_REDRAW_LIMIT &&
@@ -996,7 +1089,7 @@ export function MatchView({
       </div>
 
       <div className="match-stage" ref={stageRef}>
-        {dialogText && (
+        {dialogText && !(onTutorialHud && shownError) && (
           <div
             className={`play-dialog ${dialogTone}`}
             onClick={() => {
@@ -1009,7 +1102,28 @@ export function MatchView({
             {dialogText}
           </div>
         )}
-        {endReason && !combatInFlight && !fxInFlight && (
+        {onTutorialHud && shownError
+          ? createPortal(
+              <div className="tut-block" role="alertdialog" aria-label="Tutorial block">
+                <div className="tut-spot-card">
+                  <p className="eyebrow">Not this step</p>
+                  <p>{shownError}</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      setError(null);
+                      onClearError();
+                    }}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>,
+              document.body,
+            )
+          : null}
+        {endReason && !combatInFlight && !fxInFlight && !(onTutorialHud && viewerWon) && (
           <div className={`match-end ${viewerWon ? "win" : "lose"}`} role="dialog" aria-label={viewerWon ? "You win" : "You lose"}>
             <div className="match-end-window kit-window">
               <img
@@ -1050,6 +1164,7 @@ export function MatchView({
           selectedIds={selectedIds}
           kwFocusId={kwFocusId}
           hostileAimIds={hostileIds}
+          friendlyAimIds={friendlyIds}
           deployPlayer={match.phase === "deployment" && myTurn ? viewer : null}
           deployEnabled={match.phase === "deployment" && desperateReady && !locked}
           reachableCells={reachableCells}
@@ -1114,7 +1229,7 @@ export function MatchView({
                 <SupplyIcon size={16} />
                 <b>{foe.commandPoints}</b>
               </span>
-              <span className="foe-stat" title="Reserved units">
+              <span className="foe-stat" title="Reserved units" data-tut="enemy-reserve">
                 <span>Reserve</span>
                 <b>{foe.undeployed.length}</b>
               </span>
@@ -1296,6 +1411,7 @@ export function MatchView({
               onDragStart={beginCardDrag}
               onDragEnd={clearDrag}
               onPointerDrop={onPointerCardDrop}
+              onBlockedClick={onTutorialHud ? onBlockedCard : undefined}
               onPickCard={(card) => {
                 if (!pendingDeploy || desperateNeed <= 0) return;
                 setDesperateDiscards((prev) => {
@@ -1322,6 +1438,7 @@ export function MatchView({
               facing={viewer}
               onDragStart={beginCardDrag}
               onDragEnd={clearDrag}
+              onBlockedClick={onTutorialHud ? onBlockedCard : undefined}
               onPickCard={(card) => {
                 if (!pendingDeploy || desperateNeed <= 0) return;
                 setDesperateDiscards((prev) => {

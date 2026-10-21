@@ -31,6 +31,7 @@ export function HandView({
   onDragStart,
   onDragEnd,
   onPickCard,
+  onBlockedClick,
 }: {
   cards: CardInstance[];
   selectedId?: string;
@@ -48,6 +49,8 @@ export function HandView({
   onDragStart: (card: CardInstance) => void;
   onDragEnd: () => void;
   onPickCard?: (card: CardInstance) => void;
+  /** Click did not play the card (tutorial explains why). */
+  onBlockedClick?: (card: CardInstance) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -142,7 +145,11 @@ export function HandView({
               }
               onMouseEnter={() => setHoverId(card.instanceId)}
               onClick={() => {
-                if (pickMode && onPickCard) onPickCard(card);
+                if (pickMode && onPickCard) {
+                  onPickCard(card);
+                  return;
+                }
+                onBlockedClick?.(card);
               }}
               onDragStart={(event) => {
                 if (!canDrag) {

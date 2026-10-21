@@ -285,6 +285,7 @@ export function UnitToken({
   selected,
   kwFocus,
   hostileAim,
+  friendlyAim,
   hideArt,
   fadeInfo,
   fadeOut,
@@ -309,6 +310,8 @@ export function UnitToken({
   /** Mobile: first tap reveals keywords; a second tap opens the detail. */
   kwFocus?: boolean;
   hostileAim?: boolean;
+  /** Valid ally pick while a card draft is open — gold reticle. */
+  friendlyAim?: boolean;
   hideArt?: boolean;
   fadeInfo?: boolean;
   fadeOut?: boolean;
@@ -339,7 +342,7 @@ export function UnitToken({
     <button
       type="button"
       data-unit-id={unit.instanceId}
-      className={`unit-token ${layout === "board" ? "board-token" : ""} ${parkSide === "right" ? "park-right" : parkSide === "left" ? "park-left" : ""} ${selected ? "selected" : ""} ${kwFocus ? "kw-focus" : ""} ${hostileAim ? "hostile-aim" : ""} owner-${unit.owner} ${recoilClass} ${fadeInfo ? "info-fade" : ""} ${fadeOut ? "fade-out" : ""} ${unit.rested ? "rested" : ""} ${dying ? "dying" : ""}`}
+      className={`unit-token ${layout === "board" ? "board-token" : ""} ${parkSide === "right" ? "park-right" : parkSide === "left" ? "park-left" : ""} ${selected ? "selected" : ""} ${kwFocus ? "kw-focus" : ""} ${hostileAim ? "hostile-aim" : ""} ${friendlyAim ? "friendly-aim" : ""} owner-${unit.owner} ${recoilClass} ${fadeInfo ? "info-fade" : ""} ${fadeOut ? "fade-out" : ""} ${unit.rested ? "rested" : ""} ${dying ? "dying" : ""}`}
       data-tut={`unit-${unit.defId}`}
       onClick={(e) => {
         e.stopPropagation();
