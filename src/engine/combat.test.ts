@@ -23,6 +23,11 @@ function unit(partial: Partial<UnitInstance> & Pick<UnitInstance, "atk" | "armor
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
     ...partial,
   };
 }
@@ -87,5 +92,12 @@ describe("keyword parser", () => {
     ]);
     expect(parseKeywords("Aggresive 4")).toEqual([{ name: "aggressive", value: 4 }]);
     expect(parseKeywords("Retaliation:3")).toEqual([{ name: "retaliate", value: 3 }]);
+  });
+
+  it("parses expansion keyword names", () => {
+    expect(parseKeywords("First Strike 6; Hull Down")).toEqual([
+      { name: "firstStrike", value: 6 },
+      { name: "hulldown", value: 1 },
+    ]);
   });
 });

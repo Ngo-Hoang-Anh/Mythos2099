@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { createPortal } from "react-dom";
+import { playUi, startBattleMusic, startMenuMusic } from "../audio";
 import { boardFacingDeg } from "../data/unitArt";
 import { getUnitDef } from "../data/units";
 import { INITIATIVE_CARD_NAME, isInitiativeCard } from "../data/initiative";
@@ -333,6 +334,11 @@ export function MatchView({
   const [kwFocusId, setKwFocusId] = useState<string | null>(null);
   const [cardNotice, setCardNotice] = useState<CardNotice | null>(null);
 
+  useEffect(() => {
+    startBattleMusic();
+    return () => startMenuMusic();
+  }, []);
+
   const finishingCombat = useRef(false);
   const dragRef = useRef<DragPayload | null>(null);
   const deckRef = useRef<HTMLDivElement>(null);
@@ -626,6 +632,7 @@ export function MatchView({
 
   function tutorialMiss(message = "Follow the highlighted step.") {
     if (!onTutorialHud) return;
+    playUi("error");
     setError(message);
   }
 
@@ -645,6 +652,7 @@ export function MatchView({
           .filter((name): name is string => Boolean(name)),
       };
     }
+    playUi("confirm");
     setError(null);
     setDraft(null);
     setInitiativeCard(null);
@@ -669,6 +677,7 @@ export function MatchView({
       prompt: promptFor(card.targets[0], 0),
     };
     if (dirsForEffect(targetingEffect(next))) next.prompt = destPrompt(match, next, viewer);
+    playUi("select");
     setError(null);
     setDraft(next);
   }
@@ -701,19 +710,23 @@ export function MatchView({
 
   function onPlayCard(card: CardInstance) {
     if (committedMove) {
+      playUi("error");
       setError("Finish moving both units");
       return;
     }
     if (match.phase !== "maneuver") {
+      playUi("error");
       setError("Cards can only be played during Maneuver");
       return;
     }
     if (!sourceOnField(card)) {
       const name = card.ownerUnitId ? getUnitDef(card.ownerUnitId).name : "That unit";
+      playUi("error");
       setError(`${name} must be on the board to play this Special`);
       return;
     }
     if (player.commandPoints < card.cost) {
+      playUi("error");
       setError(`Need ${card.cost} Supply (have ${player.commandPoints})`);
       return;
     }
@@ -770,14 +783,17 @@ export function MatchView({
     if (!draft) {
       if (isMobileShellUi()) {
         if (kwFocusId !== unit.instanceId) {
+          playUi("cursor");
           setKwFocusId(unit.instanceId);
           return;
         }
         setKwFocusId(null);
       }
+      playUi("popupOpen");
       setInspect({ mode: "board", unit, match });
       return;
     }
+    playUi("select");
     const effect = targetingEffect(draft);
     const viaUnit = moveDestUnderUnit(match, effect, draft.unitIds, draft.cells, unit);
     if (viaUnit) {
@@ -1308,6 +1324,7 @@ export function MatchView({
           type="button"
           className="round-btn float-cancel sg-float"
           onClick={() => {
+            playUi("cancel");
             setDraft(null);
             clearPendingDeploy();
             setInitiativeCard(null);
@@ -1532,7 +1549,16 @@ export function MatchView({
         </div>
       </div>
 
-      {inspect && <UnitDetailDialog target={inspect} onClose={() => setInspect(null)} facing={viewer} />}
+      {inspect && (
+        <UnitDetailDialog
+          target={inspect}
+          onClose={() => {
+            playUi("popupClose");
+            setInspect(null);
+          }}
+          facing={viewer}
+        />
+      )}
 
       {initiativeCard && (
         <div className="choice-modal" onClick={() => setInitiativeCard(null)}>

@@ -8,8 +8,8 @@ import {
   supportFireFromOthers,
   takesReturnFire,
 } from "../engine/combat/helpers";
-import { armorPiercingOf, hasKeyword } from "../engine/keywords";
-import { isUntargetableBy, statusesOf } from "../engine/status";
+import { armorPiercingOf, hasKeyword, keywordValue } from "../engine/keywords";
+import { hulldownGunReduction, isUntargetableBy, statusesOf } from "../engine/status";
 import type { BoardPos, MatchState, PlayerId, UnitInstance } from "../engine/types";
 
 export interface HpForecast {
@@ -32,7 +32,7 @@ function repeatBonus(state: MatchState, shooter: UnitInstance, targetKey: string
 }
 
 function volleyAp(state: MatchState, unit: UnitInstance): number {
-  let ap = armorPiercingOf(unit);
+  let ap = armorPiercingOf(unit) + keywordValue(unit, "firstStrike");
   if (
     statusesOf(state, "supportFireGrantsAp", unit.owner).length > 0 &&
     supportFireFromOthers(state, unit).amount > 0
@@ -43,11 +43,12 @@ function volleyAp(state: MatchState, unit: UnitInstance): number {
 }
 
 function gunDamage(state: MatchState, shooter: UnitInstance, target: UnitInstance, asAttacker: boolean): number {
-  return computeStrikeDamage({
+  const dmg = computeStrikeDamage({
     atk: strikeAtk(state, shooter, asAttacker) + repeatBonus(state, shooter, target.instanceId),
     armor: defenseArmor(target),
     armorPiercing: volleyAp(state, shooter),
   });
+  return Math.max(0, dmg - hulldownGunReduction(state, target));
 }
 
 /** Where a normal attack would land, and HP after the shot plus return fire. */

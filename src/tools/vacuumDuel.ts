@@ -1,7 +1,7 @@
 import { UNITS, getUnitDef } from "../data/units";
 import { emptyBoard, frontCol, placeUnit, supportCol } from "../engine/board";
 import { beginEngagement } from "../engine/combat/engagement";
-import { hasKeyword } from "../engine/keywords";
+import { hasKeyword, syncDefensePools } from "../engine/keywords";
 import { mulberry32State } from "../engine/rng";
 import type { MatchState, PlayerId, UnitDef, UnitInstance } from "../engine/types";
 import { HQ_MAX_HP } from "../engine/types";
@@ -85,8 +85,9 @@ function blankMatch(attacker: PlayerId): MatchState {
 }
 
 function deployCol(owner: PlayerId, def: UnitDef): number {
-  const battery = hasKeyword(def, "artillery") || hasKeyword(def, "airStrike");
-  return battery ? supportCol(owner) : frontCol(owner);
+  const backline =
+    hasKeyword(def, "artillery") || hasKeyword(def, "airStrike") || hasKeyword(def, "jetPlane");
+  return backline ? supportCol(owner) : frontCol(owner);
 }
 
 export function spawnVacuumUnit(state: MatchState, defId: number, owner: PlayerId): UnitInstance {
@@ -114,7 +115,13 @@ export function spawnVacuumUnit(state: MatchState, defId: number, owner: PlayerI
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
+  syncDefensePools(unit);
   state.idSeq += 1;
   placeUnit(state.board, unit);
   return unit;
@@ -344,8 +351,9 @@ export function renderVacuumDuelMarkdown(opts?: { generatedAt?: string; units?: 
     "",
     "- Two units only, same lane, no cards, no Cover/Flank relocation, no allied Support Fire.",
     "- Artillery / Air Strike stay on Support; everyone else on Frontline.",
-    "- **One engagement:** attacker volley (ATK + Aggressive + AP) → defender counter (ATK + Retaliate + AP) → attacker missiles (50% armor rounded down, no AP).",
+    "- **One engagement:** full engine gun math — ATK + Aggressive/Retaliate + First Strike (once), AP, Shield/Barrier, Sloped, Hulldown; **Shock** only depletes Shield/Barrier; **Corrosion −Armor once** before damage; then missiles (50% armor, no AP).",
     "- **Two-round exchange:** that engagement, then roles reverse with leftover HP if both still live.",
+    "- Still omitted: cards, Cover/Flank relocation, allied Support Fire, Smoke dodge setup, Suppression marks, Fire DoT ticks, Radar re-aim, Loki Copy.",
     "- Cell mark: `W` attacker lives & defender dies, `L` attacker dies, `X` both die, `·` both live.",
     "",
     "## Roster / short codes",

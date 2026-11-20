@@ -1,8 +1,9 @@
 import { missileDamage, missilePowerOf } from "../combat";
 import { unitsOf } from "../board";
+import { camouflageBlocksMissile, keywordValue } from "../keywords";
 import { log, withLogGroup } from "../state";
 import { isUntargetableBy } from "../status";
-import type { BoardPos, MatchState, UnitInstance } from "../types";
+import type { BoardPos, MatchState, PlayerId, UnitInstance } from "../types";
 import { pushAttack } from "../fx";
 import { resolveDestroyedUnits } from "./cleanup";
 import {
@@ -29,7 +30,7 @@ function enemyOnLock(state: MatchState, shooter: UnitInstance, pos: BoardPos): U
   return unit;
 }
 
-function lockMissileTarget(state: MatchState, shooter: UnitInstance, ctx?: CombatCtx): void {
+export function lockMissileTarget(state: MatchState, shooter: UnitInstance, ctx?: CombatCtx): void {
   const next = pickMissileTarget(state, shooter);
   if (!next) {
     shooter.missileTarget = null;
@@ -42,6 +43,15 @@ function lockMissileTarget(state: MatchState, shooter: UnitInstance, ctx?: Comba
     unitId: shooter.instanceId,
     to: { col: next.col, row: next.row },
   });
+}
+
+/** Radar: every living allied Missile unit re-locks. */
+export function reaimAlliedMissiles(state: MatchState, owner: PlayerId): void {
+  for (const unit of unitsOf(state.board, owner)) {
+    if (unit.hp <= 0 || keywordValue(unit, "missile") <= 0) continue;
+    lockMissileTarget(state, unit);
+  }
+  log(state, `Radar: allied missiles re-aim`, "radar");
 }
 
 export function resolveMissileShot(
@@ -60,6 +70,9 @@ export function resolveMissileShot(
   }
   const target = locked;
   const dmg = missileDamage(state, shooter, target);
+  if (dmg <= 0 && camouflageBlocksMissile(state, shooter, target)) {
+    log(state, `${target.name} Camouflage blocks Missile`, "camouflage");
+  }
   if (ctx) {
     ctx.steps.push({
       kind: "shot",
@@ -82,6 +95,7 @@ export function resolveMissileShot(
   }
   if (dmg > 0) {
     target.hp -= dmg;
+    target.tookDamageSinceRegen = true;
     log(state, `${shooter.name} deals ${dmg} with Missile to ${target.name} (${Math.max(target.hp, 0)} HP)`, "missile");
     if (ctx) ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
   }

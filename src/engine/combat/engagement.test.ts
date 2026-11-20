@@ -41,6 +41,11 @@ function spawn(state: MatchState, defId: number, owner: PlayerId, col: number, r
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
   placeUnit(state.board, unit);
   return unit;
@@ -86,11 +91,11 @@ describe("relocation phase", () => {
 
   it("Cover prefers a lane that has own artillery on Support", () => {
     const state = blankMatch();
-    spawn(state, 3, 0, P1_FRONT, 0);
+    spawn(state, 6, 0, P1_FRONT, 0);
     spawn(state, 12, 0, P1_SUPPORT, 3);
     spawn(state, 4, 1, P2_FRONT, 3);
     runRelocationPhase(state, ctx());
-    expect(state.board[P1_FRONT][3]?.defId).toBe(3);
+    expect(state.board[P1_FRONT][3]?.defId).toBe(6);
     expect(state.board[P1_FRONT][3]?.rested).toBe(false);
   });
 
@@ -269,11 +274,11 @@ describe("stats and damage phases", () => {
     expect(state.board[P1_FRONT][2]?.isAttacker).toBe(true);
     expect(state.board[P1_FRONT][2]?.combatAtkBonus).toBe(2);
     expect(state.board[P2_FRONT][2]?.isAttacker).toBe(false);
-    expect(state.board[P2_FRONT][2]?.combatAtkBonus).toBe(10);
+    expect(state.board[P2_FRONT][2]?.combatAtkBonus).toBe(8);
     runDamagePhase(state, ctx());
-    expect(state.board[P2_FRONT][2]?.hp).toBe(15);
-    // Heimdall (2 ATK + Retaliate/SF bonus, AP 2) deletes Sarama (10 HP, Armor 2).
-    expect(state.board[P1_FRONT][2]).toBeNull();
+    expect(state.board[P2_FRONT][2]?.hp).toBe(11);
+    // Heimdall (0 ATK + Retaliate 6 + SF 2, AP 1) leaves Sarama at 4.
+    expect(state.board[P1_FRONT][2]?.hp).toBe(4);
   });
 
   it("applies Support Fire to every other ally in the same lane", () => {
@@ -499,13 +504,15 @@ describe("stats and damage phases", () => {
 
   it("still records a shot when armor blocks all damage", () => {
     const state = blankMatch();
-    spawn(state, 4, 0, P1_FRONT, 1);
+    const atk = spawn(state, 4, 0, P1_FRONT, 1);
+    // Keep strike ≤3 so Xuanwu Sloped Armor fully blocks (Sarama catalog ATK is higher).
+    atk.atk = 3;
     spawn(state, 3, 1, P2_FRONT, 1);
     const c = ctx();
     runDamagePhase(state, c);
     const blocked = c.steps.find((s) => s.kind === "shot" && s.side === "attack");
     expect(blocked?.kind === "shot" && blocked.damage === 0).toBe(true);
-    expect(blocked?.kind === "shot" && blocked.power).toBe(6);
+    expect(blocked?.kind === "shot" && blocked.power).toBe(5);
     expect(blocked?.kind === "shot" && blocked.targetMaxHp).toBe(getUnitDef(3).hp);
   });
 });
@@ -740,7 +747,7 @@ describe("mid-turn extra engagement", () => {
     expect(match.board[P1_SUPPORT][3]?.defId).toBe(17);
     expect(playbackPhases(match)).toEqual(["stats", "damage"]);
     expect(match.board[P1_FRONT][1]?.combatAtkBonus).toBe(4);
-    expect(match.board[P2_FRONT][1]!.hp).toBe(getUnitDef(4).hp - 7);
+    expect(match.board[P2_FRONT][1]!.hp).toBe(getUnitDef(4).hp - 4);
     expect(match.board[P2_FRONT][0]?.hp).toBe(bystanderHp);
     expect(match.players[1].hqHp).toBe(HQ_MAX_HP);
     match = must(match, { type: "endEngagement" });
@@ -807,7 +814,7 @@ describe("mid-turn extra engagement", () => {
     match.players[0].commandPoints = 5;
     match = must(match, { type: "playCard", cardId: "trap-card", targets: { unitIds: [trapped.instanceId] } });
     expect(match.phase).toBe("engagement");
-    expect(match.board[P2_FRONT][2]?.hp).toBe(trapped.maxHp - 5);
+    expect(match.board[P2_FRONT][2]?.hp).toBe(trapped.maxHp - 4);
     expect(match.board[P1_FRONT][2]?.combatAtkBonus).toBe(5);
     expect(match.board[P2_FRONT][2]?.combatAtkBonus).toBe(0);
     expect(match.board[P2_SUPPORT][2]?.hp).toBe(behindHp);
@@ -869,7 +876,7 @@ describe("mid-turn extra engagement", () => {
     expect(match.board[P1_FRONT][2]?.hp).toBeLessThan(trenchMax);
     expect(match.board[P1_SUPPORT][2]?.hp).toBe(getUnitDef(3).hp);
     expect(match.board[P2_FRONT][2]?.hp).toBeLessThan(enemy.maxHp);
-    expect(match.board[P1_FRONT][2]?.combatAtkBonus).toBe(8);
+    expect(match.board[P1_FRONT][2]?.combatAtkBonus).toBe(6);
   });
 
   it("extra engagement missile does not skip a remaining blocker to HQ after the participant dies", () => {

@@ -1,5 +1,5 @@
 import { allUnits, findUnit } from "./board";
-import { applyUnitDamage, healUnit } from "./hp";
+import { applyUnitDamage, healUnit, maybeUnitDeathComeback } from "./hp";
 import type {
   Keyword,
   MatchState,
@@ -9,6 +9,13 @@ import type {
   StatusKind,
   UnitInstance,
 } from "./types";
+
+function removeFireKills(state: MatchState): void {
+  for (const unit of allUnits(state.board).filter((entry) => entry.hp <= 0)) {
+    state.board[unit.col][unit.row] = null;
+    maybeUnitDeathComeback(state, unit.owner, unit.name);
+  }
+}
 
 export function cloneStatuses(statuses: StatusEffect[]): StatusEffect[] {
   return statuses.map((status) => ({
@@ -29,6 +36,7 @@ export function addStatus(
     owner: PlayerId;
     targetId?: string;
     lane?: number;
+    col?: number;
     duration: StatusDuration;
     remainingPasses?: number;
     suppressedKeywords?: StatusEffect["suppressedKeywords"];
@@ -45,6 +53,7 @@ export function addStatus(
     owner: opts.owner,
     targetId: opts.targetId,
     lane: opts.lane,
+    col: opts.col,
     duration: opts.duration,
     remainingPasses,
     hitKeys: opts.kind === "artilleryRepeat" ? [] : undefined,
@@ -109,18 +118,28 @@ export function tickStatuses(state: MatchState): void {
         healUnit(unit, status.magnitude);
       }
     }
+    if (status.kind === "fireDot" && status.targetId && status.magnitude > 0) {
+      const unit = findUnit(state.board, status.targetId);
+      if (unit && unit.hp > 0) {
+        applyUnitDamage(state, unit, status.magnitude, "Fire");
+        unit.tookDamageSinceRegen = true;
+      }
+    }
     if (status.duration === "thisCombat") continue;
+    // untilConsumed statuses (Hulldown) do not expire by pass count.
+    if (status.duration === "untilConsumed") continue;
     status.remainingPasses -= 1;
   }
+  removeFireKills(state);
   const expired = state.statuses.filter((status) => {
-    if (status.duration === "thisCombat") return false;
+    if (status.duration === "thisCombat" || status.duration === "untilConsumed") return false;
     return status.remainingPasses <= 0;
   });
   for (const status of expired) {
     restoreSuppressedKeywords(state, status);
   }
   state.statuses = state.statuses.filter((status) => {
-    if (status.duration === "thisCombat") return true;
+    if (status.duration === "thisCombat" || status.duration === "untilConsumed") return true;
     return status.remainingPasses > 0;
   });
   rebuildTempBuffs(state);
@@ -176,6 +195,22 @@ export function afterGunAttack(state: MatchState, attacker: UnitInstance): void 
     if (status.targetId !== attacker.instanceId) continue;
     applyUnitDamage(state, attacker, status.magnitude, "Sticky Bomb");
   }
+}
+
+/** Flat gun-damage reduction while dug in (missiles ignore this). */
+export function hulldownGunReduction(state: MatchState, unit: UnitInstance): number {
+  const status = state.statuses.find(
+    (entry) => entry.kind === "hulldownArmor" && entry.targetId === unit.instanceId,
+  );
+  return status ? Math.max(0, status.magnitude) : 0;
+}
+
+/** Clear Hulldown dig-in when the unit moves. */
+export function clearHulldownOnMove(state: MatchState, unit: UnitInstance): void {
+  const active = state.statuses.filter(
+    (status) => status.targetId === unit.instanceId && status.kind === "hulldownArmor",
+  );
+  for (const status of active) removeStatus(state, status.id);
 }
 
 export function rebuildTempBuffs(state: MatchState): void {

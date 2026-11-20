@@ -1,6 +1,7 @@
 import { getUnitDef } from "../data/units";
 import { emptyBoard, placeUnit } from "./board";
 import { revealUnit } from "./deckTracker";
+import { syncDefensePools } from "./keywords";
 import { mulberry32State } from "./rng";
 import { log, nid } from "./state";
 import {
@@ -97,7 +98,13 @@ export function spawnUnit(state: MatchState, spec: SpawnSpec): UnitInstance {
     rested: spec.rested ?? false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
+  syncDefensePools(unit);
   if (state.board[spec.col][spec.row]) {
     throw new Error(`Cell ${spec.col},${spec.row} is occupied`);
   }

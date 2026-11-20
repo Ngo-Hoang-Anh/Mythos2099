@@ -23,10 +23,10 @@ describe("special skill constants", () => {
     expect(SPECIAL_SKILL_DAMAGE[1].damage).toBe(8);
     expect(SPECIAL_SKILL_DAMAGE[11].damage).toBe(6);
     expect(SPECIAL_SKILL_DAMAGE[12].damage).toBe(7);
-    expect(SPECIAL_SKILL_DAMAGE[27].damage).toBe(8);
+    expect(SPECIAL_SKILL_DAMAGE[27].damage).toBe(5);
     expect(SPECIAL_SKILL_DAMAGE[23].damage).toBe(8);
     expect(SPECIAL_SKILL_DAMAGE[10].damage).toBe(5);
-    expect(SPECIAL_SKILL_DAMAGE[2].damage).toBe(11);
+    expect(SPECIAL_SKILL_DAMAGE[2].damage).toBe(9);
     expect(SPECIAL_SKILL_DAMAGE[16].damage).toBe(12);
     expect(SPECIAL_SKILL_DAMAGE[4].damage).toBe(0);
   });
@@ -35,11 +35,11 @@ describe("special skill constants", () => {
 describe("offense breakdown", () => {
   it("uses 2×ATK + Aggressive + Retaliate for self damage and 2 SF allies", () => {
     const apex = offenseBreakdownOf(UNITS.find((u) => u.id === 2)!);
-    expect(apex.selfAtkDmg).toBe(3 + 4 + 3 + 0);
+    expect(apex.selfAtkDmg).toBe(3 + 2 + 3 + 0);
     expect(apex.supportFireDmg).toBe(ASSUMED_SUPPORT_ALLIES * ASSUMED_SUPPORT_FIRE * 2);
     expect(apex.rallyDmg).toBe(0);
     expect(apex.indirectDmg).toBe(0);
-    expect(apex.specialDmg).toBe(11);
+    expect(apex.specialDmg).toBe(9);
     expect(apex.totalDmg).toBe(apex.selfAtkDmg + apex.allyBuffDmg + apex.indirectDmg + apex.specialDmg);
   });
 
@@ -70,7 +70,7 @@ describe("defense breakdown", () => {
     expect(catalog.maxTotalAtk.totalAtk).toBe(10);
     expect(catalog.maxAp.id).toBe(16);
     expect(catalog.maxAp.ap).toBe(8);
-    expect(catalog.maxAtkPlusAp.id).toBe(27);
+    expect(catalog.maxAtkPlusAp.id).toBe(12);
   });
 
   it("averages include zeros", () => {

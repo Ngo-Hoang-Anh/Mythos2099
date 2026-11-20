@@ -108,4 +108,40 @@ export const UNIT_IDENTITY: Record<number, { name: string; lore: string }> = {
     name: "Suzaku Komet",
     lore: "Chinese Mythology — Striking like the Vermilion Bird, this high-speed jet executes rapid hit-and-run strafes before returning to reserves.",
   },
+  28: {
+    name: "Qinglong",
+    lore: "Chinese Mythology — The Azure Dragon of the East fields barrier lattices and shock lances that tear through energy shields.",
+  },
+  29: {
+    name: "Baihu",
+    lore: "Chinese Mythology — The White Tiger prowls as a veteran raider whose sloped armor and regenerating shields shrug off glancing fire.",
+  },
+  30: {
+    name: "Pandora",
+    lore: "Greek Mythology — Opening sealed warheads of smoke, suppression, and corrosion, this robot poisons the tempo of every engagement.",
+  },
+  31: {
+    name: "Excalibur",
+    lore: "Arthurian Mythology — A first-strike infantry spear that grows deadlier with every exchange, named for the blade that chose its king.",
+  },
+  32: {
+    name: "Longinus",
+    lore: "Christian Mythology — Artillery named for the holy lance, delivering an opening AP burst that softens fortress armor from the back line.",
+  },
+  33: {
+    name: "Thor",
+    lore: "Norse Mythology — A compact thunder tank pairing regenerative shields with EMP shock to crack enemy barriers.",
+  },
+  34: {
+    name: "Artemis",
+    lore: "Greek Mythology — The huntress jet scouts the front and paints the sky so allied missiles can lock again mid-fight.",
+  },
+  35: {
+    name: "Agni",
+    lore: "Hindu Mythology — The fire god's gunship ignites foes with first-strike heat, lingering fire, and corrosive payload.",
+  },
+  36: {
+    name: "Loki",
+    lore: "Norse Mythology — A camouflaged trickster vehicle that copies another unit's combat profile behind a regenerating shield.",
+  },
 };

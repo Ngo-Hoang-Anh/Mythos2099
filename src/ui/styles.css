@@ -530,6 +530,19 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
   overflow: visible;
   padding: 0;
 }
+.unit-art.has-iso {
+  overflow: visible;
+}
+.iso-art {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.iso-art-frame {
+  background-repeat: no-repeat;
+  image-rendering: auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
 .squad-svg,
 .sprite-svg {
   display: block;
@@ -990,6 +1003,24 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
   transition: opacity 0.14s ease, visibility 0.14s ease;
   z-index: 5;
 }
+.unit-token.board-token .unit-statuses {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 16px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.14rem;
+  width: max-content;
+  max-width: 140px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease, visibility 0.14s ease;
+  z-index: 5;
+}
 .unit-token.board-token.park-left .unit-keys {
   left: calc(100% + 38px);
 }
@@ -1002,13 +1033,20 @@ button:hover:not(:disabled) { filter: brightness(1.08); }
 .unit-token.board-token.selected .unit-keys,
 .unit-token.board-token:focus-visible .unit-keys,
 .unit-token.board-token:has([data-tut-spot]) .unit-keys,
-.unit-token.board-token[data-tut-spot] .unit-keys {
+.unit-token.board-token[data-tut-spot] .unit-keys,
+.unit-token.board-token:hover .unit-statuses,
+.unit-token.board-token.selected .unit-statuses,
+.unit-token.board-token:focus-visible .unit-statuses,
+.unit-token.board-token:has([data-tut-spot]) .unit-statuses,
+.unit-token.board-token[data-tut-spot] .unit-statuses {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 html.is-mobile-shell .unit-token.board-token:hover .unit-keys,
-html.is-mobile-shell .unit-token.board-token:focus-visible .unit-keys {
+html.is-mobile-shell .unit-token.board-token:focus-visible .unit-keys,
+html.is-mobile-shell .unit-token.board-token:hover .unit-statuses,
+html.is-mobile-shell .unit-token.board-token:focus-visible .unit-statuses {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1020,7 +1058,11 @@ html.is-mobile-shell .unit-token.board-token.selected {
 html.is-mobile-shell .unit-token.board-token.kw-focus .unit-keys,
 html.is-mobile-shell .unit-token.board-token.selected .unit-keys,
 html.is-mobile-shell .unit-token.board-token:has([data-tut-spot]) .unit-keys,
-html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-keys {
+html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-keys,
+html.is-mobile-shell .unit-token.board-token.kw-focus .unit-statuses,
+html.is-mobile-shell .unit-token.board-token.selected .unit-statuses,
+html.is-mobile-shell .unit-token.board-token:has([data-tut-spot]) .unit-statuses,
+html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-statuses {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -1034,6 +1076,24 @@ html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-keys {
 .unit-token.board-token .kw-chip .file-icon {
   width: 16px !important;
   height: 16px !important;
+}
+.kw-chip.status-chip.buff .chip-val {
+  color: #3dcf6a;
+}
+.kw-chip.status-chip.debuff .chip-val {
+  color: #e4453a;
+}
+.chip-tip.status-tip.buff {
+  border-color: #2f8a48;
+}
+.chip-tip.status-tip.debuff {
+  border-color: #a33a32;
+}
+.chip-tip.status-tip.buff b {
+  color: #3dcf6a;
+}
+.chip-tip.status-tip.debuff b {
+  color: #e4453a;
 }
 .unit-token.selected { outline: 2px solid var(--accent); }
 .unit-token.board-token.selected {

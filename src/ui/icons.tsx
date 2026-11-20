@@ -3,6 +3,11 @@ import type { CardType, EffectId, Keyword, KeywordName } from "../engine/types";
 import { FLAG_KEYWORDS } from "../engine/keywords";
 import { keywordHelp, STAT_HELP } from "../engine/armySummary";
 import { TipHost } from "./AnchoredTip";
+import {
+  STATUS_POLARITY_COLOR,
+  statusChipLabel,
+  type UnitStatusChip,
+} from "./unitStatuses";
 
 export const KEYWORD_YELLOW = "#e6c84a";
 
@@ -25,6 +30,20 @@ const KEYWORD_FILE: Record<KeywordName, string> = {
   airStrike: "heavy-bullets.svg",
   missile: "missle.svg",
   jetPlane: "jet-fighter.svg",
+  camouflage: "camouflage.svg",
+  smokeScreen: "smoke-screen.svg",
+  suppression: "suppression.svg",
+  scout: "scout.svg",
+  shield: "shield.svg",
+  barrier: "barrier.svg",
+  shock: "shock.svg",
+  veteran: "veteran.svg",
+  firstStrike: "first-strike.svg",
+  fire: "fire.svg",
+  radar: "radar.svg",
+  hulldown: "hulldown.svg",
+  slopedArmor: "sloped-armor.svg",
+  corrosion: "corrosion.svg",
 };
 
 export const STAT_ICON_SIZE = 24;
@@ -100,8 +119,45 @@ export function cardArtFlipsForFacing(effectId: EffectId): boolean {
   }
 }
 
-export function KeywordIcon({ name, size = KEYWORD_ICON_SIZE }: { name: KeywordName; size?: number }) {
-  return <FileIcon file={KEYWORD_FILE[name]} color={KEYWORD_YELLOW} size={size} />;
+export function KeywordIcon({
+  name,
+  size = KEYWORD_ICON_SIZE,
+  color = KEYWORD_YELLOW,
+}: {
+  name: KeywordName;
+  size?: number;
+  color?: string;
+}) {
+  return <FileIcon file={KEYWORD_FILE[name]} color={color} size={size} />;
+}
+
+/** Buff (green) / debuff (red) chip — same glyph language as keyword skills. */
+export function StatusEffectChip({
+  chip,
+  size = 16,
+}: {
+  chip: UnitStatusChip;
+  size?: number;
+}) {
+  const color = STATUS_POLARITY_COLOR[chip.polarity];
+  const title = statusChipLabel(chip);
+  const file = chip.file ?? KEYWORD_FILE[chip.icon];
+  return (
+    <TipHost
+      className={`kw-chip status-chip ${chip.polarity}`}
+      tipClassName={`chip-tip kw-tip status-tip ${chip.polarity}`}
+      aria-label={`${title}. ${chip.body}`}
+      tip={
+        <>
+          <b>{title}</b>
+          <p>{chip.body}</p>
+        </>
+      }
+    >
+      <FileIcon file={file} color={color} size={size} title={title} />
+      {chip.value != null ? <span className="chip-val">{chip.value}</span> : null}
+    </TipHost>
+  );
 }
 
 export function LogGlyph({ icon, size = 14 }: { icon?: import("../engine/types").LogIcon; size?: number }) {

@@ -843,6 +843,15 @@ function targetsForSpecial(
       const other = allies.find((u) => u.instanceId !== source.instanceId && keywordValue(u, "missile") > 0);
       return other ? { unitIds: [other.instanceId] } : null;
     }
+    case "lokiCopy": {
+      if (!source) return null;
+      const pool = [...allies, ...livingEnemiesByWeakness(state, current(state).id)].filter(
+        (unit) => unit.instanceId !== source.instanceId && unit.hp > 0,
+      );
+      if (pool.length === 0) return null;
+      pool.sort((a, b) => b.atk + b.armor + b.ap - (a.atk + a.armor + a.ap));
+      return { unitIds: [pool[0]!.instanceId] };
+    }
     case "emergencyOverhaul":
     case "supplyLogistics":
     case "emergencyMedicalKit":

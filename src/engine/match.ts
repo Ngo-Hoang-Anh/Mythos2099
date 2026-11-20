@@ -15,7 +15,8 @@ import {
 } from "./board";
 import { playEffect } from "./effects";
 import { relocateUnit } from "./fx";
-import { hasKeyword, restsOnDeploy } from "./keywords";
+import { hasKeyword, restsOnDeploy, syncDefensePools } from "./keywords";
+import { runOwnerEndOfTurn, runShieldRegen } from "./combat/keywordEffects";
 import { discardsNeeded, needsDesperateMeasure } from "./desperateMeasure";
 import { applyEliminationLoss, projectedDeploySupply } from "./elimination";
 import { mulberry32State, shuffle } from "./rng";
@@ -198,6 +199,7 @@ function startTurn(state: MatchState, playerId: PlayerId): void {
   player.turnsTaken += 1;
   player.discardRedrawsUsed = 0;
   player.deploysThisTurn = 0;
+  runShieldRegen(state, playerId);
   refreshCp(state, playerId);
   if (player.turnsTaken > 1) {
     const drawBonus = player.nextTurnDrawBonus;
@@ -290,6 +292,7 @@ function surrender(state: MatchState, loser: PlayerId): string | null {
 
 function passTurn(state: MatchState): void {
   clearRested(state);
+  runOwnerEndOfTurn(state, state.currentPlayer);
   tickStatuses(state);
   const next: PlayerId = state.currentPlayer === 0 ? 1 : 0;
   state.turn += 1;
@@ -400,7 +403,13 @@ function commitDeploy(state: MatchState, player: PlayerState, def: UnitDef, row:
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
+  syncDefensePools(unit);
   placeUnit(state.board, unit);
   revealUnit(player, unit.defId);
   if (restsOnDeploy(unit)) {

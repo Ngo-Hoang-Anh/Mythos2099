@@ -30,6 +30,10 @@ const STATUS_LABEL: Record<string, (s: StatusEffect) => string> = {
   regen: (s) => `Repair ${s.magnitude} HP / turn (${s.remainingPasses} left)`,
   untargetable: () => "Cannot be targeted",
   suppressKeywords: () => "Keywords suppressed",
+  smokeDodge: () => "Smoke Screen — dodging gun hits",
+  suppressionMark: () => "Suppression mark (−1 ATK / −2 AP)",
+  fireDot: (s) => `Fire ${s.magnitude} each turn`,
+  hulldownArmor: (s) => `Hulldown (−${s.magnitude} gun damage)`,
 };
 
 function durationHint(status: StatusEffect): string {
@@ -79,12 +83,19 @@ export function UnitDetailDialog({
     if (unit.tempAp) rows.push(`${unit.tempAp >= 0 ? "+" : ""}${unit.tempAp} AP`);
     if (unit.tempArmor) rows.push(`${unit.tempArmor >= 0 ? "+" : ""}${unit.tempArmor} Armor`);
     if (unit.tempRetaliate) rows.push(`${unit.tempRetaliate >= 0 ? "+" : ""}${unit.tempRetaliate} Retaliate`);
+    if (unit.shieldMax > 0) rows.push(`Shield ${unit.shield}/${unit.shieldMax}`);
+    if (unit.barrierMax > 0) rows.push(`Barrier ${unit.barrier}/${unit.barrierMax}`);
 
     for (const status of target.match.statuses) {
       const onUnit = status.targetId === unit.instanceId;
+      const onCell =
+        status.kind === "suppressionMark" &&
+        status.col === unit.col &&
+        status.lane === unit.row;
       const sideWide = !status.targetId && status.owner === unit.owner && SIDE_WIDE.has(status.kind);
-      if (!onUnit && !sideWide) continue;
+      if (!onUnit && !onCell && !sideWide) continue;
       if (onUnit && (status.kind === "modAtk" || status.kind === "modAp" || status.kind === "modArmor")) continue;
+      if (onUnit && status.kind === "hulldownArmor") continue;
       const label = STATUS_LABEL[status.kind]?.(status) ?? status.kind;
       const when = durationHint(status);
       rows.push(when ? `${label} · ${when}` : label);

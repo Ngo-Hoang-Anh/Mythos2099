@@ -1,8 +1,10 @@
+import { getIsoArt } from "../data/isoArt";
 import { getUnitArt } from "../data/unitArt";
 import { getSquadArt } from "../data/squadArt";
 import { getSpriteArt } from "../data/spriteArt";
 import { keywordsWithMods, missileMod } from "../engine/status";
 import type { Keyword, MatchState, UnitClass, UnitInstance } from "../engine/types";
+import { IsoArt } from "./IsoArt";
 import { TankArt } from "./TankArt";
 import { SquadArt } from "./SquadArt";
 import { SpriteArt } from "./SpriteArt";
@@ -15,8 +17,10 @@ import {
   HpChip,
   KEYWORD_ICON_SIZE,
   KeywordChip,
+  StatusEffectChip,
   SupplyChip,
 } from "./icons";
+import { unitStatusChips } from "./unitStatuses";
 
 export const CLASS_COLOR: Record<UnitClass, string> = {
   Tank: "#4c6b34",
@@ -51,6 +55,14 @@ export function UnitArt({
   running?: boolean;
   showProps?: boolean;
 }) {
+  const iso = unitId ? getIsoArt(unitId) : undefined;
+  if (iso) {
+    return (
+      <div className={`unit-art has-sprite has-iso ${compact ? "compact" : ""}`} title={name}>
+        <IsoArt spec={iso} facingDeg={facingDeg + turretExtraDeg} />
+      </div>
+    );
+  }
   const spec = unitId ? getUnitArt(unitId) : undefined;
   const sprite = unitId ? getSpriteArt(unitId) : undefined;
   if (spec) {
@@ -335,6 +347,7 @@ export function UnitToken({
   const dying = unit.hp <= 0;
   const keywords = match ? keywordsWithMods(match, unit) : unit.keywords;
   const missileBoost = match ? missileMod(match, unit) !== 0 : false;
+  const statuses = layout === "board" && match ? unitStatusChips(match, unit) : [];
   const facing = usesDriveRig(unit.class)
     ? (hullDeg ?? parkedHullDeg(unit.class, unit.owner))
     : parkedHullDeg(unit.class, unit.owner);
@@ -397,6 +410,13 @@ export function UnitToken({
             missileAimId={layout === "board" && unit.missileTarget ? unit.instanceId : undefined}
             onMissileAim={layout === "board" && unit.missileTarget ? onMissileAim : undefined}
           />
+          {statuses.length > 0 ? (
+            <div className="unit-statuses" aria-label="Active effects">
+              {statuses.map((status) => (
+                <StatusEffectChip key={status.id} chip={status} size={layout === "board" ? 16 : 20} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
       {keywordPop && (

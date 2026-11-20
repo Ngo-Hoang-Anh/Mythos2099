@@ -1,6 +1,6 @@
 import { UNITS } from "../data/units";
 import { computeStrikeDamage, missileEffectiveArmor } from "../engine/combat";
-import { aggressiveOf, keywordValue, retaliateOf } from "../engine/keywords";
+import { aggressiveOf, keywordValue, retaliateOf, syncDefensePools } from "../engine/keywords";
 import type { UnitDef, UnitInstance } from "../engine/types";
 import { specialSkillDamageOf } from "./specialSkillDamage";
 
@@ -78,7 +78,7 @@ export interface ValueCatalog {
 }
 
 function asKeywordHost(def: UnitDef): UnitInstance {
-  return {
+  const unit: UnitInstance = {
     instanceId: String(def.id),
     defId: def.id,
     name: def.name,
@@ -100,11 +100,19 @@ function asKeywordHost(def: UnitDef): UnitInstance {
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
+  syncDefensePools(unit);
+  return unit;
 }
 
 export function totalAtkOf(def: UnitDef): number {
   const host = asKeywordHost(def);
+  // First Strike / Shock are one-shot or situational — not sustained ATK.
   return def.atk + aggressiveOf(host) + retaliateOf(host);
 }
 
@@ -173,6 +181,7 @@ export function offenseBreakdownOf(def: UnitDef): OffenseBreakdown {
   const supportPerVolley = ASSUMED_SUPPORT_ALLIES * ASSUMED_SUPPORT_FIRE;
   const supportFireDmg = supportPerVolley * 2;
   const rallyDmg = hasRally(def) ? 3 : 0;
+  // Attack volley + return volley. First Strike / Shock excluded (one-shot / vs Shield-Barrier only).
   const selfAtkDmg = def.atk + aggressive + def.atk + retaliate;
   const special = specialSkillDamageOf(def.id);
   const allyBuffDmg = supportFireDmg + rallyDmg;

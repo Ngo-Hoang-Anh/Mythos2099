@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { audio, startMenuMusic } from "../audio";
 import { useGameSession } from "../net/useGameSession";
 import type { RoomMode } from "../net/protocol";
 import { DEFAULT_P1, DEFAULT_P2 } from "../data/premadeArmies";
@@ -21,6 +22,11 @@ export function MobileApp() {
   const [intent, setIntent] = useState<ArmyIntent | null>(null);
   const [tutorial, setTutorial] = useState<"hub" | TutorialId | null>(null);
   const [hubTab, setHubTab] = useState<"tutorial" | "codex">("tutorial");
+  useEffect(() => {
+    const unbind = audio.bindUnlock();
+    startMenuMusic();
+    return unbind;
+  }, []);
   useEffect(() => {
     if (session.match || session.waitingForPeer) setIntent(null);
   }, [session.match, session.waitingForPeer]);

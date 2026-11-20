@@ -1,0 +1,364 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Roster deathmatch / HQ / skills</title><style>
+:root { --ink:#1a1d21; --muted:#5a6270; --line:#d0d5dd; --accent:#1f4b7a; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 10.5px/1.35 "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+h1 { font-size: 17px; margin: 0 0 6px; color: var(--accent); }
+h2 { font-size: 12.5px; margin: 12px 0 6px; border-bottom: 2px solid var(--accent); color: var(--accent); padding-bottom: 2px; }
+.muted { color: var(--muted); font-size: 9px; }
+.note { color: var(--muted); font-style: italic; margin: 0 0 8px; font-size: 9px; }
+table { border-collapse: collapse; width: 100%; margin: 0 0 10px; }
+th, td { border: 1px solid var(--line); padding: 3px 5px; vertical-align: top; }
+th { background: #e8eef5; color: var(--accent); font-weight: 650; }
+th .sub { display: block; font-weight: 500; color: var(--muted); font-size: 8px; margin-top: 1px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td .delta { display: block; color: var(--muted); font-size: 8px; }
+.new { font-weight: 650; }
+.OP { background: #ffe2cc; }
+.Solo\+HQ, .Solo\+Skill, .HQ\+Skill { background: #fff4ec; }
+.Weak { background: #eef8f1; }
+.util { font-size: 9px; max-width: 220px; }
+ul { margin: 0 0 8px; padding-left: 1.2em; }
+@page { size: A3 landscape; margin: 9mm; }
+@media print { thead { display: table-header-group; } }
+</style></head><body>
+<h1>Roster balance — Deathmatch · HQ 4T · Skills</h1>
+<p class="muted">Generated 2026-11-19T17:03:57.969Z · 36 units · Avg: Death W 17.4, HQ 15.6, Skill W 18.4, Cost 4.7 · OP tag ≈P75: Death≥21, HQ≥18, Skill≥26</p>
+<p class="note">Δ dưới mỗi số = so với trung bình roster (không phải P75). Deathmatch: đánh đến chết. Smoke/Barrier ON/OFF mỗi lượt (ON đầu). Fire DoT, Suppression (2 lượt địch; cộng dồn khi chỉ 1 mục tiêu), Veteran, SF=tự buff. Skill = special 1 lần/bên. Bulk = HP + Armor×3. ATK cao = ATK+Aggressive+Retaliate.</p>
+
+<h2>Ưu tiên xem (OP / combo mạnh)</h2>
+<ul><li><b>Heimdall Bastion</b> (5S) — Solo + skill khỏe</li><li><b>Agni</b> (6S) — Solo + skill khỏe</li><li><b>Xuanwu Fortress</b> (6S) — Solo + skill khỏe</li><li><b>Baihu</b> (6S) — Quá mạnh — solo + HQ + skill đều cao</li><li><b>Thoth Oracler</b> (6S) — Solo + bắn HQ khỏe</li><li><b>Sekhmet Kamikaze</b> (3S) — HQ + skill khỏe</li><li><b>Suzaku Komet</b> (6S) — HQ + skill khỏe</li><li><b>Fenrir Vanguard</b> (6S) — HQ + skill khỏe</li></ul>
+
+<h2>All units</h2>
+<table><thead><tr>
+<th class="num">Id</th><th>Unit</th><th class="num">Cost<span class="sub">avg 4.7</span></th>
+<th class="num">Deathmatch W/L<span class="sub">avg W 17.4 · P75≥21</span></th>
+<th class="num">HQ dmg 4T<span class="sub">avg 15.6 · P75≥18</span></th>
+<th class="num">Skills W/L<span class="sub">avg W 18.4 · P75≥26</span></th>
+<th>Utility</th>
+<th>Note</th>
+</tr></thead><tbody><tr class="OP">
+<td class="num">17</td>
+<td class="">Heimdall Bastion</td>
+<td class="num">5</td>
+<td class="num">33/2<span class="delta">+15.6 vs avg</span></td>
+<td class="num">4<span class="delta">-11.6 vs avg</span></td>
+<td class="num">32/1 <span class="muted">(X2)</span><span class="delta">+13.6 vs avg</span></td>
+<td class="util">ATK cao (7), Retaliate 6, Hulldown</td>
+<td><b>Solo+Skill</b> — Solo + skill khỏe</td>
+</tr><tr class="OP">
+<td class="num">35</td>
+<td class="new">Agni</td>
+<td class="num">6</td>
+<td class="num">28/3 <span class="muted">(X4)</span><span class="delta">+10.6 vs avg</span></td>
+<td class="num">13<span class="delta">-2.6 vs avg</span></td>
+<td class="num">27/5 <span class="muted">(X3)</span><span class="delta">+8.6 vs avg</span></td>
+<td class="util">First Strike 5 (1 lần), Fire 2, Corrosion 2</td>
+<td><b>Solo+Skill</b> — Solo + skill khỏe</td>
+</tr><tr class="OP">
+<td class="num">3</td>
+<td class="">Xuanwu Fortress</td>
+<td class="num">6</td>
+<td class="num">28/4 <span class="muted">(X3)</span><span class="delta">+10.6 vs avg</span></td>
+<td class="num">8<span class="delta">-7.6 vs avg</span></td>
+<td class="num">26/6 <span class="muted">(X3)</span><span class="delta">+7.6 vs avg</span></td>
+<td class="util">ATK cao (7), Armor cao (3), Bulk cao (20), Retaliate 5, Sloped, Hulldown</td>
+<td><b>Solo+Skill</b> — Solo + skill khỏe</td>
+</tr><tr class="OP">
+<td class="num">29</td>
+<td class="new">Baihu</td>
+<td class="num">6</td>
+<td class="num">22/6 <span class="muted">(X7)</span><span class="delta">+4.6 vs avg</span></td>
+<td class="num">18<span class="delta">+2.4 vs avg</span></td>
+<td class="num">29/1 <span class="muted">(X5)</span><span class="delta">+10.6 vs avg</span></td>
+<td class="util">Armor cao (2), Veteran 1, Shield 2, Sloped</td>
+<td><b>OP</b> — Quá mạnh — solo + HQ + skill đều cao</td>
+</tr><tr class="">
+<td class="num">25</td>
+<td class="">Raijin Tempest</td>
+<td class="num">4</td>
+<td class="num">22/8 <span class="muted">(X5)</span><span class="delta">+4.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">8/8 <span class="muted">(X19)</span><span class="delta">-10.4 vs avg</span></td>
+<td class="util">Missile 4, Jet</td>
+<td><b>Solo</b> — Solo khỏe</td>
+</tr><tr class="">
+<td class="num">7</td>
+<td class="">Garuda Talon</td>
+<td class="num">5</td>
+<td class="num">22/3 <span class="muted">(X10)</span><span class="delta">+4.6 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">19/6 <span class="muted">(X10)</span><span class="delta">+0.6 vs avg</span></td>
+<td class="util">ATK cao (7), AP cao (3), Armor cao (2), Bulk cao (19), Retaliate 4, Blitz</td>
+<td><b>Solo</b> — Solo khỏe</td>
+</tr><tr class="OP">
+<td class="num">15</td>
+<td class="">Thoth Oracler</td>
+<td class="num">6</td>
+<td class="num">21/3 <span class="muted">(X11)</span><span class="delta">+3.6 vs avg</span></td>
+<td class="num">20<span class="delta">+4.4 vs avg</span></td>
+<td class="num">18/6 <span class="muted">(X11)</span><span class="delta">-0.4 vs avg</span></td>
+<td class="util">Support Fire 2, AP cao (3), Armor cao (2), Shield 3</td>
+<td><b>Solo+HQ</b> — Solo + bắn HQ khỏe</td>
+</tr><tr class="">
+<td class="num">28</td>
+<td class="new">Qinglong</td>
+<td class="num">5</td>
+<td class="num">21/7 <span class="muted">(X7)</span><span class="delta">+3.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">21/7 <span class="muted">(X7)</span><span class="delta">+2.6 vs avg</span></td>
+<td class="util">Shock 5 (vs Shield/Barrier), Barrier 4, Blitz</td>
+<td><b>Solo</b> — Solo khỏe</td>
+</tr><tr class="">
+<td class="num">8</td>
+<td class="">Raiju's Whisper</td>
+<td class="num">4</td>
+<td class="num">21/9 <span class="muted">(X5)</span><span class="delta">+3.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">8/10 <span class="muted">(X17)</span><span class="delta">-10.4 vs avg</span></td>
+<td class="util">Missile 4, Corrosion 2, Blitz</td>
+<td><b>Solo</b> — Solo khỏe</td>
+</tr><tr class="">
+<td class="num">31</td>
+<td class="new">Excalibur</td>
+<td class="num">6</td>
+<td class="num">20/5 <span class="muted">(X10)</span><span class="delta">+2.6 vs avg</span></td>
+<td class="num">19<span class="delta">+3.4 vs avg</span></td>
+<td class="num">24/5 <span class="muted">(X6)</span><span class="delta">+5.6 vs avg</span></td>
+<td class="util">Bulk cao (19), First Strike 5 (1 lần), Veteran 1</td>
+<td><b>HQ</b> — Bắn HQ khỏe</td>
+</tr><tr class="">
+<td class="num">33</td>
+<td class="new">Thor</td>
+<td class="num">5</td>
+<td class="num">20/6 <span class="muted">(X9)</span><span class="delta">+2.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">13/10 <span class="muted">(X12)</span><span class="delta">-5.4 vs avg</span></td>
+<td class="util">Armor cao (3), Bulk cao (19), Shock 4 (vs Shield/Barrier), Shield 3</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">11</td>
+<td class="">Houyi Quiver</td>
+<td class="num">5</td>
+<td class="num">20/15<span class="delta">+2.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">13/22<span class="delta">-5.4 vs avg</span></td>
+<td class="util">AP cao (4), Cover, Artillery</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">12</td>
+<td class="">Pashupata Annihilator</td>
+<td class="num">6</td>
+<td class="num">20/15<span class="delta">+2.6 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">13/22<span class="delta">-5.4 vs avg</span></td>
+<td class="util">AP cao (4), Artillery</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">13</td>
+<td class="">Typhon Disruptor</td>
+<td class="num">6</td>
+<td class="num">20/6 <span class="muted">(X9)</span><span class="delta">+2.6 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">25/5 <span class="muted">(X5)</span><span class="delta">+6.6 vs avg</span></td>
+<td class="util">ATK cao (6), Armor cao (3), Bulk cao (22), Shock 4 (vs Shield/Barrier), Retaliate 3</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">5</td>
+<td class="">Eir's Blessing</td>
+<td class="num">5</td>
+<td class="num">19/7 <span class="muted">(X9)</span><span class="delta">+1.6 vs avg</span></td>
+<td class="num">20<span class="delta">+4.4 vs avg</span></td>
+<td class="num">16/8 <span class="muted">(X11)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="util">Support Fire 2, Flank</td>
+<td><b>HQ</b> — Bắn HQ khỏe</td>
+</tr><tr class="">
+<td class="num">10</td>
+<td class="">Tiamat Echo</td>
+<td class="num">5</td>
+<td class="num">19/14 <span class="muted">(X2)</span><span class="delta">+1.6 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">14/21<span class="delta">-4.4 vs avg</span></td>
+<td class="util">Missile 4, Artillery</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">30</td>
+<td class="new">Pandora</td>
+<td class="num">4</td>
+<td class="num">19/12 <span class="muted">(X2 T2)</span><span class="delta">+1.6 vs avg</span></td>
+<td class="num">8<span class="delta">-7.6 vs avg</span></td>
+<td class="num">28/5 <span class="muted">(X2)</span><span class="delta">+9.6 vs avg</span></td>
+<td class="util">Corrosion 3, Suppression, Smoke</td>
+<td><b>Skill</b> — Skill khỏe (1v1 thường)</td>
+</tr><tr class="OP">
+<td class="num">23</td>
+<td class="">Sekhmet Kamikaze</td>
+<td class="num">3</td>
+<td class="num">18/1 <span class="muted">(X16)</span><span class="delta">+0.6 vs avg</span></td>
+<td class="num">28<span class="delta">+12.4 vs avg</span></td>
+<td class="num">30/1 <span class="muted">(X4)</span><span class="delta">+11.6 vs avg</span></td>
+<td class="util">ATK cao (7), AP cao (4), Scout, Blitz, Cover</td>
+<td><b>HQ+Skill</b> — HQ + skill khỏe</td>
+</tr><tr class="">
+<td class="num">20</td>
+<td class="">Gungnir's Tip</td>
+<td class="num">5</td>
+<td class="num">18/6 <span class="muted">(X11)</span><span class="delta">+0.6 vs avg</span></td>
+<td class="num">22<span class="delta">+6.4 vs avg</span></td>
+<td class="num">22/5 <span class="muted">(X8)</span><span class="delta">+3.6 vs avg</span></td>
+<td class="util">Bulk cao (20), Veteran 1, Aggressive 3, Cover</td>
+<td><b>HQ</b> — Bắn HQ khỏe</td>
+</tr><tr class="">
+<td class="num">6</td>
+<td class="">Huma Enforcer</td>
+<td class="num">3</td>
+<td class="num">16/14 <span class="muted">(X5)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">16/9 <span class="muted">(X10)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="util">Armor cao (2), Barrier 3, Cover</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">19</td>
+<td class="">Hermes Strider</td>
+<td class="num">3</td>
+<td class="num">16/17 <span class="muted">(X2)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">17/11 <span class="muted">(X7)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="util">Smoke, Blitz, Flank</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">32</td>
+<td class="new">Longinus</td>
+<td class="num">5</td>
+<td class="num">16/17 <span class="muted">(X2)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">9/26<span class="delta">-9.4 vs avg</span></td>
+<td class="util">AP cao (4), First Strike 4 (1 lần), Artillery</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">36</td>
+<td class="new">Loki</td>
+<td class="num">3</td>
+<td class="num">16/14 <span class="muted">(X5)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">24/7 <span class="muted">(X4)</span><span class="delta">+5.6 vs avg</span></td>
+<td class="util">Shield 3, Smoke, Camouflage</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">14</td>
+<td class="">Skadi Hunter</td>
+<td class="num">5</td>
+<td class="num">15/6 <span class="muted">(X14)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="num">28<span class="delta">+12.4 vs avg</span></td>
+<td class="num">17/8 <span class="muted">(X10)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="util">ATK cao (7), AP cao (3), Armor cao (2), Aggressive 4, Camouflage</td>
+<td><b>HQ</b> — Bắn HQ khỏe</td>
+</tr><tr class="">
+<td class="num">4</td>
+<td class="">Sarama Warhound</td>
+<td class="num">3</td>
+<td class="num">15/9 <span class="muted">(X11)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">13/5 <span class="muted">(X17)</span><span class="delta">-5.4 vs avg</span></td>
+<td class="util">Scout, Blitz, Flank</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">1</td>
+<td class="">Zeus Devastator</td>
+<td class="num">6</td>
+<td class="num">15/15 <span class="muted">(X5)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">16/9 <span class="muted">(X10)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="util">Armor cao (3), Bulk cao (21), Missile 4, Cover</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">16</td>
+<td class="">Rostam Breacher</td>
+<td class="num">4</td>
+<td class="num">15/10 <span class="muted">(X10)</span><span class="delta">-2.4 vs avg</span></td>
+<td class="num">8<span class="delta">-7.6 vs avg</span></td>
+<td class="num">35/0<span class="delta">+16.6 vs avg</span></td>
+<td class="util">ATK cao (5), AP cao (6), Bulk cao (20), Retaliate 3, Cover</td>
+<td><b>Skill</b> — Skill khỏe (1v1 thường)</td>
+</tr><tr class="">
+<td class="num">9</td>
+<td class="">Simurgh Skylord</td>
+<td class="num">5</td>
+<td class="num">14/17 <span class="muted">(X4)</span><span class="delta">-3.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">17/10 <span class="muted">(X8)</span><span class="delta">-1.4 vs avg</span></td>
+<td class="util">Support Fire 2, Suppression, Blitz</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="OP">
+<td class="num">27</td>
+<td class="">Suzaku Komet</td>
+<td class="num">6</td>
+<td class="num">12/2 <span class="muted">(X21)</span><span class="delta">-5.4 vs avg</span></td>
+<td class="num">24<span class="delta">+8.4 vs avg</span></td>
+<td class="num">26/2 <span class="muted">(X7)</span><span class="delta">+7.6 vs avg</span></td>
+<td class="util">ATK cao (6), AP cao (5), Fire 3, Blitz, Jet</td>
+<td><b>HQ+Skill</b> — HQ + skill khỏe</td>
+</tr><tr class="OP">
+<td class="num">2</td>
+<td class="">Fenrir Vanguard</td>
+<td class="num">6</td>
+<td class="num">12/19 <span class="muted">(X4)</span><span class="delta">-5.4 vs avg</span></td>
+<td class="num">20<span class="delta">+4.4 vs avg</span></td>
+<td class="num">26/6 <span class="muted">(X3)</span><span class="delta">+7.6 vs avg</span></td>
+<td class="util">ATK cao (5), AP cao (4), Armor cao (3), Bulk cao (23), Aggressive 4</td>
+<td><b>HQ+Skill</b> — HQ + skill khỏe</td>
+</tr><tr class="">
+<td class="num">34</td>
+<td class="new">Artemis</td>
+<td class="num">4</td>
+<td class="num">12/17 <span class="muted">(X6)</span><span class="delta">-5.4 vs avg</span></td>
+<td class="num">12<span class="delta">-3.6 vs avg</span></td>
+<td class="num">19/7 <span class="muted">(X9)</span><span class="delta">+0.6 vs avg</span></td>
+<td class="util">Armor cao (2), Bulk cao (23), Radar, Blitz, Jet</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">26</td>
+<td class="">Hades Stealthray</td>
+<td class="num">6</td>
+<td class="num">11/10 <span class="muted">(X14)</span><span class="delta">-6.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">11/7 <span class="muted">(X17)</span><span class="delta">-7.4 vs avg</span></td>
+<td class="util">AP cao (3), Camouflage, Jet</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">21</td>
+<td class="">Yatagarasu Pathfinder</td>
+<td class="num">4</td>
+<td class="num">11/15 <span class="muted">(X9)</span><span class="delta">-6.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">11/11 <span class="muted">(X13)</span><span class="delta">-7.4 vs avg</span></td>
+<td class="util">Support Fire 2, Scout, Flank</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">24</td>
+<td class="">Anhur Warden</td>
+<td class="num">2</td>
+<td class="num">10/17 <span class="muted">(X8)</span><span class="delta">-7.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">11/15 <span class="muted">(X9)</span><span class="delta">-7.4 vs avg</span></td>
+<td class="util">Support Fire 3, Shield 3, Barrier 3</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="">
+<td class="num">18</td>
+<td class="">Dhanvantari Lifeweaver</td>
+<td class="num">4</td>
+<td class="num">5/24 <span class="muted">(X6)</span><span class="delta">-12.4 vs avg</span></td>
+<td class="num">16<span class="delta">+0.4 vs avg</span></td>
+<td class="num">6/17 <span class="muted">(X12)</span><span class="delta">-12.4 vs avg</span></td>
+<td class="util">Support Fire 2</td>
+<td><b>OK</b> — Ổn / giữa bảng</td>
+</tr><tr class="Weak">
+<td class="num">22</td>
+<td class="">Eyes of Horus</td>
+<td class="num">2</td>
+<td class="num">3/32<span class="delta">-14.4 vs avg</span></td>
+<td class="num">8<span class="delta">-7.6 vs avg</span></td>
+<td class="num">4/31<span class="delta">-14.4 vs avg</span></td>
+<td class="util">Missile 3, Radar, Blitz</td>
+<td><b>Weak</b> — Yếu trên 3 trục — xem utility</td>
+</tr></tbody></table>
+</body></html>

@@ -14,6 +14,20 @@ export const KEYWORD_LABEL: Record<KeywordName, string> = {
   airStrike: "Air Strike",
   missile: "Missile",
   jetPlane: "Jet Plane",
+  camouflage: "Camouflage",
+  smokeScreen: "Smoke Screen",
+  suppression: "Suppression",
+  scout: "Scout",
+  shield: "Shield",
+  barrier: "Barrier",
+  shock: "Shock",
+  veteran: "Veteran",
+  firstStrike: "First Strike",
+  fire: "Fire",
+  radar: "Radar",
+  hulldown: "Hulldown",
+  slopedArmor: "Sloped Armor",
+  corrosion: "Corrosion",
 };
 
 /** Hover copy: one or two player-facing sentences. No targeting/rest edge cases. */
@@ -28,6 +42,20 @@ export const KEYWORD_SHORT: Record<KeywordName, string> = {
   aggressive: "Adds {n} ATK when this unit attacks.",
   supportFire: "Gives +{n} ATK to every other ally in this lane and the two adjacent lanes, including rested units.",
   missile: "Delayed attack. After combat, fires a missile with ATK {n}. Counts 50% of the target's armor (round up). AP does not apply.",
+  camouflage: "Immune to Missile damage.",
+  smokeScreen: "After taking gun damage on the enemy turn, dodge later gun hits until that turn ends.",
+  suppression: "At end of your turn, mark an enemy cell for their next 2 turns: −1 ATK and −2 AP per mark. Prefers unmarked; stacks if every enemy cell is already marked.",
+  scout: "While on Frontline, your units ignore enemy Camouflage, Smoke Screen, and Suppression on you.",
+  shield: "Absorbs {n} damage before Armor. Regens half at the start of your turn if undamaged last turn.",
+  barrier: "Reduces the next frontal gun hit by {n}. Recharges at end of your turn.",
+  shock: "Depletes Barrier/Shield by {n}. Only matters vs those pools. Ignores Smoke.",
+  veteran: "After attacking, permanently gain +{n} ATK and +{n} AP.",
+  firstStrike: "Gain +{n} ATK and +{n} AP. Removed after this unit attacks or is attacked.",
+  fire: "After dealing HP with a gun attack, burn for {n} at end of each turn for 3 turns. Highest only.",
+  radar: "When this unit attacks, all allied Missiles re-aim.",
+  hulldown: "At end of your turn, dig in: −3 damage from gun attacks. Missiles ignore this. Lost when this unit moves.",
+  slopedArmor: "If a gun hit would deal 3 or less, ignore it.",
+  corrosion: "On a connecting gun hit, permanently −{n} Armor (before damage).",
 };
 
 /** Tutorial-only copy. Hover UI must use KEYWORD_SHORT / keywordHelp. */
@@ -49,6 +77,34 @@ export const KEYWORD_FULL: Record<KeywordName, string> = {
     "Every other living allied unit in this lane and the two adjacent lanes gains +{n} ATK, including rested units and a Front/Support partner. This unit does not gain its own Support Fire.",
   missile:
     "Delayed attack. After the gun volley, fire a missile with ATK {n}. Only 50% of the target's armor applies (rounded up). AP does not pierce it. Rested units skip. Prefers the enemy Support cell in this lane, then the nearest occupied lane.",
+  camouflage:
+    "This unit takes no Missile damage. An enemy Scout on Frontline lets their Missiles ignore Camouflage.",
+  smokeScreen:
+    "When this unit takes gun damage during the opponent's Engagement, it gains Smoke Dodge until that turn ends and ignores further gun hits. Shock attacks ignore Smoke and do not trigger it. An enemy Scout on Frontline ignores Smoke Dodge.",
+  suppression:
+    "At the end of your turn, each Suppression unit marks a random enemy-occupied cell (prefer unmarked). The mark lasts through the opponent's next 2 turns. Enemies on a marked cell have −1 ATK and −2 AP per mark. If every enemy cell is already marked, additional marks stack on a marked cell. Scout on Frontline ignores Suppression on your units.",
+  scout:
+    "While this unit is alive on your Frontline, your units ignore enemy Camouflage and Smoke Screen, and ignore Suppression marks affecting you.",
+  shield:
+    "Starts with a Shield pool of {n} that absorbs incoming gun strike power before Armor. Shock depletes Shield first. At the start of your turn, if this unit took no Shield/HP damage since the last check, Shield regenerates by half of its max (rounded up), capped at max.",
+  barrier:
+    "Starts with Barrier {n}. The next gun hit from an enemy on Frontline reduces damage taken by up to Barrier, then Barrier drops to 0. Recharges to max at the end of your turn. Does not block Support/Artillery angles. Shock also depletes Barrier.",
+  shock:
+    "When this unit gun-attacks a unit that has Barrier and/or Shield, deplete Barrier (if frontal) and Shield by {n} before the normal strike. Does nothing extra against targets with neither pool. Not dodged by Smoke Screen and does not trigger Smoke Screen.",
+  veteran:
+    "After this unit's attack volley (not return fire), permanently increase its printed ATK and AP by {n}. Stacks every time it attacks.",
+  firstStrike:
+    "While this keyword remains, this unit has +{n} ATK and +{n} AP. Remove First Strike after this unit fires a gun attack or is hit by a gun attack.",
+  fire:
+    "After this unit deals HP damage with a gun attack, the target gains Fire {n} for 3 turn passes. Only one Fire DoT per unit; the highest magnitude deals damage. A new Fire refreshes duration and keeps the higher magnitude.",
+  radar:
+    "When this unit's attack volley resolves, every living allied Missile unit immediately re-locks a target.",
+  hulldown:
+    "At the end of your turn, if not already dug in, this unit takes −3 damage from gun attacks until it moves. Flat reduction after Armor/AP — missiles ignore it, and Corrosion cannot strip it. Any move (cards, Blitz, Cover/Flank) clears Hulldown.",
+  slopedArmor:
+    "After Shield and Barrier, if the remaining gun damage is 1–3, that damage is ignored (ricochet).",
+  corrosion:
+    "When this unit's gun attack connects (not Smoke-dodged), permanently reduce the target's Armor by {n} (minimum 0) before damage is calculated. Applies once even if Shield or Barrier absorbs the hit.",
 };
 
 function fillValue(text: string, n: number): string {

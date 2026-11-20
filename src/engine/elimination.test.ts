@@ -50,6 +50,11 @@ function spawn(match: MatchState, defId: number, owner: 0 | 1, col: number, row:
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   });
 }
 

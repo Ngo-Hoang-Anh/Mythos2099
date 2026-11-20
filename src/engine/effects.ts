@@ -17,7 +17,7 @@ import { canVolley, nearestEnemyLane, sideUnitsInLane } from "./combat/helpers";
 import { pushAttack, relocateUnit } from "./fx";
 import { armorPiercingOf, hasKeyword, keywordValue } from "./keywords";
 import { ROWS } from "./types";
-import { addStatus, isUntargetableBy, suppressUnitKeywords } from "./status";
+import { addStatus, isUntargetableBy, removeStatus, suppressUnitKeywords } from "./status";
 import {
   destError,
   destOfDir,
@@ -730,6 +730,63 @@ export function playEffect(state: MatchState, card: CardInstance, targets: PlayT
       if (err) return err;
       const still = findUnit(state.board, unit.instanceId);
       if (still && still.hp > 0) returnToReserve(state, still);
+      return null;
+    }
+    case "lokiCopy": {
+      const self = sourceUnit(state, card);
+      if (!self) return "Source unit is not on the board";
+      const other = requireUnit(state, targets.unitIds?.[0]);
+      if (typeof other === "string") return other;
+      if (other.instanceId === self.instanceId) return "Choose another unit";
+      if (other.owner !== player.id && isUntargetableBy(state, other, player.id)) {
+        return `${other.name} cannot be targeted`;
+      }
+      for (const status of [...state.statuses]) {
+        if (
+          status.targetId === self.instanceId &&
+          typeof status.sourceId === "string" &&
+          status.sourceId.startsWith(`lokiCopy:${self.instanceId}`)
+        ) {
+          removeStatus(state, status.id);
+        }
+      }
+      const dAtk = other.atk - self.atk;
+      const dArmor = other.armor - self.armor;
+      const dAp = other.ap - self.ap;
+      if (dAtk !== 0) {
+        addStatus(state, {
+          kind: "modAtk",
+          magnitude: dAtk,
+          sourceId: `lokiCopy:${self.instanceId}:atk`,
+          owner: player.id,
+          targetId: self.instanceId,
+          duration: "endOfNextTurn",
+        });
+      }
+      if (dArmor !== 0) {
+        addStatus(state, {
+          kind: "modArmor",
+          magnitude: dArmor,
+          sourceId: `lokiCopy:${self.instanceId}:armor`,
+          owner: player.id,
+          targetId: self.instanceId,
+          duration: "endOfNextTurn",
+        });
+      }
+      if (dAp !== 0) {
+        addStatus(state, {
+          kind: "modAp",
+          magnitude: dAp,
+          sourceId: `lokiCopy:${self.instanceId}:ap`,
+          owner: player.id,
+          targetId: self.instanceId,
+          duration: "endOfNextTurn",
+        });
+      }
+      log(
+        state,
+        `${self.name} Copy: mirrors ${other.name}'s ATK/Armor/AP until the end of the opponent's next turn`,
+      );
       return null;
     }
     case "fieldRepair": {

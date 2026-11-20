@@ -20,13 +20,13 @@ export interface SpecialSkillDamage {
 export const SPECIAL_SKILL_DAMAGE: Record<number, SpecialSkillDamage> = {
   1: {
     skill: "Thunder Strike",
-    damage: 8,
-    note: "Extra attack: gun 3 + follow-up Missile 5. Ignore-armor adds 0 when target armor is already 0.",
+    damage: 6,
+    note: "Extra attack: gun 2 + follow-up Missile 4. Ignore-armor adds 0 when target armor is already 0.",
   },
   2: {
     skill: "Ambush",
-    damage: 11,
-    note: "Frontline extra engage: ATK 3 + Aggressive 4 + 2 = 9, plus +2 ATK on the regular attack volley. +2 Armor adds 0 vs 0-armor targets.",
+    damage: 8,
+    note: "Frontline extra engage: ATK 0 + Aggressive 4 + 2 = 6, plus +2 ATK on the regular attack volley. +2 Armor adds 0 vs 0-armor targets.",
   },
   3: {
     skill: "Trap",
@@ -65,18 +65,18 @@ export const SPECIAL_SKILL_DAMAGE: Record<number, SpecialSkillDamage> = {
   },
   10: {
     skill: "Storm Caller",
-    damage: 5,
-    note: "Extra own Missile 5. Ally missile proc is not this unit's damage.",
+    damage: 4,
+    note: "Extra own Missile 4. Ally missile proc is not this unit's damage.",
   },
   11: {
     skill: "First Strike",
-    damage: 6,
-    note: "Extra attack: gun ATK 6. No missile.",
+    damage: 3,
+    note: "Extra attack: gun ATK 3. No missile.",
   },
   12: {
     skill: "Precision Strike",
-    damage: 7,
-    note: "Extra attack anywhere: gun ATK 7. No missile.",
+    damage: 3,
+    note: "Extra attack anywhere: gun ATK 3. No missile.",
   },
   13: {
     skill: "Diversion C",
@@ -85,8 +85,8 @@ export const SPECIAL_SKILL_DAMAGE: Record<number, SpecialSkillDamage> = {
   },
   14: {
     skill: "Coordinate",
-    damage: 4,
-    note: "Extra attack after +1 ATK: gun 3+1 = 4. Buff lasts the rest of the turn. No return fire.",
+    damage: 3,
+    note: "Extra attack after +1 ATK: gun 2+1 = 3. Buff lasts the rest of the turn. No return fire.",
   },
   15: {
     skill: "Analyze Weakness",
@@ -150,8 +150,53 @@ export const SPECIAL_SKILL_DAMAGE: Record<number, SpecialSkillDamage> = {
   },
   27: {
     skill: "Hit & Run",
-    damage: 8,
-    note: "Extra attack: gun ATK 8, then return to reserve. No missile.",
+    damage: 5,
+    note: "Extra attack: gun ATK 5, then return to reserve. No missile.",
+  },
+  28: {
+    skill: "Analyze Weakness",
+    damage: 0,
+    note: "−2 Armor. No extra damage when the target is already 0 armor.",
+  },
+  29: {
+    skill: "Ambush",
+    damage: 10,
+    note: "Frontline extra engage: ATK 4 + Ambush +2 = 6, plus +2 ATK on the regular attack volley vs 0 armor.",
+  },
+  30: {
+    skill: "Trap",
+    damage: 0,
+    note: "Forces engagement; no extra damage.",
+  },
+  31: {
+    skill: "Deadly Presence",
+    damage: 0,
+    note: "+2 ATK / +4 AP buff.",
+  },
+  32: {
+    skill: "Precision Strike",
+    damage: 2,
+    note: "Extra attack anywhere: gun ATK 2 (First Strike already spent or not on extra). Conservative constant uses printed ATK.",
+  },
+  33: {
+    skill: "Thunder Strike",
+    damage: 3,
+    note: "Extra attack: gun ATK 3. No missile on Thor.",
+  },
+  34: {
+    skill: "Target Acquired",
+    damage: 0,
+    note: "Marks a missile lane; enemies there take +1 Missile damage.",
+  },
+  35: {
+    skill: "Tactical Strike",
+    damage: 0,
+    note: "Missile +4 on an ally.",
+  },
+  36: {
+    skill: "Copy",
+    damage: 0,
+    note: "Mirrors another unit's ATK/Armor/AP until end of opponent's next turn.",
   },
 };
 

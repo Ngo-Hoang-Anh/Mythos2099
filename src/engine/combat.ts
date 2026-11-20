@@ -2,11 +2,12 @@ import { unitsOf } from "./board";
 import {
   aggressiveOf,
   armorPiercingOf,
+  camouflageBlocksMissile,
   hasKeyword,
   keywordValue,
   retaliateOf,
 } from "./keywords";
-import { hasStatusOn, missileMod, statusesOf } from "./status";
+import { hasStatusOn, hulldownGunReduction, missileMod, statusesOf } from "./status";
 import {
   type MatchState,
   type PlayerId,
@@ -72,11 +73,13 @@ export function combatDamage(
   const bonus = state
     ? artilleryRepeatBonus(state, attacker, defender.instanceId)
     : 0;
-  return computeStrikeDamage({
+  const dmg = computeStrikeDamage({
     atk: attackPower(attacker, supportFire) + bonus,
     armor: defenseArmor(defender),
     armorPiercing: armorPiercingOf(attacker),
   });
+  if (!state) return dmg;
+  return Math.max(0, dmg - hulldownGunReduction(state, defender));
 }
 
 export function hqDamage(
@@ -98,11 +101,12 @@ export function extraGunDamage(
   defender: UnitInstance,
 ): number {
   const bonus = artilleryRepeatBonus(state, attacker, defender.instanceId);
-  return computeStrikeDamage({
+  const dmg = computeStrikeDamage({
     atk: extraGunPower(attacker) + bonus,
     armor: defenseArmor(defender),
     armorPiercing: armorPiercingOf(attacker),
   });
+  return Math.max(0, dmg - hulldownGunReduction(state, defender));
 }
 
 export function extraGunHqDamage(
@@ -138,6 +142,7 @@ export function missileDamage(
 ): number {
   const missile = missilePowerOf(state, attacker);
   if (missile <= 0) return 0;
+  if (camouflageBlocksMissile(state, attacker, target)) return 0;
   const ignore = hasStatusOn(state, attacker.instanceId, "missileIgnoreArmor");
   const marked = statusesOf(state, "missileLaneMark", attacker.owner).some(
     (s) => s.lane === target.row,

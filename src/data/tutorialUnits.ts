@@ -1,3 +1,4 @@
+import { sfxSlotsForId } from "../audio";
 import type { UnitDef } from "../engine/types";
 
 /** Training-only units. Not in the 27-unit catalog / army builder. */
@@ -32,6 +33,8 @@ export const TUTORIAL_UNITS: UnitDef[] = [
     cards: [],
     lore: "",
     hasArt: true,
+    displayType: "2d",
+    sfx: sfxSlotsForId(TUTORIAL_CADET),
   },
   {
     id: TUTORIAL_RECRUIT,
@@ -46,6 +49,8 @@ export const TUTORIAL_UNITS: UnitDef[] = [
     cards: [],
     lore: "",
     hasArt: true,
+    displayType: "2d",
+    sfx: sfxSlotsForId(TUTORIAL_RECRUIT),
   },
   {
     id: TUTORIAL_DUMMY,
@@ -60,5 +65,7 @@ export const TUTORIAL_UNITS: UnitDef[] = [
     cards: [],
     lore: "",
     hasArt: false,
+    displayType: "2d",
+    sfx: sfxSlotsForId(TUTORIAL_DUMMY),
   },
 ];

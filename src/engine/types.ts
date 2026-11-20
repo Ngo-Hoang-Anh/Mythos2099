@@ -11,6 +11,9 @@ export type UnitClass =
   | "Drone"
   | "Jet Plane";
 
+/** How the unit portrait/board token is drawn. Default keeps legacy top-down art. */
+export type UnitDisplayType = "2d" | "isometric";
+
 export type CardType = "special" | "maneuver" | "move";
 
 export type Phase = "deployment" | "maneuver" | "engagement" | "gameover";
@@ -35,7 +38,21 @@ export type KeywordName =
   | "artillery"
   | "airStrike"
   | "missile"
-  | "jetPlane";
+  | "jetPlane"
+  | "camouflage"
+  | "smokeScreen"
+  | "suppression"
+  | "scout"
+  | "shield"
+  | "barrier"
+  | "shock"
+  | "veteran"
+  | "firstStrike"
+  | "fire"
+  | "radar"
+  | "hulldown"
+  | "slopedArmor"
+  | "corrosion";
 
 export interface Keyword {
   name: KeywordName;
@@ -133,7 +150,8 @@ export type EffectId =
   | "hqRepair"
   | "deathFromAbove"
   | "silentDeath"
-  | "initiative";
+  | "initiative"
+  | "lokiCopy";
 
 export interface CardDef {
   templateId: string;
@@ -145,6 +163,13 @@ export interface CardDef {
   targets: TargetKind[];
   /** When true, this special cannot be played unless the owner unit is on the board. */
   requiresSourceOnField?: boolean;
+}
+
+/** Stable SFX variant slots — `pool[slot % pool.length]` so each unit keeps a fixed set. */
+export interface UnitSfxSlots {
+  fire: number;
+  move: number;
+  impact: number;
 }
 
 export interface UnitDef {
@@ -162,6 +187,10 @@ export interface UnitDef {
   lore: string;
   /** True when the unit has composed hull/turret art; otherwise the class-color placeholder is used. */
   hasArt: boolean;
+  /** `isometric` uses 8-dir sheets; `2d` keeps existing top-down / composed visuals. */
+  displayType: UnitDisplayType;
+  /** Per-unit SFX variant indices (fire / move / impact pools). */
+  sfx: UnitSfxSlots;
 }
 
 export interface CardInstance {
@@ -204,6 +233,16 @@ export interface UnitInstance {
   isAttacker: boolean;
   /** Cell this unit's next Missile will hit. Null until a Missile activation locks one. */
   missileTarget?: BoardPos | null;
+  /** Current Shield pool (absorbs before armor). */
+  shield: number;
+  /** Printed / max Shield value. */
+  shieldMax: number;
+  /** Current Barrier charge (reduces next frontal gun hit). */
+  barrier: number;
+  /** Printed / max Barrier value. */
+  barrierMax: number;
+  /** True after HP or Shield loss since the last Shield regen check. */
+  tookDamageSinceRegen: boolean;
 }
 
 export interface PlayerState {
@@ -299,7 +338,11 @@ export type StatusKind =
   | "afterAttackSelfDamage"
   | "regen"
   | "untargetable"
-  | "suppressKeywords";
+  | "suppressKeywords"
+  | "smokeDodge"
+  | "suppressionMark"
+  | "fireDot"
+  | "hulldownArmor";
 
 export interface StatusEffect {
   id: string;
@@ -309,6 +352,8 @@ export interface StatusEffect {
   owner: PlayerId;
   targetId?: string;
   lane?: number;
+  /** Board column for cell marks (Suppression). */
+  col?: number;
   duration: StatusDuration;
   remainingPasses: number;
   hitKeys?: string[];

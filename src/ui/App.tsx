@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { audio, playUi, startMenuMusic } from "../audio";
 import { useGameSession } from "../net/useGameSession";
 import type { RoomMode } from "../net/protocol";
 import { DEFAULT_P1, DEFAULT_P2 } from "../data/premadeArmies";
@@ -17,6 +18,12 @@ export function App() {
   const [intent, setIntent] = useState<ArmyIntent | null>(null);
   const [tutorial, setTutorial] = useState<"hub" | TutorialId | null>(null);
   const [hubTab, setHubTab] = useState<"tutorial" | "codex">("tutorial");
+
+  useEffect(() => {
+    const unbind = audio.bindUnlock();
+    startMenuMusic();
+    return unbind;
+  }, []);
 
   useEffect(() => {
     if (session.match || session.waitingForPeer) setIntent(null);
@@ -71,6 +78,7 @@ export function App() {
         onRegister={(username, password) => void session.register(username, password)}
         onGuest={() => void session.playAsGuest()}
         onTutorial={() => {
+          playUi("select");
           setHubTab("tutorial");
           setTutorial("hub");
         }}
@@ -91,14 +99,21 @@ export function App() {
         onAction={session.sendAction}
         onContinueAi={session.continueAi}
         onClearError={session.clearError}
-        onExit={session.exitToLobby}
+        onExit={() => {
+          playUi("cancel");
+          session.exitToLobby();
+        }}
         onRetry={session.canRetry ? session.retryMatch : undefined}
         onLearnMore={() => {
+          playUi("select");
           session.exitToLobby();
           setHubTab("codex");
           setTutorial("hub");
         }}
-        onSurrender={() => session.sendAction({ type: "surrender" })}
+        onSurrender={() => {
+          playUi("alarm");
+          session.sendAction({ type: "surrender" });
+        }}
       />
     );
   }

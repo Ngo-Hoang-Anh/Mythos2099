@@ -7,6 +7,7 @@
     "dev": "concurrently -k -n server,web -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite",
     "dev:studio": "vite --config studio/vite.config.ts",
+    "dev:iso-preview": "vite --config tools/iso-preview/vite.config.ts",
     "dev:server": "tsx watch server/index.ts",
     "start:server": "tsx server/index.ts",
     "build": "tsc --noEmit && vite build",
@@ -19,6 +20,8 @@
     "balance:value": "tsx src/tools/writeUnitValueReport.ts",
     "balance": "tsx src/tools/writeVacuumDuelReport.ts && tsx src/tools/writeUnitValueReport.ts",
     "balance:pdf": "tsx src/tools/writeBalancePdf.ts",
+    "balance:roster": "tsx src/tools/writeRosterComparisonPdf.ts",
+    "balance:all": "tsx src/tools/writeVacuumDuelReport.ts && tsx src/tools/writeUnitValueReport.ts && tsx src/tools/writeRosterComparisonPdf.ts",
     "assets:webp": "node scripts/pngToWebp.mjs",
     "deploy:api": "fly deploy . --config server/fly.toml --dockerfile server/Dockerfile --yes",
     "deploy:web": "fly deploy . --config web/fly.toml --dockerfile web/Dockerfile --yes"

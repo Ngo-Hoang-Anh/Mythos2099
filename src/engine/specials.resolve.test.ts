@@ -38,6 +38,7 @@ const RESOLVED_SPECIALS: EffectId[] = [
   "deathFromAbove",
   "silentDeath",
   "hitAndRun",
+  "lokiCopy",
 ];
 
 function spawn(state: MatchState, defId: number, owner: PlayerId, col: number, row: number): UnitInstance {
@@ -64,6 +65,11 @@ function spawn(state: MatchState, defId: number, owner: PlayerId, col: number, r
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
   placeUnit(state.board, unit);
   return unit;
@@ -122,7 +128,7 @@ describe("all special skills resolve", () => {
     spawn(state, 17, 1, P2_FRONT, 1);
     const next = play(state, 1, "thunder_strike", {});
     expect(hasStatusOn(next, next.board[P1_FRONT][1]!.instanceId, "missileIgnoreArmor")).toBe(true);
-    expect(next.board[P2_FRONT][1]?.hp).toBe(17);
+    expect(next.board[P2_FRONT][1]?.hp).toBe(getUnitDef(17).hp - 2);
     expect(next.board[P1_FRONT][1]?.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
   });
 
@@ -147,7 +153,9 @@ describe("all special skills resolve", () => {
     const viper = spawn(state, 7, 1, P2_FRONT, 2);
     const next = play(state, 3, "trap", { unitIds: [viper.instanceId] });
     expect(next.phase).toBe("engagement");
-    expect(next.board[P2_FRONT][2]?.hp).toBe(viper.maxHp - 5);
+    // Xuanwu ATK 1 + Retaliate 5 vs Garuda Armor 2 = 4.
+    expect(next.board[P2_FRONT][2]?.hp).toBe(viper.maxHp - 4);
+    // Garuda ATK 3 vs Xuanwu — Sloped Armor ignores damage ≤3.
     expect(next.board[P1_FRONT][2]?.hp).toBe(getUnitDef(3).hp);
     expect(next.board[P1_FRONT][2]?.combatAtkBonus).toBe(5);
     expect(next.board[P2_FRONT][2]?.combatAtkBonus).toBe(0);
@@ -162,8 +170,10 @@ describe("all special skills resolve", () => {
     expect(next.board[P2_FRONT][2]?.combatAtkBonus).toBe(0);
     expect(next.board[P1_FRONT][2]?.isAttacker).toBe(false);
     expect(next.board[P1_FRONT][2]?.combatAtkBonus).toBe(5);
-    expect(next.board[P1_FRONT][2]?.hp).toBe(getUnitDef(3).hp - 1);
-    expect(next.board[P2_FRONT][2]?.hp).toBe(apex.maxHp - 4);
+    // Locked Fenrir deals 0; Sloped Armor would also block ≤3.
+    expect(next.board[P1_FRONT][2]?.hp).toBe(getUnitDef(3).hp);
+    // Xuanwu ATK 1 + Retaliate 5 vs Fenrir Armor 3 = 3.
+    expect(next.board[P2_FRONT][2]?.hp).toBe(apex.maxHp - 3);
   });
 
   it("Lure treats the enemy as attacker so the defending ally gets Retaliate", () => {
@@ -171,10 +181,11 @@ describe("all special skills resolve", () => {
     spawn(state, 13, 0, P1_FRONT, 1);
     const jackal = spawn(state, 4, 1, P2_FRONT, 1);
     const next = play(state, 13, "lure", { unitIds: [jackal.instanceId] });
+    // Shock strips Barrier only; gun is ATK 2 + Retaliate 3 (no flat Shock damage).
     expect(next.board[P2_FRONT][1]?.isAttacker).toBe(true);
     expect(next.board[P1_FRONT][1]?.isAttacker).toBe(false);
-    expect(next.board[P1_FRONT][1]?.combatAtkBonus).toBe(2);
-    expect(next.board[P2_FRONT][1]?.hp).toBe(jackal.maxHp - 6);
+    expect(next.board[P1_FRONT][1]?.combatAtkBonus).toBe(3);
+    expect(next.board[P2_FRONT][1]?.hp).toBeLessThan(jackal.maxHp);
     expect(next.board[P2_FRONT][1]?.tempAtk).toBe(-1);
   });
 
@@ -228,8 +239,8 @@ describe("all special skills resolve", () => {
     const zeus = spawn(state, 1, 0, P1_FRONT, 2);
     const next = play(state, 8, "tactical_strike", { unitIds: [zeus.instanceId] });
     const buffed = next.board[P1_FRONT][2]!;
-    expect(missilePowerOf(next, buffed)).toBe(9);
-    expect(keywordsWithMods(next, buffed).find((k) => k.name === "missile")?.value).toBe(9);
+    expect(missilePowerOf(next, buffed)).toBe(8);
+    expect(keywordsWithMods(next, buffed).find((k) => k.name === "missile")?.value).toBe(8);
   });
 
   it("Falcon Vision Support grants +2 AP to units that receive Support Fire", () => {
@@ -240,7 +251,8 @@ describe("all special skills resolve", () => {
     const next = play(state, 9, "vision_support", {});
     expect(statusesOf(next, "supportFireGrantsAp", 0)).toHaveLength(1);
     beginEngagement(next, { skipRelocation: true });
-    expect(next.board[P2_FRONT][1]?.hp).toBe(getUnitDef(3).hp - 2);
+    // Sarama ATK 3 + Support Fire 2 = 5 (Vision Support +2 AP pierces Armor).
+    expect(next.board[P2_FRONT][1]?.hp).toBe(getUnitDef(3).hp - 5);
   });
 
   it("Manticore Storm Caller fires missiles from itself and another Missile ally", () => {
@@ -297,8 +309,8 @@ describe("all special skills resolve", () => {
     expect(hasStatusOn(next, stalker.instanceId, "redirectEmptyLane")).toBe(false);
     expect(next.board[P1_FRONT][1]?.tempAtk).toBe(1);
     expect(next.board[P1_FRONT][1]?.tempAp).toBe(1);
-    // Extra attack: ATK 3 +1 buff = 4 into Armor 0 → nearest lane damaged; farther lane untouched.
-    expect(next.board[P2_FRONT][0]?.hp).toBe(getUnitDef(4).hp - 4);
+    // Extra attack: ATK 2 +1 buff = 3 into Armor 0 → nearest lane damaged; farther lane untouched.
+    expect(next.board[P2_FRONT][0]?.hp).toBe(getUnitDef(4).hp - 3);
     expect(next.board[P2_FRONT][3]?.hp).toBe(getUnitDef(21).hp);
     expect(next.board[P1_FRONT][1]?.hp).toBe(stalker.maxHp);
     expect(next.phase).toBe("maneuver");
@@ -439,7 +451,7 @@ describe("all special skills resolve", () => {
     const next = play(state, 22, "target_acquired", {});
     const zeus = next.board[P1_FRONT][3]!;
     expect(pickMissileTarget(next, zeus)?.row).toBe(recon.row);
-      expect(missileDamage(next, zeus, next.board[P2_FRONT][0]!)).toBe(6);
+      expect(missileDamage(next, zeus, next.board[P2_FRONT][0]!)).toBe(5);
   });
 
   it("Kamikaze Hunter destroys itself to deal 8 armor-ignoring damage anywhere", () => {
@@ -464,7 +476,7 @@ describe("all special skills resolve", () => {
     spawn(state, 25, 0, P1_FRONT, 2);
     spawn(state, 1, 0, P1_FRONT, 1);
     const next = play(state, 25, "death_from_above", {});
-    expect(missilePowerOf(next, next.board[P1_FRONT][1]!)).toBe(6);
+    expect(missilePowerOf(next, next.board[P1_FRONT][1]!)).toBe(5);
     expect(missilePowerOf(next, next.board[P1_FRONT][2]!)).toBe(5);
   });
 

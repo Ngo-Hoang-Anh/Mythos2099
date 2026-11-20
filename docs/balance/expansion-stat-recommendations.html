@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Expansion Balance — Stat Recommendations</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  :root {
+    --ink: #1a1d21;
+    --muted: #5a6270;
+    --line: #d8dde5;
+    --accent: #1f4b7a;
+    --warn: #8a3b12;
+    --bg: #f7f5f1;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    font-size: 10.5pt;
+    line-height: 1.4;
+  }
+  .sheet {
+    max-width: 780px;
+    margin: 0 auto;
+    background: var(--card);
+    padding: 24px 28px 32px;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+  .meta {
+    color: var(--muted);
+    font-size: 9pt;
+    margin-bottom: 14px;
+  }
+  h2 {
+    font-size: 12.5pt;
+    margin: 18px 0 8px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+  }
+  h3 {
+    font-size: 11pt;
+    margin: 12px 0 6px;
+  }
+  p, li { margin: 0 0 5px; }
+  ul, ol { padding-left: 1.2em; margin: 0 0 8px; }
+  strong { font-weight: 650; }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 9pt;
+    background: #eef1f5;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  pre {
+    background: #eef1f5;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 9pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 12px;
+    font-size: 9pt;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 5px 7px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e8eef5;
+    color: var(--accent);
+    font-weight: 650;
+  }
+  td.num, th.num { text-align: right; }
+  tr.hot td { background: #fff4ec; }
+  tr.cold td { background: #f0f7f3; }
+  .note {
+    font-size: 9pt;
+    color: var(--muted);
+    font-style: italic;
+    margin: 2px 0 10px;
+  }
+  .footer {
+    margin-top: 18px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 8pt;
+    color: var(--muted);
+  }
+  @media print {
+    body { background: white; }
+    .sheet { padding: 0; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>Expansion keywords + 9 new units<br/>Vacuum balance summary</h1>
+  <p class="meta">
+    Updated: 2026-11-19 · after pass tweaks + Shock/Corrosion engine fix<br/>
+    Sources: <code>docs/balance/vacuum-1v1.md</code>, <code>docs/balance/unit-value-breakdown.md</code>
+  </p>
+
+  <h2>Current new-unit keywords (after tweaks)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th class="num">Id</th>
+        <th>Unit</th>
+        <th class="num">Cost</th>
+        <th>Keywords / notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="num">28</td><td>Qinglong</td><td class="num">5</td><td>Blitz, Barrier 4, Shock <strong>5</strong></td></tr>
+      <tr><td class="num">29</td><td>Baihu</td><td class="num">6</td><td>Veteran 1, Shield <strong>2</strong>, Sloped Armor · ATK 4 / AP 3</td></tr>
+      <tr><td class="num">30</td><td>Pandora</td><td class="num">3</td><td>Smoke Screen, Suppression, Corrosion <strong>3</strong></td></tr>
+      <tr><td class="num">31</td><td>Excalibur</td><td class="num">5</td><td>Veteran 1, First Strike <strong>4</strong> · ATK <strong>3</strong></td></tr>
+      <tr><td class="num">32</td><td>Longinus</td><td class="num">5</td><td>Artillery, First Strike <strong>4</strong> · ATK <strong>3</strong></td></tr>
+      <tr><td class="num">33</td><td>Thor</td><td class="num">4</td><td>Shield 2, Shock 4</td></tr>
+      <tr><td class="num">34</td><td>Artemis</td><td class="num">3</td><td>Jet Plane, Scout, Radar</td></tr>
+      <tr><td class="num">35</td><td>Agni</td><td class="num">4</td><td>First Strike 3, Fire 3, Corrosion 2</td></tr>
+      <tr><td class="num">36</td><td>Loki</td><td class="num">4</td><td>Camouflage, Shield 3 + <strong>Copy</strong> (2S)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Balance rule used</h2>
+  <p><strong>Nerf = cut raw stats. Buff = raise keyword numbers.</strong></p>
+  <table>
+    <thead>
+      <tr><th>Unit</th><th>Change</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr class="hot"><td><strong>Excalibur</strong></td><td>ATK <strong>4 → 3</strong>; keep First Strike <strong>4</strong></td><td>Nerf raw; keep FS identity</td></tr>
+      <tr class="hot"><td><strong>Longinus</strong></td><td>ATK <strong>4 → 3</strong>; keep First Strike <strong>4</strong></td><td>Same</td></tr>
+      <tr class="hot"><td><strong>Baihu</strong></td><td>Shield <strong>3 → 2</strong>; keep Sloped; ATK <strong>5 → 4</strong>; AP <strong>4 → 3</strong></td><td>Keep Sloped; cut Shield + gun</td></tr>
+      <tr class="cold"><td><strong>Pandora</strong></td><td>Corrosion <strong>2 → 3</strong></td><td>Buff keyword, not ATK/HP</td></tr>
+      <tr class="cold"><td><strong>Qinglong</strong></td><td>Shock <strong>4 → 5</strong></td><td>Buff keyword, not ATK</td></tr>
+      <tr><td><strong>Xuanwu</strong></td><td>Armor <strong>4 → 3</strong>; keep Retaliate <strong>5</strong></td><td>Nerf raw armor</td></tr>
+      <tr><td><strong>Heimdall</strong></td><td>Hulldown <strong>no stack</strong> with Entrenchment</td><td>Dig-in rule</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Engine fix — Shock / Corrosion in math</h2>
+  <ul>
+    <li><strong>Shock:</strong> +N gun strike vs units (and still depletes Shield/Barrier).</li>
+    <li><strong>Corrosion:</strong> always −N Armor once on a connecting gun hit, <em>before</em> damage (even through Shield/Barrier).</li>
+    <li>Vacuum uses full engine gun path — Shock/Corrosion now affect 1v1 results.</li>
+  </ul>
+  <p class="note">Still omitted in vacuum: cards, Smoke setup, Suppression marks, Fire DoT ticks, Radar re-aim, Loki Copy, Cover/Flank relocation, allied Support Fire.</p>
+
+  <h2>Vacuum scoreboard (latest, 1 engagement, excl. mirror)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Unit</th>
+        <th>As ATK W/L</th>
+        <th class="num">Avg HP (atk)</th>
+        <th class="num">Avg HP (def)</th>
+        <th>Read</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Excalibur</strong></td><td><strong>4</strong>/0</td><td class="num">10.5</td><td class="num">10.0</td><td>Was 10W; ATK nerf + FS kept</td></tr>
+      <tr class="cold"><td><strong>Qinglong</strong></td><td><strong>4</strong>/0</td><td class="num">9.6</td><td class="num">9.0</td><td>Shock 5 now in gun math</td></tr>
+      <tr><td><strong>Longinus</strong></td><td><strong>4</strong>/0</td><td class="num">8.0</td><td class="num">3.7</td><td>Glass FS artillery; ATK 3</td></tr>
+      <tr class="cold"><td><strong>Thor</strong></td><td><strong>4</strong>/0</td><td class="num">7.3</td><td class="num">6.9</td><td>Shock 4 now counts</td></tr>
+      <tr><td>Baihu</td><td>3/0</td><td class="num">9.7</td><td class="num">9.4</td><td>Shield 2 + Sloped</td></tr>
+      <tr><td>Agni</td><td>3/0</td><td class="num">8.4</td><td class="num">7.9</td><td>FS + Corrosion; Fire still offline</td></tr>
+      <tr class="hot"><td><strong>Pandora</strong></td><td>0/3</td><td class="num">4.3</td><td class="num">3.6</td><td>Still soft gun; Corrosion helps but ATK 1</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Watch / playtest only</h2>
+  <ul>
+    <li><strong>Artemis / Loki</strong> — utility / Copy; leave until playtests.</li>
+    <li><strong>Suzaku</strong> — intentional glass + Hit &amp; Run / Fire.</li>
+    <li><strong>Pandora</strong> — if still dead in games after Corrosion 3, next lever is raw ATK (keyword already raised).</li>
+    <li><strong>Fire / Smoke / Suppression / Radar / Copy</strong> — not graded by vacuum.</li>
+  </ul>
+
+  <h2>Commands</h2>
+  <pre>npm run balance          # vacuum-1v1.md + unit-value-breakdown.md
+npm run balance:vacuum   # vacuum only
+npm run balance:value    # value breakdown only</pre>
+
+  <p class="footer">Armored Legend · docs/balance/expansion-stat-recommendations</p>
+</div>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { playUnitDestroy, playUnitFire, playUnitImpact, playUnitMove, sfxSlotsForId } from "../audio";
 import { CLASS_COLOR, UnitArt, UnitToken } from "./UnitToken";
 import { gunAim, missileAimHit, type HpForecast } from "./damagePreview";
 import { SquadArt } from "./SquadArt";
@@ -8,6 +9,7 @@ import { WhiteFlagIcon } from "./icons";
 import { boardFacingDeg, getUnitArt } from "../data/unitArt";
 import { getSquadArt, SQUAD_PROP_FADE_TOTAL_MS } from "../data/squadArt";
 import { getSpriteArt } from "../data/spriteArt";
+import { getUnitDef } from "../data/units";
 import {
   DAMAGE_EXPLOSION,
   DESTRUCTION_EXPLOSION,
@@ -53,6 +55,7 @@ import {
   type MatchState,
   type PlayerId,
   type UnitClass,
+  type UnitSfxSlots,
   type UnitInstance,
 } from "../engine/types";
 import { collectQuickCombat, takeCombatExchange, type CombatExchange, type CombatStrike } from "./combatBatches";
@@ -472,7 +475,18 @@ export function BoardView({
   const [aim, setAim] = useState<BoardAim | null>(null);
   const [aimLine, setAimLine] = useState<{ from: Point; to: Point; straight: boolean } | null>(null);
   const groundTimers = useRef<number[]>([]);
+  /** Shooter context for impact SFX inside finishImpact / scheduleGunImpact. */
+  const shotSfxRef = useRef<{ defId?: number; unitClass?: UnitClass; missile?: boolean; power?: number }>({});
   poseRef.current = pose;
+
+  function slotsOf(defId: number | undefined): UnitSfxSlots {
+    if (defId == null) return sfxSlotsForId(0);
+    try {
+      return getUnitDef(defId).sfx;
+    } catch {
+      return sfxSlotsForId(defId);
+    }
+  }
 
   function writeLayer(layer: string, update: PlayFx | ((p: PlayFx) => PlayFx)) {
     setFxLayers((prev) => {
@@ -1100,6 +1114,7 @@ export function BoardView({
     const boardPlace = opts?.boardPlace ?? "start";
     const liveBoard = visualRef.current ?? match.board;
     const moving = opts?.unit ?? findUnit(liveBoard, unitId) ?? findUnit(match.board, unitId);
+    playUnitMove(slotsOf(moving?.defId), unitClass);
     const others = allUnits(liveBoard).filter((unit) => unit.instanceId !== unitId);
     const occupied = others.map((unit) => ({ col: unit.col, row: unit.row }));
     const airborne = isAirborneClass(unitClass);
@@ -1412,6 +1427,8 @@ export function BoardView({
     const split = Boolean(opts.split);
     const liveBoard = visualRef.current ?? match.board;
     const shooter = findUnit(liveBoard, unitId);
+    const fireDefId = opts.defId ?? shooter?.defId;
+    const fireClass = shooter?.class ?? "Tank";
     const origin =
       liveFrom(unitId, from) ??
       opts.originAt ??
@@ -1420,6 +1437,16 @@ export function BoardView({
         : null) ?? pointOfFrom(from));
     const end = liveTo(to) ?? opts.targetAt ?? pointOfTarget(to);
     if (!origin || !end) return;
+    const firePower =
+      opts.power ??
+      (shooter ? shooter.atk + shooter.tempAtk + shooter.combatAtkBonus + shooter.ap + shooter.tempAp : 0);
+    shotSfxRef.current = {
+      defId: fireDefId,
+      unitClass: fireClass,
+      missile: opts.missile,
+      power: firePower,
+    };
+    playUnitFire(slotsOf(fireDefId), { power: firePower, missile: opts.missile });
     const nested = { ...opts, write, split };
     if (opts.kamikaze && !opts.direct) {
       return playKamikazeDive(unitId, shooter, origin, end, damage, wait, cancelled, nested);
@@ -1545,6 +1572,12 @@ export function BoardView({
         write((p) => ({ ...p, tracers: p.tracers.filter((mark) => mark.key !== bounceKey) }));
         return;
       }
+      const ctx = shotSfxRef.current;
+      playUnitImpact(slotsOf(ctx.defId), {
+        damage,
+        power: ctx.power,
+        missile: ctx.missile,
+      });
       const blasts = explosionPlacements(round.to, damage, targetMaxHp);
       const keys = blasts.map(() => `dmg-${explosionSeq++}`);
       let ownsFloat = false;
@@ -2383,6 +2416,12 @@ export function BoardView({
     write: PlayWriter = setPlay,
   ) {
     if (damage > 0) {
+      const ctx = shotSfxRef.current;
+      playUnitImpact(slotsOf(ctx.defId), {
+        damage,
+        power: ctx.power,
+        missile: missile || ctx.missile,
+      });
       const blasts = explosionPlacements(end, damage, targetMaxHp);
       write((p) => ({
         ...p,
@@ -2488,6 +2527,7 @@ export function BoardView({
     if (!boardNow) return;
     const unit = findUnit(boardNow, unitId);
     if (!unit) return;
+    playUnitDestroy(slotsOf(unit.defId));
     writeLayer(`move:${unitId}`, EMPTY_PLAY);
     const root = rootRef.current?.getBoundingClientRect();
     const moving = livePoint(unitId);

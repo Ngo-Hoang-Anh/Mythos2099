@@ -1,7 +1,7 @@
 import { applyHqDamage, pushHqDamageSteps } from "../hp";
 import { unitsOf } from "../board";
-import { artilleryRepeatBonus, computeStrikeDamage, defenseArmor } from "../combat";
-import { armorPiercingOf } from "../keywords";
+import { artilleryRepeatBonus } from "../combat";
+import { armorPiercingOf, hasKeyword, keywordValue, stripKeyword, suppressionPenalty } from "../keywords";
 import { log, withLogGroup } from "../state";
 import { afterGunAttack, statusesOf } from "../status";
 import { playerHqMax, type MatchState, type PlayerId, type UnitInstance } from "../types";
@@ -19,13 +19,34 @@ import {
   volleyTarget,
   type CombatCtx,
 } from "./helpers";
+import { afterGunHitEffects, resolveGunHit } from "./keywordEffects";
+import { reaimAlliedMissiles } from "./missile";
+
+function afterAttackingVolley(state: MatchState, shooter: UnitInstance, side: "attack" | "counter"): void {
+  if (hasKeyword(shooter, "firstStrike")) {
+    stripKeyword(shooter, "firstStrike");
+    log(state, `${shooter.name} First Strike spent`, "firstStrike");
+  }
+  if (side !== "attack") return;
+  const veteran = keywordValue(shooter, "veteran");
+  if (veteran > 0) {
+    shooter.atk += veteran;
+    shooter.ap += veteran;
+    log(state, `${shooter.name} Veteran +${veteran} ATK/+${veteran} AP`, "veteran");
+  }
+  if (hasKeyword(shooter, "radar")) {
+    reaimAlliedMissiles(state, shooter.owner);
+  }
+}
 
 function volleyAtk(state: MatchState, unit: UnitInstance): number {
   return strikeAtk(state, unit, unit.isAttacker);
 }
 
 function volleyAp(state: MatchState, unit: UnitInstance): number {
-  let ap = armorPiercingOf(unit);
+  let ap = armorPiercingOf(unit) + keywordValue(unit, "firstStrike");
+  ap -= suppressionPenalty(state, unit).ap;
+  ap = Math.max(0, ap);
   if (
     statusesOf(state, "supportFireGrantsAp", unit.owner).length > 0 &&
     supportFireFromOthers(state, unit).amount > 0
@@ -54,11 +75,11 @@ function fireGunAtUnit(
   const atk = volleyAtk(state, shooter);
   const pen = volleyAp(state, shooter);
   const bonus = artilleryRepeatBonus(state, shooter, target.instanceId);
-  const dmg = computeStrikeDamage({
+  const hit = resolveGunHit(state, shooter, target, {
     atk: atk + bonus,
-    armor: defenseArmor(target),
     armorPiercing: pen,
   });
+  const dmg = hit.damage;
   ctx.steps.push({
     kind: "shot",
     unitId: shooter.instanceId,
@@ -77,6 +98,8 @@ function fireGunAtUnit(
     log(state, `${shooter.name} deals ${dmg} with ${src.via} to ${target.name} (${Math.max(target.hp, 0)} HP)`, src.icon);
     ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
   }
+  afterGunHitEffects(state, ctx.attacker, shooter, target, side, hit);
+  afterAttackingVolley(state, shooter, side);
   afterGunAttack(state, shooter);
 }
 
@@ -105,12 +128,14 @@ function fireGunAtHq(
     targetMaxHp: playerHqMax(state.players[foe]),
   });
   if (dmg <= 0) {
+    afterAttackingVolley(state, shooter, side);
     afterGunAttack(state, shooter);
     return;
   }
   const src = strikeSource(state, shooter, side);
   const hits = applyHqDamage(state, foe, dmg, shooter.name, { keepPhase: true, ...src });
   pushHqDamageSteps(ctx.steps, foe, state.players[foe].hqHp, dmg, hits);
+  afterAttackingVolley(state, shooter, side);
   afterGunAttack(state, shooter);
 }
 

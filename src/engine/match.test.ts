@@ -222,6 +222,11 @@ describe("HQ / unit comeback", () => {
       rested: true,
       combatAtkBonus: 0,
       isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
     });
     resolveDestroyedUnits(match);
     expect(match.board[0][0]).toBeNull();
@@ -256,6 +261,11 @@ describe("HQ / unit comeback", () => {
       rested: true,
       combatAtkBonus: 0,
       isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
     });
     resolveDestroyedUnits(match);
     expect(match.players[0].nextTurnSupplyBonus).toBe(0);

@@ -81,6 +81,7 @@ export const C = {
   death_from_above: "death_from_above",
   the_silent_death: "the_silent_death",
   hit_and_run: "hit_and_run",
+  loki_copy: "loki_copy",
 } as const;
 
 export type CardCatalogId = (typeof C)[keyof typeof C];
@@ -501,10 +502,20 @@ export const CARD_CATALOG: Record<CardCatalogId, CardDef> = {
     "hit_and_run",
     "Hit & Run",
     "special",
-    1,
+    3,
     "This unit does an extra attack then returns to your reserve.",
     "hitAndRun",
     [],
+    true,
+  ),
+  [C.loki_copy]: def(
+    "loki_copy",
+    "Copy",
+    "special",
+    2,
+    "Copy another unit's Attack, Armor, and AP until the end of the opponent's next turn.",
+    "lokiCopy",
+    ["anyUnit"],
     true,
   ),
 };

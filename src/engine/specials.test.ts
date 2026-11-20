@@ -34,6 +34,11 @@ function spawn(state: MatchState, defId: number, owner: PlayerId, col: number, r
     rested: false,
     combatAtkBonus: 0,
     isAttacker: false,
+    shield: 0,
+    shieldMax: 0,
+    barrier: 0,
+    barrierMax: 0,
+    tookDamageSinceRegen: false,
   };
   placeUnit(state.board, unit);
   return unit;
@@ -80,7 +85,8 @@ describe("special effects", () => {
     const before = apex.hp;
     resolveAttack(state, apex.instanceId);
     expect(apex.hp).toBe(before);
-    expect(bastion.hp).toBe(bastion.maxHp - 1);
+    // Extra attack skips Aggressive: Fenrir ATK 0 → no damage.
+    expect(bastion.hp).toBe(bastion.maxHp);
   });
 
   it("Ambush buffs Armor/ATK on Frontline and engages", () => {
@@ -111,7 +117,7 @@ describe("special effects", () => {
     spawn(state, 17, 1, P2_FRONT, 1);
     const card = give(state, 1, "thunder_strike");
     const next = must(state, { type: "playCard", cardId: card.instanceId, targets: {} });
-    expect(next.board[P2_FRONT][1]?.hp).toBe(17);
+    expect(next.board[P2_FRONT][1]?.hp).toBe(getUnitDef(17).hp - 2);
     expect(next.board[P1_FRONT][1]?.missileTarget).toEqual({ col: P2_FRONT, row: 1 });
     expect(next.statuses.some((s) => s.kind === "missileIgnoreArmor")).toBe(true);
   });
@@ -217,8 +223,12 @@ describe("special effects", () => {
     match = must(match, { type: "endManeuver" });
     match = must(match, { type: "endEngagement" });
     const still = match.board.flat().find((u) => u?.defId === 17);
+    // Entrenchment armor and Hulldown gun DR stack (different layers).
     expect(still?.tempArmor).toBe(3);
     expect(still?.tempAp).toBe(2);
+    expect(match.statuses.some((s) => s.kind === "hulldownArmor" && s.targetId === still?.instanceId)).toBe(
+      true,
+    );
   });
 
   it("returns Komet to reserve after Hit & Run", () => {

@@ -9,8 +9,15 @@ import {
   unitsOf,
 } from "../board";
 import { skipsReturnFire } from "../combat";
-import { aggressiveOf, armorPiercingOf, hasKeyword, keywordValue, retaliateOf } from "../keywords";
-import { hasStatusOn, isUntargetableBy, statusesOf } from "../status";
+import {
+  aggressiveOf,
+  armorPiercingOf,
+  hasKeyword,
+  keywordValue,
+  retaliateOf,
+  suppressionPenalty,
+} from "../keywords";
+import { clearHulldownOnMove, hasStatusOn, isUntargetableBy, statusesOf } from "../status";
 import type {
   CombatStep,
   LogIcon,
@@ -104,8 +111,13 @@ export function strikeCombatBonus(
 
 export function strikeAtk(state: MatchState, unit: UnitInstance, asAttacker: boolean): number {
   const bonus = strikeCombatBonus(state, unit, asAttacker);
-  if (bonus.locked) return unit.atk;
-  return unit.atk + unit.tempAtk + bonus.aggressive + bonus.retaliate + bonus.support;
+  const firstStrike = keywordValue(unit, "firstStrike");
+  const suppressed = suppressionPenalty(state, unit).atk;
+  if (bonus.locked) return Math.max(0, unit.atk + firstStrike - suppressed);
+  return Math.max(
+    0,
+    unit.atk + unit.tempAtk + bonus.aggressive + bonus.retaliate + bonus.support + firstStrike - suppressed,
+  );
 }
 
 export function strikeSource(state: MatchState, unit: UnitInstance, side: "attack" | "counter" | "missile"): { icon: LogIcon; via: string } {
@@ -152,6 +164,7 @@ export function livingEnemyInLane(state: MatchState, attacker: PlayerId, lane: n
 export function combatMove(state: MatchState, ctx: CombatCtx, unit: UnitInstance, col: number, row: number): void {
   const from = { col: unit.col, row: unit.row };
   if (from.col === col && from.row === row) return;
+  clearHulldownOnMove(state, unit);
   moveUnitOnBoard(state.board, unit, col, row);
   ctx.steps.push({
     kind: "move",

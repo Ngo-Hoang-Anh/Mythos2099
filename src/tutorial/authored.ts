@@ -1,3 +1,4 @@
+import { sfxSlotsForId } from "../audio";
 import { C, type CardCatalogId, getCard } from "../data/cardCatalog";
 import { makeInitiativeCard } from "../data/initiative";
 import {
@@ -281,6 +282,8 @@ export function customUnitDef(draft: CustomUnitDraft): UnitDef {
     cards: draft.cardTemplateIds.map((id) => resolveCatalogCard(id)),
     lore: "",
     hasArt: draft.artAliasId != null,
+    displayType: "2d",
+    sfx: sfxSlotsForId(draft.id),
   };
 }
 

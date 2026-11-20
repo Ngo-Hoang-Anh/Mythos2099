@@ -1,5 +1,6 @@
 import { moveUnitOnBoard } from "./board";
 import { weaponPower } from "./combat/helpers";
+import { clearHulldownOnMove } from "./status";
 import { HQ_MAX_HP, playerHqMax, type BoardPos, type FxEvent, type FxTarget, type MatchState, type UnitInstance } from "./types";
 
 export function isHqTarget(target: FxTarget): target is { hq: 0 | 1 } {
@@ -9,6 +10,7 @@ export function isHqTarget(target: FxTarget): target is { hq: 0 | 1 } {
 export function relocateUnit(state: MatchState, unit: UnitInstance, col: number, row: number): void {
   const from: BoardPos = { col: unit.col, row: unit.row };
   if (from.col === col && from.row === row) return;
+  clearHulldownOnMove(state, unit);
   moveUnitOnBoard(state.board, unit, col, row);
   state.fx.push({
     kind: "move",

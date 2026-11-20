@@ -1,6 +1,6 @@
 # Unit value breakdown — 2-turn damage & defense
 
-Generated: 2026-09-16T19:58:32.216Z
+Generated: 2026-11-19T13:48:58.531Z
 
 ## Offense assumptions (2 turns: you attack, then you defend)
 
@@ -14,9 +14,9 @@ Generated: 2026-09-16T19:58:32.216Z
 
 - Score 1: `HP + Armor × 2`
 - Score 2: `HP + Armor × 3`
-- Total ATK = ATK + Aggressive + Retaliate. Catalog average: total ATK **5.33**, AP **3.11**, Missile **0.78**.
-- Extreme attackers: max total ATK = **Trench Guard** (9 ATK, 0 AP, Missile 0); max AP = **Exosuit Breacher** (8 AP, 4 ATK, Missile 0); max ATK+AP = **Komet Fighter** (16).
-- Incoming **attack** hit = gun (`total ATK` vs armor after AP) + missile (50% armor rounded down, no AP).
+- Total ATK = ATK + Aggressive + Retaliate. Catalog average: total ATK **4.64**, AP **2.69**, Missile **0.58**.
+- Extreme attackers: max total ATK = **Heimdall Bastion** (10 ATK, 2 AP, Missile 0); max AP = **Rostam Breacher** (8 AP, 4 ATK, Missile 0); max ATK+AP = **Pashupata Annihilator** (14).
+- Incoming **attack** hit = gun (`total ATK` vs armor after AP) + missile (50% armor rounded up, no AP).
 - Incoming **retaliate** hit = gun only (opponent is immortal; your damage is ignored).
 - Survival cells: `atkDmg / atkHits · retalDmg / retalHits · 2-turn cycles` until HP reaches 0. ∞ = that hit deals 0.
 
@@ -24,129 +24,165 @@ Generated: 2026-09-16T19:58:32.216Z
 
 | Unit | Cost | ATK | Agg | Ret | Total ATK | AP | Missile | Self ATK | Ally buff (SF / Rally) | Indirect | Special | Special name | **Total** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |
-| Komet Fighter | 6 | 8 | 0 | 0 | 8 | 8 | 0 | 16 | 8 (8 / 0) | 0 | 8 | Hit & Run | **32** |
-| Kamikaze Hunter | 3 | 7 | 0 | 0 | 7 | 6 | 0 | 14 | 8 (8 / 0) | 0 | 8 | Kamikaze | **30** |
-| Siege Howitzer | 5 | 7 | 0 | 0 | 7 | 7 | 0 | 14 | 8 (8 / 0) | 0 | 7 | Precision Strike | **29** |
-| Apex Destroyer | 6 | 3 | 4 | 0 | 7 | 6 | 0 | 10 | 8 (8 / 0) | 0 | 11 | Ambush | **29** |
-| Manticore MLRS | 5 | 5 | 0 | 0 | 5 | 5 | 5 | 10 | 8 (8 / 0) | 5 | 5 | Storm Caller | **28** |
-| Zeus | 6 | 3 | 0 | 0 | 3 | 2 | 5 | 6 | 8 (8 / 0) | 5 | 8 | Thunder Strike | **27** |
-| Sentinel Battery | 4 | 6 | 0 | 0 | 6 | 5 | 0 | 12 | 8 (8 / 0) | 0 | 6 | Quick Mobilization | **26** |
-| Exosuit Breacher | 4 | 2 | 0 | 2 | 4 | 8 | 0 | 6 | 8 (8 / 0) | 0 | 12 | Sticky Bomb | **26** |
-| Hornet Interceptor | 4 | 6 | 0 | 0 | 6 | 1 | 4 | 12 | 8 (8 / 0) | 4 | 0 | Tactical Strike | **24** |
-| Viper Gunship | 5 | 5 | 0 | 3 | 8 | 3 | 0 | 13 | 11 (8 / 3) | 0 | 0 | Rally | **24** |
-| Death Rider | 5 | 5 | 3 | 0 | 8 | 4 | 0 | 13 | 8 (8 / 0) | 0 | 0 | Deadly Presence | **21** |
-| Stealthray Bomber | 6 | 6 | 0 | 0 | 6 | 3 | 0 | 12 | 8 (8 / 0) | 0 | 0 | The Silent Death | **20** |
-| Mirage Humvee | 3 | 4 | 0 | 0 | 4 | 2 | 0 | 8 | 11 (8 / 3) | 0 | 0 | Rally | **19** |
-| Line Combat Medic | 4 | 4 | 0 | 3 | 7 | 0 | 0 | 11 | 8 (8 / 0) | 0 | 0 | First-aid Kit | **19** |
-| Falcon Dropship | 4 | 5 | 0 | 0 | 5 | 1 | 0 | 10 | 8 (8 / 0) | 0 | 0 | Vision Support | **18** |
-| Tempest Strike Bomber | 4 | 3 | 0 | 0 | 3 | 2 | 4 | 6 | 8 (8 / 0) | 4 | 0 | Death from Above | **18** |
-| Stalker Biped | 5 | 3 | 4 | 0 | 7 | 3 | 0 | 10 | 8 (8 / 0) | 0 | 0 | Coordinate | **18** |
-| Trench Guard | 5 | 1 | 0 | 8 | 9 | 0 | 0 | 10 | 8 (8 / 0) | 0 | 0 | Entrenchment | **18** |
-| Aegis | 6 | 4 | 0 | 2 | 6 | 3 | 0 | 10 | 8 (8 / 0) | 0 | 0 | Diversion | **18** |
-| Iron Bastion | 6 | 2 | 0 | 5 | 7 | 0 | 0 | 9 | 8 (8 / 0) | 0 | 0 | Trap | **17** |
-| Phantom Speeder | 3 | 4 | 0 | 0 | 4 | 4 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Diversion | **16** |
-| Scout Biker | 4 | 4 | 0 | 0 | 4 | 2 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Diversion | **16** |
-| Nomad Supply Buggy | 5 | 4 | 0 | 0 | 4 | 2 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Repair | **16** |
-| Ironclad Goliath | 6 | 4 | 0 | 0 | 4 | 4 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Analyze Weakness | **16** |
-| Recon Eye | 2 | 2 | 0 | 0 | 2 | 0 | 3 | 4 | 8 (8 / 0) | 3 | 0 | Target Acquired | **15** |
-| Jackal Scout | 4 | 3 | 0 | 0 | 3 | 3 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Intel Acquired | **14** |
-| Aegis Support Drone | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 8 (8 / 0) | 0 | 0 | HQ Repair | **8** |
+| Pashupata Annihilator | 6 | 7 | 0 | 0 | 7 | 7 | 0 | 14 | 8 (8 / 0) | 0 | 7 | Precision Strike | **29** |
+| Sekhmet Kamikaze | 3 | 6 | 0 | 0 | 6 | 4 | 0 | 12 | 8 (8 / 0) | 0 | 8 | Kamikaze | **28** |
+| Tiamat Echo | 5 | 5 | 0 | 0 | 5 | 5 | 5 | 10 | 8 (8 / 0) | 5 | 5 | Storm Caller | **28** |
+| Zeus Devastator | 6 | 3 | 0 | 0 | 3 | 2 | 5 | 6 | 8 (8 / 0) | 5 | 8 | Thunder Strike | **27** |
+| Houyi Quiver | 4 | 6 | 0 | 0 | 6 | 5 | 0 | 12 | 8 (8 / 0) | 0 | 6 | First Strike | **26** |
+| Rostam Breacher | 4 | 2 | 0 | 2 | 4 | 8 | 0 | 6 | 8 (8 / 0) | 0 | 12 | Sticky Bomb | **26** |
+| Baihu | 6 | 4 | 0 | 0 | 4 | 3 | 0 | 8 | 8 (8 / 0) | 0 | 10 | Ambush | **26** |
+| Thor | 4 | 3 | 0 | 0 | 7 | 2 | 0 | 14 | 8 (8 / 0) | 0 | 3 | Thunder Strike | **25** |
+| Fenrir Vanguard | 6 | 3 | 2 | 0 | 5 | 6 | 0 | 8 | 8 (8 / 0) | 0 | 9 | Ambush | **25** |
+| Garuda Talon | 5 | 5 | 0 | 3 | 8 | 3 | 0 | 13 | 11 (8 / 3) | 0 | 0 | Rally | **24** |
+| Typhon Disruptor | 6 | 3 | 0 | 2 | 9 | 2 | 0 | 16 | 8 (8 / 0) | 0 | 0 | Diversion C | **24** |
+| Suzaku Komet | 6 | 5 | 0 | 0 | 5 | 5 | 0 | 10 | 8 (8 / 0) | 0 | 5 | Hit & Run | **23** |
+| Skadi Hunter | 5 | 3 | 4 | 0 | 7 | 3 | 0 | 10 | 8 (8 / 0) | 0 | 4 | Coordinate | **22** |
+| Qinglong | 5 | 2 | 0 | 0 | 7 | 1 | 0 | 14 | 8 (8 / 0) | 0 | 0 | Analyze Weakness | **22** |
+| Heimdall Bastion | 4 | 2 | 0 | 8 | 10 | 2 | 0 | 12 | 8 (8 / 0) | 0 | 0 | Entrenchment | **20** |
+| Hades Stealthray | 6 | 6 | 0 | 0 | 6 | 3 | 0 | 12 | 8 (8 / 0) | 0 | 0 | The Silent Death | **20** |
+| Huma Enforcer | 3 | 4 | 0 | 0 | 4 | 2 | 0 | 8 | 11 (8 / 3) | 0 | 0 | Rally | **19** |
+| Dhanvantari Lifeweaver | 4 | 4 | 0 | 3 | 7 | 0 | 0 | 11 | 8 (8 / 0) | 0 | 0 | First-aid Kit | **19** |
+| Gungnir's Tip | 5 | 4 | 3 | 0 | 7 | 3 | 0 | 11 | 8 (8 / 0) | 0 | 0 | Deadly Presence | **19** |
+| Raiju's Whisper | 4 | 3 | 0 | 0 | 3 | 0 | 4 | 6 | 8 (8 / 0) | 4 | 0 | Tactical Strike | **18** |
+| Simurgh Skylord | 4 | 5 | 0 | 0 | 5 | 1 | 0 | 10 | 8 (8 / 0) | 0 | 0 | Vision Support | **18** |
+| Raijin Tempest | 4 | 3 | 0 | 0 | 3 | 2 | 4 | 6 | 8 (8 / 0) | 4 | 0 | Death from Above | **18** |
+| Longinus | 5 | 3 | 0 | 0 | 3 | 3 | 0 | 6 | 8 (8 / 0) | 0 | 3 | Precision Strike | **17** |
+| Xuanwu Fortress | 6 | 2 | 0 | 5 | 7 | 0 | 0 | 9 | 8 (8 / 0) | 0 | 0 | Trap | **17** |
+| Hermes Strider | 3 | 4 | 0 | 0 | 4 | 4 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Diversion A | **16** |
+| Thoth Oracler | 6 | 4 | 0 | 0 | 4 | 4 | 0 | 8 | 8 (8 / 0) | 0 | 0 | Analyze Weakness | **16** |
+| Sarama Warhound | 4 | 3 | 0 | 0 | 3 | 3 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Intel Acquired | **14** |
+| Yatagarasu Pathfinder | 4 | 3 | 0 | 0 | 3 | 1 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Diversion B | **14** |
+| Loki | 4 | 3 | 0 | 0 | 3 | 3 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Copy | **14** |
+| Eir's Blessing | 5 | 3 | 0 | 0 | 3 | 2 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Repair | **14** |
+| Excalibur | 5 | 3 | 0 | 0 | 3 | 5 | 0 | 6 | 8 (8 / 0) | 0 | 0 | Deadly Presence | **14** |
+| Eyes of Horus | 2 | 1 | 0 | 0 | 1 | 0 | 3 | 2 | 8 (8 / 0) | 3 | 0 | Target Acquired | **13** |
+| Artemis | 3 | 2 | 0 | 0 | 2 | 1 | 0 | 4 | 8 (8 / 0) | 0 | 0 | Target Acquired | **12** |
+| Agni | 4 | 2 | 0 | 0 | 2 | 1 | 0 | 4 | 8 (8 / 0) | 0 | 0 | Tactical Strike | **12** |
+| Pandora | 3 | 1 | 0 | 0 | 1 | 1 | 0 | 2 | 8 (8 / 0) | 0 | 0 | Trap | **10** |
+| Anhur Warden | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 8 (8 / 0) | 0 | 0 | HQ Repair | **8** |
 
 ## Special skill constants
 
 | Unit | Skill | Damage | Note |
 | --- | --- | ---: | --- |
-| Zeus | Thunder Strike | 8 | Extra attack: gun 3 + follow-up Missile 5. Ignore-armor adds 0 when target armor is already 0. |
-| Apex Destroyer | Ambush | 11 | Frontline extra engage: ATK 3 + Aggressive 4 + 2 = 9, plus +2 ATK on the regular attack volley. +2 Armor adds 0 vs 0-armor targets. |
-| Iron Bastion | Trap | 0 | Forces engagement; no extra damage. |
-| Jackal Scout | Intel Acquired | 0 | Move an ally twice (including diagonal) and gain 2 Supply. |
-| Nomad Supply Buggy | Repair | 0 | Heal 4. |
-| Mirage Humvee | Rally | 0 | +3 ATK to an ally; counted under ally buff, not special. |
-| Viper Gunship | Rally | 0 | +3 ATK to an ally; counted under ally buff, not special. |
-| Hornet Interceptor | Tactical Strike | 0 | Missile +3 on an ally. |
-| Falcon Dropship | Vision Support | 0 | Support Fire also grants +2 AP; no damage instance. |
-| Manticore MLRS | Storm Caller | 5 | Extra own Missile 5. Ally missile proc is not this unit's damage. |
-| Sentinel Battery | Quick Mobilization | 6 | Extra attack: gun ATK 6. No missile. |
-| Siege Howitzer | Precision Strike | 7 | Extra attack anywhere: gun ATK 7. No missile. |
-| Aegis | Diversion | 0 | Move an enemy into Aegis's lane. |
-| Stalker Biped | Coordinate | 0 | Redirects empty-lane targeting. |
-| Ironclad Goliath | Analyze Weakness | 0 | −2 Armor. No extra damage when the target is already 0 armor. |
-| Exosuit Breacher | Sticky Bomb | 12 | +6 ATK this turn on 2 hits (extra attack + normal engage) = 12. Self 4 after each shot is not enemy damage. |
-| Trench Guard | Entrenchment | 0 | +3 Armor / +2 AP. |
-| Line Combat Medic | First-aid Kit | 0 | Heal infantry/motorcycles. |
-| Phantom Speeder | Diversion | 0 | Move an enemy down. |
-| Death Rider | Deadly Presence | 0 | +2 ATK / +4 AP buff. |
-| Scout Biker | Diversion | 0 | Move an enemy up. |
-| Recon Eye | Target Acquired | 0 | Marks a missile lane; enemies there take +1 Missile damage. |
-| Kamikaze Hunter | Kamikaze | 8 | 8 damage ignore armor; unit dies. |
-| Aegis Support Drone | HQ Repair | 0 | Repair HQ 7. |
-| Tempest Strike Bomber | Death from Above | 0 | Allied Missile +1. |
-| Stealthray Bomber | The Silent Death | 0 | Untargetable next turn. |
-| Komet Fighter | Hit & Run | 8 | Extra attack: gun ATK 8, then return to reserve. No missile. |
+| Zeus Devastator | Thunder Strike | 8 | Extra attack: gun 3 + follow-up Missile 5. Ignore-armor adds 0 when target armor is already 0. |
+| Fenrir Vanguard | Ambush | 9 | Frontline extra engage: ATK 3 + Aggressive 2 + 2 = 7, plus +2 ATK on the regular attack volley. +2 Armor adds 0 vs 0-armor targets. |
+| Xuanwu Fortress | Trap | 0 | Forces engagement; no extra damage. |
+| Sarama Warhound | Intel Acquired | 0 | Move an ally twice (including diagonal) and gain 1 Supply. |
+| Eir's Blessing | Repair | 0 | Heal 4. |
+| Huma Enforcer | Rally | 0 | +3 ATK to an ally; counted under ally buff, not special. |
+| Garuda Talon | Rally | 0 | +3 ATK to an ally; counted under ally buff, not special. |
+| Raiju's Whisper | Tactical Strike | 0 | Missile +4 on an ally. |
+| Simurgh Skylord | Vision Support | 0 | Support Fire also grants +2 AP; no damage instance. |
+| Tiamat Echo | Storm Caller | 5 | Extra own Missile 5. Ally missile proc is not this unit's damage. |
+| Houyi Quiver | First Strike | 6 | Extra attack: gun ATK 6. No missile. |
+| Pashupata Annihilator | Precision Strike | 7 | Extra attack anywhere: gun ATK 7. No missile. |
+| Typhon Disruptor | Diversion C | 0 | Move an enemy into Aegis's lane and strip keywords until end of opponent's turn. |
+| Skadi Hunter | Coordinate | 4 | Extra attack after +1 ATK: gun 3+1 = 4. Buff lasts the rest of the turn. No return fire. |
+| Thoth Oracler | Analyze Weakness | 0 | −2 Armor. No extra damage when the target is already 0 armor. |
+| Rostam Breacher | Sticky Bomb | 12 | +6 ATK this turn on 2 hits (extra attack + normal engage) = 12. Self 4 after each shot is not enemy damage. |
+| Heimdall Bastion | Entrenchment | 0 | +3 Armor / +2 AP. |
+| Dhanvantari Lifeweaver | First-aid Kit | 0 | Heal all Armored Infantry 2; all allies Repair 1 for 2 turns. Requires Medic on board. |
+| Hermes Strider | Diversion A | 0 | Move an enemy down; -1 ATK for 2 turns. |
+| Gungnir's Tip | Deadly Presence | 0 | +2 ATK / +4 AP buff. |
+| Yatagarasu Pathfinder | Diversion B | 0 | Move an enemy up; -1 ARM for 2 turns. |
+| Eyes of Horus | Target Acquired | 0 | Marks a missile lane; enemies there take +1 Missile damage. |
+| Sekhmet Kamikaze | Kamikaze | 8 | 8 damage ignore armor; unit dies. |
+| Anhur Warden | HQ Repair | 0 | Repair HQ 7. |
+| Raijin Tempest | Death from Above | 0 | Allied Missile +1. |
+| Hades Stealthray | The Silent Death | 0 | Untargetable next turn. |
+| Suzaku Komet | Hit & Run | 5 | Extra attack: gun ATK 5, then return to reserve. No missile. |
+| Qinglong | Analyze Weakness | 0 | −2 Armor. No extra damage when the target is already 0 armor. |
+| Baihu | Ambush | 10 | Frontline extra engage: ATK 4 + Ambush +2 = 6, plus +2 ATK on the regular attack volley vs 0 armor. |
+| Pandora | Trap | 0 | Forces engagement; no extra damage. |
+| Excalibur | Deadly Presence | 0 | +2 ATK / +4 AP buff. |
+| Longinus | Precision Strike | 3 | Extra attack anywhere: gun ATK 3 (First Strike already spent or not on extra). Conservative constant uses printed ATK. |
+| Thor | Thunder Strike | 3 | Extra attack: gun ATK 3. No missile on Thor. |
+| Artemis | Target Acquired | 0 | Marks a missile lane; enemies there take +1 Missile damage. |
+| Agni | Tactical Strike | 0 | Missile +4 on an ally. |
+| Loki | Copy | 0 | Mirrors another unit's ATK/Armor/AP until end of opponent's next turn. |
 
 ## Defense scores & hits survived
 
-| Unit | Cost | HP | Armor | HP+2A | HP+3A | vs Average | vs Trench Guard (max ATK) | vs Exosuit Breacher (max AP) | vs Komet Fighter (max ATK+AP) |
+| Unit | Cost | HP | Armor | HP+2A | HP+3A | vs Average | vs Heimdall Bastion (max ATK) | vs Rostam Breacher (max AP) | vs Pashupata Annihilator (max ATK+AP) |
 | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- |
-| Iron Bastion | 6 | 10 | 8 | 26 | 34 | 0.44 / 23 · 0.44 / 23 · 12 | 1 / 10 · 1 / 10 · 5 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Zeus | 6 | 10 | 6 | 22 | 28 | 2.44 / 5 · 2.44 / 5 · 3 | 3 / 4 · 3 / 4 · 2 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Aegis | 6 | 12 | 4 | 20 | 24 | 4.44 / 3 · 4.44 / 3 · 2 | 5 / 3 · 5 / 3 · 2 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Ironclad Goliath | 6 | 11 | 4 | 19 | 23 | 4.44 / 3 · 4.44 / 3 · 2 | 5 / 3 · 5 / 3 · 2 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Tempest Strike Bomber | 4 | 13 | 3 | 19 | 22 | 5.33 / 3 · 5.33 / 3 · 2 | 6 / 3 · 6 / 3 · 2 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Trench Guard | 5 | 20 | 0 | 20 | 20 | 6.11 / 4 · 5.33 / 4 · 2 | 9 / 3 · 9 / 3 · 2 | 4 / 5 · 4 / 5 · 3 | 8 / 3 · 8 / 3 · 2 |
-| Scout Biker | 4 | 14 | 2 | 18 | 20 | 5.33 / 3 · 5.33 / 3 · 2 | 7 / 2 · 7 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Mirage Humvee | 3 | 11 | 3 | 17 | 20 | 5.33 / 3 · 5.33 / 3 · 2 | 6 / 2 · 6 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Line Combat Medic | 4 | 19 | 0 | 19 | 19 | 6.11 / 4 · 5.33 / 4 · 2 | 9 / 3 · 9 / 3 · 2 | 4 / 5 · 4 / 5 · 3 | 8 / 3 · 8 / 3 · 2 |
-| Death Rider | 5 | 16 | 1 | 18 | 19 | 6.11 / 3 · 5.33 / 3 · 2 | 8 / 2 · 8 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Viper Gunship | 5 | 13 | 2 | 17 | 19 | 5.33 / 3 · 5.33 / 3 · 2 | 7 / 2 · 7 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Apex Destroyer | 6 | 10 | 3 | 16 | 19 | 5.33 / 2 · 5.33 / 2 · 1 | 6 / 2 · 6 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Stalker Biped | 5 | 10 | 3 | 16 | 19 | 5.33 / 2 · 5.33 / 2 · 1 | 6 / 2 · 6 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Exosuit Breacher | 4 | 18 | 0 | 18 | 18 | 6.11 / 3 · 5.33 / 4 · 2 | 9 / 2 · 9 / 2 · 1 | 4 / 5 · 4 / 5 · 3 | 8 / 3 · 8 / 3 · 2 |
-| Nomad Supply Buggy | 5 | 12 | 2 | 16 | 18 | 5.33 / 3 · 5.33 / 3 · 2 | 7 / 2 · 7 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Falcon Dropship | 4 | 14 | 1 | 16 | 17 | 6.11 / 3 · 5.33 / 3 · 2 | 8 / 2 · 8 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Phantom Speeder | 3 | 14 | 1 | 16 | 17 | 6.11 / 3 · 5.33 / 3 · 2 | 8 / 2 · 8 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Jackal Scout | 4 | 10 | 2 | 14 | 16 | 5.33 / 2 · 5.33 / 2 · 1 | 7 / 2 · 7 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Hornet Interceptor | 4 | 10 | 2 | 14 | 16 | 5.33 / 2 · 5.33 / 2 · 1 | 7 / 2 · 7 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Stealthray Bomber | 6 | 12 | 1 | 14 | 15 | 6.11 / 2 · 5.33 / 3 · 2 | 8 / 2 · 8 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 8 / 2 · 8 / 2 · 1 |
-| Manticore MLRS | 5 | 8 | 0 | 8 | 8 | 6.11 / 2 · 5.33 / 2 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Sentinel Battery | 4 | 8 | 0 | 8 | 8 | 6.11 / 2 · 5.33 / 2 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Siege Howitzer | 5 | 8 | 0 | 8 | 8 | 6.11 / 2 · 5.33 / 2 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Aegis Support Drone | 2 | 5 | 1 | 7 | 8 | 6.11 / 1 · 5.33 / 1 · 1 | 8 / 1 · 8 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Recon Eye | 2 | 4 | 0 | 4 | 4 | 6.11 / 1 · 5.33 / 1 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Kamikaze Hunter | 3 | 4 | 0 | 4 | 4 | 6.11 / 1 · 5.33 / 1 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 8 / 1 · 8 / 1 · 1 |
-| Komet Fighter | 6 | 3 | 0 | 3 | 3 | 6.11 / 1 · 5.33 / 1 · 1 | 9 / 1 · 9 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 8 / 1 · 8 / 1 · 1 |
+| Zeus Devastator | 6 | 10 | 6 | 22 | 28 | 1.33 / 8 · 1.33 / 8 · 4 | 6 / 2 · 6 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Typhon Disruptor | 6 | 12 | 4 | 20 | 24 | 3.33 / 4 · 3.33 / 4 · 2 | 8 / 2 · 8 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Raijin Tempest | 4 | 13 | 3 | 19 | 22 | 4.33 / 3 · 4.33 / 3 · 2 | 9 / 2 · 9 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Yatagarasu Pathfinder | 4 | 14 | 2 | 18 | 20 | 4.64 / 4 · 4.64 / 4 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Excalibur | 5 | 14 | 2 | 18 | 20 | 4.64 / 4 · 4.64 / 4 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Dhanvantari Lifeweaver | 4 | 19 | 0 | 19 | 19 | 5.22 / 4 · 4.64 / 5 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 5 · 4 / 5 · 3 | 7 / 3 · 7 / 3 · 2 |
+| Gungnir's Tip | 5 | 16 | 1 | 18 | 19 | 4.64 / 4 · 4.64 / 4 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 3 · 7 / 3 · 2 |
+| Garuda Talon | 5 | 13 | 2 | 17 | 19 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Fenrir Vanguard | 6 | 10 | 3 | 16 | 19 | 4.33 / 3 · 4.33 / 3 · 2 | 9 / 2 · 9 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Agni | 4 | 12 | 2 | 16 | 18 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Xuanwu Fortress | 6 | 9 | 3 | 15 | 18 | 4.33 / 3 · 4.33 / 3 · 2 | 9 / 1 · 9 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Thoth Oracler | 6 | 9 | 3 | 15 | 18 | 4.33 / 3 · 4.33 / 3 · 2 | 9 / 1 · 9 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Thor | 4 | 9 | 3 | 15 | 18 | 4.33 / 3 · 4.33 / 3 · 2 | 9 / 1 · 9 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Eir's Blessing | 5 | 11 | 2 | 15 | 17 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Baihu | 6 | 11 | 2 | 15 | 17 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Heimdall Bastion | 4 | 16 | 0 | 16 | 16 | 5.22 / 4 · 4.64 / 4 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 3 · 7 / 3 · 2 |
+| Raiju's Whisper | 4 | 10 | 2 | 14 | 16 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 1 · 10 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Rostam Breacher | 4 | 15 | 0 | 15 | 15 | 5.22 / 3 · 4.64 / 4 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 4 · 4 / 4 · 2 | 7 / 3 · 7 / 3 · 2 |
+| Huma Enforcer | 3 | 9 | 2 | 13 | 15 | 4.64 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Qinglong | 5 | 11 | 1 | 13 | 14 | 4.64 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Skadi Hunter | 5 | 8 | 2 | 12 | 14 | 4.64 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Artemis | 3 | 9 | 1 | 11 | 12 | 4.64 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Simurgh Skylord | 4 | 11 | 0 | 11 | 11 | 5.22 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Hermes Strider | 3 | 11 | 0 | 11 | 11 | 5.22 / 3 · 4.64 / 3 · 2 | 10 / 2 · 10 / 2 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Sarama Warhound | 4 | 8 | 1 | 10 | 11 | 4.64 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Pandora | 3 | 8 | 1 | 10 | 11 | 4.64 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Hades Stealthray | 6 | 10 | 0 | 10 | 10 | 5.22 / 2 · 4.64 / 3 · 2 | 10 / 1 · 10 / 1 · 1 | 4 / 3 · 4 / 3 · 2 | 7 / 2 · 7 / 2 · 1 |
+| Tiamat Echo | 5 | 8 | 0 | 8 | 8 | 5.22 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Houyi Quiver | 4 | 8 | 0 | 8 | 8 | 5.22 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Pashupata Annihilator | 6 | 8 | 0 | 8 | 8 | 5.22 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Longinus | 5 | 8 | 0 | 8 | 8 | 5.22 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Loki | 4 | 8 | 0 | 8 | 8 | 5.22 / 2 · 4.64 / 2 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 2 · 4 / 2 · 1 | 7 / 2 · 7 / 2 · 1 |
+| Eyes of Horus | 2 | 4 | 0 | 4 | 4 | 5.22 / 1 · 4.64 / 1 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 7 / 1 · 7 / 1 · 1 |
+| Sekhmet Kamikaze | 3 | 4 | 0 | 4 | 4 | 5.22 / 1 · 4.64 / 1 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 7 / 1 · 7 / 1 · 1 |
+| Anhur Warden | 2 | 4 | 0 | 4 | 4 | 5.22 / 1 · 4.64 / 1 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 7 / 1 · 7 / 1 · 1 |
+| Suzaku Komet | 6 | 3 | 0 | 3 | 3 | 5.22 / 1 · 4.64 / 1 · 1 | 10 / 1 · 10 / 1 · 1 | 4 / 1 · 4 / 1 · 1 | 7 / 1 · 7 / 1 · 1 |
 
 ### Incoming damage detail
 
 | Unit | Armor | Avg gun / missile | Max ATK gun / missile | Max AP gun / missile | Max ATK+AP gun / missile |
 | --- | ---: | --- | --- | --- | --- |
-| Iron Bastion | 8 | 0.44 / 0 | 1 / 0 | 4 / 0 | 8 / 0 |
-| Zeus | 6 | 2.44 / 0 | 3 / 0 | 4 / 0 | 8 / 0 |
-| Aegis | 4 | 4.44 / 0 | 5 / 0 | 4 / 0 | 8 / 0 |
-| Ironclad Goliath | 4 | 4.44 / 0 | 5 / 0 | 4 / 0 | 8 / 0 |
-| Tempest Strike Bomber | 3 | 5.33 / 0 | 6 / 0 | 4 / 0 | 8 / 0 |
-| Trench Guard | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Scout Biker | 2 | 5.33 / 0 | 7 / 0 | 4 / 0 | 8 / 0 |
-| Mirage Humvee | 3 | 5.33 / 0 | 6 / 0 | 4 / 0 | 8 / 0 |
-| Line Combat Medic | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Death Rider | 1 | 5.33 / 0.78 | 8 / 0 | 4 / 0 | 8 / 0 |
-| Viper Gunship | 2 | 5.33 / 0 | 7 / 0 | 4 / 0 | 8 / 0 |
-| Apex Destroyer | 3 | 5.33 / 0 | 6 / 0 | 4 / 0 | 8 / 0 |
-| Stalker Biped | 3 | 5.33 / 0 | 6 / 0 | 4 / 0 | 8 / 0 |
-| Exosuit Breacher | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Nomad Supply Buggy | 2 | 5.33 / 0 | 7 / 0 | 4 / 0 | 8 / 0 |
-| Falcon Dropship | 1 | 5.33 / 0.78 | 8 / 0 | 4 / 0 | 8 / 0 |
-| Phantom Speeder | 1 | 5.33 / 0.78 | 8 / 0 | 4 / 0 | 8 / 0 |
-| Jackal Scout | 2 | 5.33 / 0 | 7 / 0 | 4 / 0 | 8 / 0 |
-| Hornet Interceptor | 2 | 5.33 / 0 | 7 / 0 | 4 / 0 | 8 / 0 |
-| Stealthray Bomber | 1 | 5.33 / 0.78 | 8 / 0 | 4 / 0 | 8 / 0 |
-| Manticore MLRS | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Sentinel Battery | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Siege Howitzer | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Aegis Support Drone | 1 | 5.33 / 0.78 | 8 / 0 | 4 / 0 | 8 / 0 |
-| Recon Eye | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Kamikaze Hunter | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
-| Komet Fighter | 0 | 5.33 / 0.78 | 9 / 0 | 4 / 0 | 8 / 0 |
+| Zeus Devastator | 6 | 1.33 / 0 | 6 / 0 | 4 / 0 | 7 / 0 |
+| Typhon Disruptor | 4 | 3.33 / 0 | 8 / 0 | 4 / 0 | 7 / 0 |
+| Raijin Tempest | 3 | 4.33 / 0 | 9 / 0 | 4 / 0 | 7 / 0 |
+| Yatagarasu Pathfinder | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Excalibur | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Dhanvantari Lifeweaver | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Gungnir's Tip | 1 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Garuda Talon | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Fenrir Vanguard | 3 | 4.33 / 0 | 9 / 0 | 4 / 0 | 7 / 0 |
+| Agni | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Xuanwu Fortress | 3 | 4.33 / 0 | 9 / 0 | 4 / 0 | 7 / 0 |
+| Thoth Oracler | 3 | 4.33 / 0 | 9 / 0 | 4 / 0 | 7 / 0 |
+| Thor | 3 | 4.33 / 0 | 9 / 0 | 4 / 0 | 7 / 0 |
+| Eir's Blessing | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Baihu | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Heimdall Bastion | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Raiju's Whisper | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Rostam Breacher | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Huma Enforcer | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Qinglong | 1 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Skadi Hunter | 2 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Artemis | 1 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Simurgh Skylord | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Hermes Strider | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Sarama Warhound | 1 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Pandora | 1 | 4.64 / 0 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Hades Stealthray | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Tiamat Echo | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Houyi Quiver | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Pashupata Annihilator | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Longinus | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Loki | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Eyes of Horus | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Sekhmet Kamikaze | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Anhur Warden | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
+| Suzaku Komet | 0 | 4.64 / 0.58 | 10 / 0 | 4 / 0 | 7 / 0 |
 
 ## Notes
 
