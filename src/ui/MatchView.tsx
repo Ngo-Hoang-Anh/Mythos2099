@@ -136,6 +136,8 @@ function promptFor(kind: TargetKind | undefined, picked: number): string {
       return picked === 0 ? "Click a friendly unit on the board" : "Click a highlighted cell";
     case "boardCell":
       return "Click a cell to retarget missiles";
+    case "twoEmptyCells":
+      return picked === 0 ? "Click the first empty tile" : "Click the second empty tile";
     case "twoDirectionsSameUnit":
       if (picked === 0) return "Click the unit that will move";
       return `Click destination ${picked} (or Done after 1)`;
@@ -233,6 +235,7 @@ function draftReady(draft: TargetDraft): boolean {
     return draft.unitIds.length === 1;
   }
   if (needed.includes("boardCell")) return draft.cells.length === 1;
+  if (needed.includes("twoEmptyCells")) return draft.cells.length === 2;
   return false;
 }
 
@@ -901,6 +904,22 @@ export function MatchView({
       updateDraft({ ...draft, cells: [{ col, row }] });
       return;
     }
+    if (draft?.kinds.includes("twoEmptyCells")) {
+      if (match.board[col][row]) {
+        setError("Choose an empty tile");
+        return;
+      }
+      if (draft.cells.some((pos) => pos.col === col && pos.row === row)) {
+        setError("Choose two different tiles");
+        return;
+      }
+      if (draft.cells.length >= 2) {
+        updateDraft({ ...draft, cells: [{ col, row }] });
+        return;
+      }
+      updateDraft({ ...draft, cells: [...draft.cells, { col, row }] });
+      return;
+    }
     if (draft && awaitingMoveDest(targetingEffect(draft), draft.unitIds, draft.cells)) {
       const dests = moveHighlights(match, draft);
       if (!dests.some((pos) => samePos(pos, { col, row }))) {
@@ -1018,8 +1037,12 @@ export function MatchView({
   }
 
   const reachableCells = draft
-    ? draft.kinds.includes("boardCell")
-      ? Array.from({ length: COLS * ROWS }, (_, i) => ({ col: Math.floor(i / ROWS), row: i % ROWS }))
+    ? draft.kinds.includes("boardCell") || draft.kinds.includes("twoEmptyCells")
+      ? Array.from({ length: COLS * ROWS }, (_, i) => {
+          const cell = { col: Math.floor(i / ROWS), row: i % ROWS };
+          if (draft.kinds.includes("twoEmptyCells") && match.board[cell.col][cell.row]) return null;
+          return cell;
+        }).filter((cell): cell is BoardPos => cell !== null)
       : moveHighlights(match, draft)
     : [];
   const hostileIds = hostileAimIds(match, draft, viewer);
@@ -1189,7 +1212,11 @@ export function MatchView({
           deployPlayer={match.phase === "deployment" && myTurn ? viewer : null}
           deployEnabled={match.phase === "deployment" && desperateReady && !locked}
           reachableCells={reachableCells}
-          reachableLabel={draft?.kinds.includes("boardCell") ? "Aim here" : "Move here"}
+          reachableLabel={
+            draft?.kinds.includes("boardCell") || draft?.kinds.includes("twoEmptyCells")
+              ? "Aim here"
+              : "Move here"
+          }
           dropKind={dropKind === "discard" ? null : dropKind}
           fxQueue={fxQueue}
           fxStartBoard={fxStartBoard}

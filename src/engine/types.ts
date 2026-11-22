@@ -72,6 +72,7 @@ export type TargetKind =
   | "upOrDown"
   | "boardDest"
   | "boardCell"
+  | "twoEmptyCells"
   | "upMove"
   | "downMove"
   | "anyDirection"
@@ -150,7 +151,15 @@ export type EffectId =
   | "deathFromAbove"
   | "silentDeath"
   | "initiative"
-  | "lokiCopy";
+  | "lokiCopy"
+  | "qinglongTide"
+  | "baihuOmniAoe"
+  | "pandoraBox"
+  | "excaliburExecute"
+  | "longinusLance"
+  | "thorStun"
+  | "artemisTraps"
+  | "agniEruption";
 
 export interface CardDef {
   templateId: string;
@@ -341,7 +350,12 @@ export type StatusKind =
   | "smokeDodge"
   | "suppressionMark"
   | "fireDot"
-  | "hulldownArmor";
+  | "hulldownArmor"
+  | "omniAoe"
+  | "stunned"
+  | "rooted"
+  | "boardTrap"
+  | "eruptionOmen";
 
 export interface StatusEffect {
   id: string;

@@ -17,6 +17,7 @@ import {
   retaliateOf,
   suppressionPenalty,
 } from "../keywords";
+import { isImmobilized, isStunned, triggerBoardTraps } from "../expansionSpecials";
 import { clearHulldownOnMove, clearSmokeOnMove, hasStatusOn, isUntargetableBy, statusesOf } from "../status";
 import type {
   CombatStep,
@@ -161,13 +162,15 @@ export function fightsFromSupport(unit: UnitInstance): boolean {
   return isBattery(unit) || hasKeyword(unit, "jetPlane");
 }
 
-export function canVolley(unit: UnitInstance): boolean {
+export function canVolley(unit: UnitInstance, state?: MatchState): boolean {
+  if (state && isStunned(state, unit)) return false;
   if (fightsFromSupport(unit)) return true;
   return unit.col === frontCol(unit.owner);
 }
 
 /** Any non-Artillery unit can return fire when attacked — Front or Support, rested OK. 0 HP still counters, then dies. */
-export function canCounter(unit: UnitInstance): boolean {
+export function canCounter(unit: UnitInstance, state?: MatchState): boolean {
+  if (state && isStunned(state, unit)) return false;
   return !skipsReturnFire(unit);
 }
 
@@ -189,9 +192,11 @@ export function livingEnemyInLane(state: MatchState, attacker: PlayerId, lane: n
 export function combatMove(state: MatchState, ctx: CombatCtx, unit: UnitInstance, col: number, row: number): void {
   const from = { col: unit.col, row: unit.row };
   if (from.col === col && from.row === row) return;
+  if (isImmobilized(state, unit)) return;
   clearHulldownOnMove(state, unit);
   clearSmokeOnMove(state, unit);
   moveUnitOnBoard(state.board, unit, col, row);
+  triggerBoardTraps(state, unit);
   ctx.steps.push({
     kind: "move",
     unitId: unit.instanceId,

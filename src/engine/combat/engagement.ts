@@ -1,5 +1,6 @@
 import { cloneBoard } from "../board";
 import { applyEliminationLoss } from "../elimination";
+import { resolveEruptionOmens } from "../expansionSpecials";
 import { log, withLogGroup } from "../state";
 import { cloneStatuses } from "../status";
 import type { CombatCtx, ExtraEngagement } from "./helpers";
@@ -57,6 +58,8 @@ export function beginEngagement(state: MatchState, opts?: EngagementOpts): void 
     undefined,
     () => {
       clearStrikeFlags(state);
+      // Delayed marks (Agni) fire at the start of a full engagement, not mid-turn extras.
+      if (!opts?.extra) resolveEruptionOmens(state, attacker);
       if (!opts?.skipRelocation) runRelocationPhase(state, ctx);
       runStatsPhase(state, ctx);
       runDamagePhase(state, ctx);

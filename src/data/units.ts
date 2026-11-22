@@ -359,7 +359,7 @@ export const UNITS: UnitDef[] = [
     ap: 1,
     cost: 5,
     keywords: "Blitz; Barrier 5; Shock 5",
-    cards: cardsOf(C.analyze_weakness, C.heatseeking, C.up_or_down_1),
+    cards: cardsOf(C.qinglong_tide, C.heatseeking, C.up_or_down_1),
   }),
   unit({
     id: 29,
@@ -371,7 +371,7 @@ export const UNITS: UnitDef[] = [
     ap: 2,
     cost: 6,
     keywords: "Veteran 1; Shield 3; Sloped Armor",
-    cards: cardsOf(C.ambush, C.blitzkrieg, C.forward_1),
+    cards: cardsOf(C.baihu_omni, C.blitzkrieg, C.forward_1),
   }),
   unit({
     id: 30,
@@ -383,7 +383,7 @@ export const UNITS: UnitDef[] = [
     ap: 0,
     cost: 4,
     keywords: "Smoke Screen; Suppression; Corrosion 3",
-    cards: cardsOf(C.trap, C.lure, C.down_0),
+    cards: cardsOf(C.pandora_box, C.lure, C.down_0),
   }),
   unit({
     id: 31,
@@ -395,7 +395,7 @@ export const UNITS: UnitDef[] = [
     ap: 2,
     cost: 6,
     keywords: "Veteran 1; First Strike 5",
-    cards: cardsOf(C.deadly_presence, C.quick_engagement, C.up_0),
+    cards: cardsOf(C.excalibur_execute, C.quick_engagement, C.up_0),
   }),
   unit({
     id: 32,
@@ -407,7 +407,7 @@ export const UNITS: UnitDef[] = [
     ap: 4,
     cost: 5,
     keywords: "Artillery; First Strike 4",
-    cards: cardsOf(C.precision_strike, C.target_registration, C.retreat_0),
+    cards: cardsOf(C.longinus_lance, C.target_registration, C.retreat_0),
   }),
   unit({
     id: 33,
@@ -419,7 +419,7 @@ export const UNITS: UnitDef[] = [
     ap: 2,
     cost: 5,
     keywords: "Shield 4; Shock 4",
-    cards: cardsOf(C.thunder_strike, C.sniping, C.up_or_down_1),
+    cards: cardsOf(C.thor_stun, C.sniping, C.up_or_down_1),
   }),
   unit({
     id: 34,
@@ -431,7 +431,7 @@ export const UNITS: UnitDef[] = [
     ap: 2,
     cost: 4,
     keywords: "Jet Plane; Radar; Blitz",
-    cards: cardsOf(C.target_acquired, C.heatseeking, C.down_0),
+    cards: cardsOf(C.artemis_traps, C.heatseeking, C.down_0),
   }),
   unit({
     id: 35,
@@ -443,7 +443,7 @@ export const UNITS: UnitDef[] = [
     ap: 0,
     cost: 6,
     keywords: "First Strike 5; Fire 2; Corrosion 2",
-    cards: cardsOf(C.tactical_strike, C.reorganize, C.up_or_down_1),
+    cards: cardsOf(C.agni_eruption, C.reorganize, C.up_or_down_1),
   }),
   unit({
     id: 36,

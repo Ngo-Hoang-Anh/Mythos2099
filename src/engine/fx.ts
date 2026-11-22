@@ -1,5 +1,6 @@
 import { moveUnitOnBoard } from "./board";
 import { weaponPower } from "./combat/helpers";
+import { triggerBoardTraps } from "./expansionSpecials";
 import { clearHulldownOnMove, clearSmokeOnMove } from "./status";
 import { HQ_MAX_HP, playerHqMax, type BoardPos, type FxEvent, type FxTarget, type MatchState, type UnitInstance } from "./types";
 
@@ -13,6 +14,7 @@ export function relocateUnit(state: MatchState, unit: UnitInstance, col: number,
   clearHulldownOnMove(state, unit);
   clearSmokeOnMove(state, unit);
   moveUnitOnBoard(state.board, unit, col, row);
+  triggerBoardTraps(state, unit);
   state.fx.push({
     kind: "move",
     unitId: unit.instanceId,

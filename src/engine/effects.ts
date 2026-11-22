@@ -19,6 +19,12 @@ import { armorPiercingOf, hasKeyword, keywordValue } from "./keywords";
 import { ROWS } from "./types";
 import { addStatus, isUntargetableBy, removeStatus, suppressUnitKeywords } from "./status";
 import {
+  applyPandoraBox,
+  applyQinglongTide,
+  emptyCellsOnBoard,
+  isImmobilized,
+} from "./expansionSpecials";
+import {
   destError,
   destOfDir,
   dirsForEffect,
@@ -28,6 +34,7 @@ import {
 } from "./move";
 import type { BoardPos, CardInstance, Direction, MatchState, PlayTargets, PlayerId, UnitInstance } from "./types";
 import { current, log } from "./state";
+import { resolveDestroyedUnits } from "./combat/cleanup";
 
 function requireUnit(state: MatchState, id: string | undefined): UnitInstance | string {
   if (!id) return "Missing unit target";
@@ -56,6 +63,7 @@ export function stepUnit(
   unit: UnitInstance,
   dir: Direction,
 ): string | null {
+  if (isImmobilized(state, unit)) return `${unit.name} cannot move`;
   const dest = destOfDir(unit.owner, unit.col, unit.row, dir);
   if (typeof dest === "string") return destError(unit, dest);
   if (state.board[dest.col][dest.row]) return "Destination is occupied";
@@ -70,6 +78,7 @@ function applyMoveToCell(
   dirs: Direction[],
   opts?: { from?: BoardPos; extraEmpty?: BoardPos[]; extraOccupied?: BoardPos[] },
 ): string | null {
+  if (isImmobilized(state, unit)) return `${unit.name} cannot move`;
   const legal = legalDestinations(state, unit, dirs, opts);
   if (!legal.some((pos) => samePos(pos, cell))) return "That cell is not a legal destination";
   relocateUnit(state, unit, cell.col, cell.row);
@@ -787,6 +796,114 @@ export function playEffect(state: MatchState, card: CardInstance, targets: PlayT
         state,
         `${self.name} Copy: mirrors ${other.name}'s ATK/Armor/AP until the end of the opponent's next turn`,
       );
+      return null;
+    }
+    case "qinglongTide": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      applyQinglongTide(state, source, player.id);
+      return null;
+    }
+    case "baihuOmniAoe": {
+      const unit = selfFromTargets(state, card, targets);
+      if (typeof unit === "string") return unit;
+      addStatus(state, {
+        kind: "omniAoe",
+        sourceId: unit.instanceId,
+        owner: player.id,
+        targetId: unit.instanceId,
+        duration: "endOfTurn",
+      });
+      log(state, `${unit.name} Omnidirectional Claws: AoE applies in all directions this turn`);
+      return null;
+    }
+    case "pandoraBox": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      applyPandoraBox(state, source, player.id);
+      return null;
+    }
+    case "excaliburExecute": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      const enemy = requireEnemy(state, targets.unitIds?.[0], player.id);
+      if (typeof enemy === "string") return enemy;
+      if (enemy.hp / enemy.maxHp >= 0.25) return "Target must be below 25% HP";
+      const lethal = enemy.hp;
+      pushAttack(state, source, { col: enemy.col, row: enemy.row }, { damage: lethal, power: lethal });
+      applyUnitDamage(state, enemy, lethal, source.name, { via: "Execute", skipSmoke: true });
+      resolveDestroyedUnits(state);
+      log(state, `${source.name} Execute destroys ${enemy.name}`);
+      return null;
+    }
+    case "longinusLance": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      const enemy = requireEnemy(state, targets.unitIds?.[0], player.id);
+      if (typeof enemy === "string") return enemy;
+      const dmg = Math.floor(enemy.hp * 0.5);
+      if (dmg <= 0) return "Target has no HP to pierce";
+      pushAttack(state, source, { col: enemy.col, row: enemy.row }, { damage: dmg, power: dmg });
+      applyUnitDamage(state, enemy, dmg, source.name, { via: "Holy Lance", skipSmoke: true });
+      resolveDestroyedUnits(state);
+      log(state, `${source.name} Holy Lance deals ${dmg} to ${enemy.name}`);
+      return null;
+    }
+    case "thorStun": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      const enemy = requireEnemy(state, targets.unitIds?.[0], player.id);
+      if (typeof enemy === "string") return enemy;
+      addStatus(state, {
+        kind: "stunned",
+        sourceId: source.instanceId,
+        owner: player.id,
+        targetId: enemy.instanceId,
+        duration: "endOfNextTurn",
+      });
+      log(state, `${source.name} stuns ${enemy.name} for 2 turns`);
+      return null;
+    }
+    case "artemisTraps": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      const cells = targets.cells ?? [];
+      if (cells.length < 2) return "Choose 2 empty tiles";
+      const a = cells[0]!;
+      const b = cells[1]!;
+      if (samePos(a, b)) return "Choose two different tiles";
+      const empty = emptyCellsOnBoard(state);
+      for (const cell of [a, b]) {
+        if (!empty.some((pos) => samePos(pos, cell))) return "Traps must be on empty tiles";
+        addStatus(state, {
+          kind: "boardTrap",
+          sourceId: source.instanceId,
+          owner: player.id,
+          col: cell.col,
+          lane: cell.row,
+          duration: "untilConsumed",
+          remainingPasses: 99,
+        });
+      }
+      log(state, `${source.name} places Moon Sigils on two empty tiles`);
+      return null;
+    }
+    case "agniEruption": {
+      const source = sourceUnit(state, card);
+      if (!source) return "Source unit is not on the board";
+      const cell = targets.cells?.[0];
+      if (!cell) return "Choose a tile to mark";
+      if (!inBounds(cell.col, cell.row)) return "Invalid tile";
+      addStatus(state, {
+        kind: "eruptionOmen",
+        sourceId: source.instanceId,
+        owner: player.id,
+        col: cell.col,
+        lane: cell.row,
+        duration: "untilConsumed",
+        remainingPasses: 99,
+      });
+      log(state, `${source.name} marks (${cell.col},${cell.row}) with Eruption Omen`);
       return null;
     }
     case "fieldRepair": {

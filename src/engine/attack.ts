@@ -14,6 +14,7 @@ import { applyHqDamage, applyUnitDamage } from "./hp";
 import type { MatchState, PlayerId, UnitInstance } from "./types";
 import { strikeSource } from "./combat/helpers";
 import { resolveMissileShot } from "./combat/missile";
+import { applyOmniAoeSplash } from "./expansionSpecials";
 import { afterGunAttack } from "./status";
 
 export { applyHqDamage, applyUnitDamage, healUnit, healHq } from "./hp";
@@ -56,6 +57,7 @@ export function resolveAttack(
     ...strikeSource(state, attacker, "attack"),
     shooterOwner: attacker.owner,
   });
+  applyOmniAoeSplash(state, attacker, enemy, dmg);
   afterGunAttack(state, attacker);
   fireFollowupMissile(state, attacker);
   resolveDestroyedUnits(state);

@@ -39,6 +39,14 @@ const RESOLVED_SPECIALS: EffectId[] = [
   "silentDeath",
   "hitAndRun",
   "lokiCopy",
+  "qinglongTide",
+  "baihuOmniAoe",
+  "pandoraBox",
+  "excaliburExecute",
+  "longinusLance",
+  "thorStun",
+  "artemisTraps",
+  "agniEruption",
 ];
 
 function spawn(state: MatchState, defId: number, owner: PlayerId, col: number, row: number): UnitInstance {

@@ -3,6 +3,7 @@ import { frontCol, supportCol, unitsOf } from "../board";
 import { artilleryRepeatBonus } from "../combat";
 import { armorPiercingOf, hasKeyword, keywordValue, stripKeyword, suppressionPenalty } from "../keywords";
 import { log, withLogGroup } from "../state";
+import { applyOmniAoeSplash } from "../expansionSpecials";
 import { afterGunAttack, statusesOf } from "../status";
 import { playerHqMax, type MatchState, type PlayerId, type UnitInstance } from "../types";
 import { removeDeadUnits } from "./cleanup";
@@ -98,6 +99,7 @@ function fireGunAtUnit(
     const src = strikeSource(state, shooter, side);
     log(state, `${shooter.name} deals ${dmg} with ${src.via} to ${target.name} (${Math.max(target.hp, 0)} HP)`, src.icon);
     ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
+    applyOmniAoeSplash(state, shooter, target, dmg);
   }
   const { smokeStatusId } = afterGunHitEffects(state, ctx.attacker, shooter, target, side, hit);
   if (smokeStatusId) {
@@ -166,16 +168,19 @@ function fireGunAtHq(
  */
 export function runDamagePhase(state: MatchState, ctx: CombatCtx): void {
   const attackersReady = unitsOf(state.board, ctx.attacker).some(
-    (u) => canVolley(u) && !u.rested && u.hp > 0 && mayStrike(ctx, u),
+    (u) => canVolley(u, state) && !u.rested && u.hp > 0 && mayStrike(ctx, u),
   );
-  const defendersReady = unitsOf(state.board, ctx.defender).some((u) => canCounter(u) && mayStrike(ctx, u));
+  const defendersReady = unitsOf(state.board, ctx.defender).some(
+    (u) => canCounter(u, state) && mayStrike(ctx, u),
+  );
   if (!attackersReady && !defendersReady) return;
 
   ctx.steps.push({ kind: "phase", phase: "damage" });
   withLogGroup(state, "Damage", "atk", () => {
     // Two passes: every Frontline shooter first, then every Support shooter.
     // Smoke Screen on a shared target can deploy from the front hit before the back shot.
-    const ready = (u: UnitInstance) => canVolley(u) && !u.rested && u.hp > 0 && mayStrike(ctx, u);
+    const ready = (u: UnitInstance) =>
+      canVolley(u, state) && !u.rested && u.hp > 0 && mayStrike(ctx, u);
     const fireAttacker = (unit: UnitInstance) => {
       const target = resolveAttackTarget(state, ctx, unit);
       if (target) {
@@ -187,7 +192,7 @@ export function runDamagePhase(state: MatchState, ctx: CombatCtx): void {
       // Interleaved return fire — including when Smoke redirected the shot to HQ.
       // If the attacker has Smoke Screen, the counter also redirects to HQ.
       const counter = target ?? facingCounterUnit(state, ctx, unit);
-      if (counter && takesReturnFire(unit) && canCounter(counter)) {
+      if (counter && takesReturnFire(unit) && canCounter(counter, state)) {
         if (smokeBlocksGun(state, unit, counter.owner)) {
           fireGunAtHq(state, ctx, counter, unit.owner, "counter");
         } else {
