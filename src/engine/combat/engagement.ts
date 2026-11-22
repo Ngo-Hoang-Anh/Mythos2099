@@ -1,6 +1,7 @@
 import { cloneBoard } from "../board";
 import { applyEliminationLoss } from "../elimination";
 import { log, withLogGroup } from "../state";
+import { cloneStatuses } from "../status";
 import type { CombatCtx, ExtraEngagement } from "./helpers";
 import { clearStrikeFlags } from "./helpers";
 import { runCleanupPhase } from "./cleanup";
@@ -45,6 +46,7 @@ export function beginEngagement(state: MatchState, opts?: EngagementOpts): void 
   const defender: 0 | 1 = attacker === 0 ? 1 : 0;
   const initialBoard = cloneBoard(state.board);
   const initialHq: [number, number] = [state.players[0].hqHp, state.players[1].hqHp];
+  const initialStatuses = cloneStatuses(state.statuses);
   const ctx: CombatCtx = { attacker, defender, steps: [], extra: opts?.extra };
 
   state.combatResumePhase = opts?.resumePhase ?? null;
@@ -73,7 +75,7 @@ export function beginEngagement(state: MatchState, opts?: EngagementOpts): void 
   if (state.winner !== null) {
     state.phase = "gameover";
   }
-  state.combatPlayback = { steps: ctx.steps, initialBoard, initialHq };
+  state.combatPlayback = { steps: ctx.steps, initialBoard, initialHq, initialStatuses };
 }
 
 export { runRelocationPhase, runStatsPhase, runDamagePhase, runCleanupPhase, runMissilePhase };

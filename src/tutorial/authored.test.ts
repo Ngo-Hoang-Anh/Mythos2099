@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getSquadArt, SQUAD_ART } from "../data/squadArt";
 import { getUnitArt, UNIT_ART } from "../data/unitArt";
 import { applyAction } from "../engine/match";
-import type { MatchState } from "../engine/types";
+import { hasStatusOn } from "../engine/status";
+import { P1_FRONT, P2_FRONT, type MatchState } from "../engine/types";
 import {
   allowFromBeats,
   checkDone,
@@ -14,7 +15,7 @@ import {
   setupScenario,
   type Beat,
 } from "./authored";
-import { ARMOR_SCENARIO } from "./scenarios";
+import { ARMOR_SCENARIO, HULLDOWN_SLOPE_SCENARIO, SCOUT_RECON_SCENARIO } from "./scenarios";
 
 function must(match: MatchState, action: NonNullable<ReturnType<ReturnType<typeof scriptedFromBeats>>>) {
   const result = applyAction(match, action);
@@ -35,6 +36,31 @@ describe("authored art aliases", () => {
     expect(getSquadArt(1045)).toBe(SQUAD_ART[16]);
     expect(getSquadArt(1042)).toBe(SQUAD_ART[18]);
     expect(getUnitArt(1046)).toBe(UNIT_ART[3]);
+  });
+});
+
+describe("authored status seeding", () => {
+  it("seeds Smoke, Suppression, and Hulldown for keyword lessons", () => {
+    const scout = setupScenario(SCOUT_RECON_SCENARIO);
+    const spotter = scout.board[P1_FRONT][0]!;
+    const veil = scout.board[P2_FRONT][1]!;
+    expect(
+      scout.statuses.some(
+        (s) =>
+          s.kind === "suppressionMark" &&
+          s.col === spotter.col &&
+          s.lane === spotter.row,
+      ),
+    ).toBe(true);
+    expect(hasStatusOn(scout, veil.instanceId, "smokeDodge")).toBe(true);
+    expect(spotter.missileTarget).toEqual({ col: P2_FRONT, row: 0 });
+
+    const dig = setupScenario(HULLDOWN_SLOPE_SCENARIO);
+    const digA = dig.board[P2_FRONT][0]!;
+    const digB = dig.board[P2_FRONT][3]!;
+    expect(hasStatusOn(dig, digA.instanceId, "hulldownArmor")).toBe(true);
+    expect(hasStatusOn(dig, digB.instanceId, "hulldownArmor")).toBe(true);
+    expect(dig.players[0].hand.some((c) => c.templateId === "diversion")).toBe(true);
   });
 });
 

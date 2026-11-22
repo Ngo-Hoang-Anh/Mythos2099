@@ -41,7 +41,7 @@ Thắng khi: HQ địch = 0, đối thủ surrender, hoặc đối thủ **elimi
 
 - **Súng:** `ATK + Aggressive|Retaliate + Support Fire + temp − max(0, Armor + temp − AP)`
 - **Missile:** `Missile − floor((Armor + temp) / 2)` — không dùng AP
-- **Volley:** unrested + `canVolley` (Frontline, hoặc Artillery / Air Strike / Jet trên Support)
+- **Volley:** unrested + `canVolley` (Frontline, hoặc Artillery / Jet trên Support)
 - **Return fire:** defender trả từng attacker đã bắn nó — không HQ; REST vẫn counter; Artillery không trade; Jet có trade; 0 HP vẫn trả rồi mới chết
 - **Rest:** sau Advance/Cover từ Support (và Artillery/Jet deploy trừ Blitz). Clear khi **`passTurn`**, không clear lúc `endEngagement`
 - **Blitz:** deploy → Front nếu trống, không rest

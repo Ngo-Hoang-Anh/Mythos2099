@@ -33,7 +33,7 @@ import {
   pickOverheadDrone,
   reversePath,
   spreadMarchPaths,
-} from "./airStrike";
+} from "./flightPaths";
 
 import { headingDeg } from "./movePath";
 
@@ -47,7 +47,7 @@ const DRONE_STARTS = [
   { x: 80, y: 234 },
 ];
 
-describe("air strike paths", () => {
+describe("flight paths", () => {
   it("flies drones a 1.2s pass-and-return, jets 1.2s plus 1.2s", () => {
     expect((DRONE_PATH_SAMPLES - 1) * DRONE_STEP_MS).toBe(DRONE_FLIGHT_MS);
     expect(DRONE_FLIGHT_MS).toBe(1200);

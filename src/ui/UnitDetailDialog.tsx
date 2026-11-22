@@ -135,7 +135,7 @@ export function UnitDetailDialog({
           <div className="unit-detail-stage">
             <div className={`unit-detail-flip${flipped ? " flipped" : ""}`}>
               <div className="unit-detail-face front">
-                <UnitArt name={def.name} unitClass={def.class} unitId={def.id} facingDeg={0} />
+                <UnitArt name={def.name} unitClass={def.class} unitId={def.id} />
                 <div className="unit-detail-stats">
                   <HpChip value={hp} />
                   {maxHp !== hp ? <span className="unit-detail-maxhp">/{maxHp}</span> : null}

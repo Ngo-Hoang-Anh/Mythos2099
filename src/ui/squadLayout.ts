@@ -73,7 +73,10 @@ function fromSpec(spec: SquadArtSpec, deployed: boolean, running: boolean): Squa
         shotScale: p.shotScale,
         tipX: p.tipX,
         tipY: p.tipY,
-        scale: deployed && !running && spec.entrench && p.scaleWhenEntrenched ? p.scaleWhenEntrenched : 1,
+        scale:
+          deployed && !running && spec.entrench && p.scaleWhenEntrenched
+            ? p.scaleWhenEntrenched
+            : (p.scale ?? 1),
       };
     }),
   };

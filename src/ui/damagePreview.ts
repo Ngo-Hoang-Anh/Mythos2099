@@ -1,4 +1,3 @@
-import { enemyFirstInRow } from "../engine/board";
 import { computeStrikeDamage, defenseArmor, missileDamage } from "../engine/combat";
 import {
   canCounter,
@@ -8,7 +7,8 @@ import {
   supportFireFromOthers,
   takesReturnFire,
 } from "../engine/combat/helpers";
-import { armorPiercingOf, hasKeyword, keywordValue } from "../engine/keywords";
+import { enemyFirstForGun, smokeBlocksGun } from "../engine/combat/smoke";
+import { armorPiercingOf, hasKeyword } from "../engine/keywords";
 import { hulldownGunReduction, isUntargetableBy, statusesOf } from "../engine/status";
 import type { BoardPos, MatchState, PlayerId, UnitInstance } from "../engine/types";
 
@@ -32,7 +32,7 @@ function repeatBonus(state: MatchState, shooter: UnitInstance, targetKey: string
 }
 
 function volleyAp(state: MatchState, unit: UnitInstance): number {
-  let ap = armorPiercingOf(unit) + keywordValue(unit, "firstStrike");
+  let ap = armorPiercingOf(unit);
   if (
     statusesOf(state, "supportFireGrantsAp", unit.owner).length > 0 &&
     supportFireFromOthers(state, unit).amount > 0
@@ -56,13 +56,16 @@ export function gunAim(state: MatchState, shooter: UnitInstance): GunAim | null 
   if (shooter.hp <= 0 || !canVolley(shooter)) return null;
   const foe: PlayerId = shooter.owner === 0 ? 1 : 0;
   const lane = combatTargetLane(state, shooter);
-  const target = enemyFirstInRow(state.board, shooter.owner, lane);
+  const target = enemyFirstForGun(state, shooter.owner, lane);
   if (!target || target.hp <= 0) return { to: { hq: foe }, hits: [] };
 
   const hits: HpForecast[] = [];
   const dealt = gunDamage(state, shooter, target, true);
   if (dealt > 0) hits.push({ unitId: target.instanceId, hp: Math.max(0, target.hp - dealt) });
   if (takesReturnFire(shooter) && canCounter(target)) {
+    if (smokeBlocksGun(state, shooter, target.owner)) {
+      return { to: { col: target.col, row: target.row }, hits };
+    }
     const back = gunDamage(state, target, shooter, false);
     if (back > 0) hits.push({ unitId: shooter.instanceId, hp: Math.max(0, shooter.hp - back) });
   }

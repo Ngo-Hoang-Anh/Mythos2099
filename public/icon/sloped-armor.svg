@@ -1,1 +1,8 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M96 400 256 112l160 288H96z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Double Sloped Armor">
+  <!-- Lớp giáp nghiêng sau -->
+  <polygon points="20,14 28,12 40,44 32,46" fill="currentColor" fill-opacity="0.55" />
+  <!-- Lớp giáp nghiêng trước (sát ngay bên cạnh) -->
+  <polygon points="28,14 36,12 48,44 40,46" fill="currentColor" />
+  <!-- Chân đế ở dưới cho cụm giáp nằm gọn trung tâm -->
+  <line x1="18" y1="50" x2="50" y2="50" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+</svg>

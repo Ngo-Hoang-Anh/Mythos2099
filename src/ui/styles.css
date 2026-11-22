@@ -1211,6 +1211,11 @@ html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-statuses {
   display: block;
   flex: 0 0 auto;
 }
+/* Keyword/stat icons are CSS masks — SVGs must be opaque silhouettes (no black canvas). */
+.file-icon {
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+}
 .unit-keys { display: flex; flex-direction: row; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
 .unit-card-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 .unit-card-pill {
@@ -1848,6 +1853,12 @@ html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-statuses {
   gap: 6px;
 }
 .hq-stack { position: relative; }
+.hq-statuses {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
 .hq-intel {
   position: absolute;
   top: calc(100% + 6px);
@@ -2148,6 +2159,92 @@ html.is-mobile-shell .unit-token.board-token[data-tut-spot] .unit-statuses {
 }
 .cell.deployable::after { background-image: url("/ui/kit/reticle-deploy.svg"); }
 .cell.reachable::after { background-image: url("/ui/kit/reticle-aim.svg"); }
+.suppression-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+.suppression-ground {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  /* Half of prior ~86% diameter. */
+  width: 43%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #6a6e7438 0%, #4a4e5428 45%, transparent 72%);
+  box-shadow: inset 0 0 0 1px #7a7e8433;
+}
+.suppression-smoke {
+  position: absolute;
+  inset: 4%;
+  overflow: visible;
+}
+.suppression-smoke .smoke-puff.gray {
+  width: 36px;
+  opacity: 0.42;
+  filter: brightness(0.55) saturate(0.05) contrast(1.05);
+  animation-name: smokePuffDriftGray;
+}
+.suppression-smoke .smoke-puff.puff-0 { left: 8%; top: 28%; animation-delay: 0s; }
+.suppression-smoke .smoke-puff.puff-1 { left: 38%; top: 12%; width: 44px; animation-delay: -0.9s; animation-duration: 4.4s; }
+.suppression-smoke .smoke-puff.puff-2 { left: 58%; top: 36%; width: 40px; animation-delay: -1.8s; animation-duration: 5s; }
+.suppression-smoke .smoke-puff.puff-3 { left: 22%; top: 52%; width: 38px; animation-delay: -2.6s; animation-duration: 4.7s; }
+.suppression-smoke .smoke-puff.puff-4 { left: 48%; top: 58%; width: 42px; animation-delay: -3.4s; animation-duration: 5.3s; }
+.suppression-smoke .smoke-puff.puff-5 { left: 68%; top: 18%; width: 34px; animation-delay: -4.1s; animation-duration: 4.9s; }
+
+/* Smoke Screen: curtain in front of the unit (toward the enemy). */
+.smoke-aura {
+  position: absolute;
+  top: 6%;
+  bottom: 6%;
+  width: 58%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+.smoke-aura.face-right {
+  left: 72%;
+}
+.smoke-aura.face-left {
+  right: 72%;
+  left: auto;
+}
+.smoke-puff {
+  position: absolute;
+  width: 44px;
+  height: auto;
+  opacity: 0.55;
+  image-rendering: pixelated;
+  filter: brightness(1.45) saturate(0.12);
+  animation: smokePuffDrift 4.2s ease-in-out infinite;
+}
+/* Vertical curtain toward the enemy, with staggered depth so it doesn't look like a grid. */
+.smoke-aura .smoke-puff.puff-0 { left: 2%; top: 2%; width: 50px; animation-delay: 0s; }
+.smoke-aura .smoke-puff.puff-1 { left: 28%; top: 14%; width: 42px; animation-delay: -0.7s; animation-duration: 4.8s; }
+.smoke-aura .smoke-puff.puff-2 { left: 8%; top: 32%; width: 56px; animation-delay: -1.4s; animation-duration: 5.1s; }
+.smoke-aura .smoke-puff.puff-3 { left: 34%; top: 46%; width: 46px; animation-delay: -2.1s; animation-duration: 4.5s; }
+.smoke-aura .smoke-puff.puff-4 { left: -4%; top: 58%; width: 52px; animation-delay: -2.8s; animation-duration: 5.4s; }
+.smoke-aura .smoke-puff.puff-5 { left: 22%; top: 74%; width: 48px; animation-delay: -3.5s; animation-duration: 4.9s; }
+.smoke-aura.face-left .smoke-puff.puff-0 { left: auto; right: 2%; }
+.smoke-aura.face-left .smoke-puff.puff-1 { left: auto; right: 28%; }
+.smoke-aura.face-left .smoke-puff.puff-2 { left: auto; right: 8%; }
+.smoke-aura.face-left .smoke-puff.puff-3 { left: auto; right: 34%; }
+.smoke-aura.face-left .smoke-puff.puff-4 { left: auto; right: -4%; }
+.smoke-aura.face-left .smoke-puff.puff-5 { left: auto; right: 22%; }
+@keyframes smokePuffDrift {
+  0%, 100% { transform: translate(0, 0) scale(0.92); opacity: 0.38; }
+  35% { transform: translate(3px, -8px) scale(1.12); opacity: 0.62; }
+  70% { transform: translate(-2px, -14px) scale(1.2); opacity: 0.48; }
+}
+@keyframes smokePuffDriftGray {
+  0%, 100% { transform: translate(0, 0) scale(0.9); opacity: 0.28; }
+  40% { transform: translate(3px, -7px) scale(1.08); opacity: 0.48; }
+  75% { transform: translate(-2px, -12px) scale(1.14); opacity: 0.34; }
+}
 .cell.reachable .empty,
 .cell.deployable .empty {
   color: #e8fffb;

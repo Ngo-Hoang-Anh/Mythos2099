@@ -16,10 +16,11 @@ import { strikeAtk } from "./helpers";
 import {
   afterGunHitEffects,
   resolveGunHit,
+  runBarrierRecharge,
   runOwnerEndOfTurn,
   runShieldRegen,
 } from "./keywordEffects";
-import { resolveMissileShot } from "./missile";
+import { reaimAlliedMissiles, resolveMissileShot } from "./missile";
 
 function ctx(attacker: PlayerId = 0): CombatCtx {
   return { attacker, defender: attacker === 0 ? 1 : 0, steps: [] };
@@ -120,7 +121,7 @@ describe("Camouflage", () => {
 });
 
 describe("Smoke Screen", () => {
-  it("activates after taking gun damage on the enemy turn and dodges later hits", () => {
+  it("activates after taking damage and lasts this turn + next (endOfNextTurn)", () => {
     const state = blankMatch();
     state.currentPlayer = 0;
     const attacker = spawn(state, 1, 0, P1_FRONT, 1);
@@ -128,59 +129,154 @@ describe("Smoke Screen", () => {
     const defender = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
     defender.armor = 0;
     const hpBefore = defender.hp;
-    runDamagePhase(state, ctx(0));
+    const combat = ctx(0);
+    runDamagePhase(state, combat);
     expect(defender.hp).toBeLessThan(hpBefore);
     expect(hasStatusOn(state, defender.instanceId, "smokeDodge")).toBe(true);
-
-    const attacker2 = spawn(state, 4, 0, P1_FRONT, 2);
-    attacker2.atk = 10;
-    const other = spawn(state, 5, 1, P2_FRONT, 2, "Smoke Screen");
-    // Move smoke dodge scenario: second shot on same defender in a fresh phase
-    const state2 = blankMatch();
-    state2.currentPlayer = 0;
-    const a = spawn(state2, 1, 0, P1_FRONT, 1);
-    a.atk = 6;
-    const d = spawn(state2, 3, 1, P2_FRONT, 1, "Smoke Screen");
-    d.armor = 0;
-    addStatus(state2, {
-      kind: "smokeDodge",
-      sourceId: d.instanceId,
-      owner: 1,
-      targetId: d.instanceId,
-      duration: "endOfTurn",
-    });
-    const before = d.hp;
-    runDamagePhase(state2, ctx(0));
-    expect(d.hp).toBe(before);
+    const smoke = state.statuses.find((s) => s.kind === "smokeDodge")!;
+    expect(smoke.duration).toBe("endOfNextTurn");
+    expect(smoke.remainingPasses).toBe(2);
+    const hpIdx = combat.steps.findIndex((s) => s.kind === "hp" && s.unitId === defender.instanceId);
+    const statusIdx = combat.steps.findIndex(
+      (s) => s.kind === "statusAdd" && s.unitId === defender.instanceId && s.statusKind === "smokeDodge",
+    );
+    expect(hpIdx).toBeGreaterThanOrEqual(0);
+    expect(statusIdx).toBeGreaterThan(hpIdx);
   });
 
-  it("Shock ignores smoke dodge and does not trigger smoke", () => {
+  it("redirects later gun attacks to HQ while smoke is up", () => {
     const state = blankMatch();
-    const a = spawn(state, 1, 0, P1_FRONT, 1, "Shock 4");
-    a.atk = 8;
+    state.currentPlayer = 0;
+    const a = spawn(state, 1, 0, P1_FRONT, 1);
+    a.atk = 6;
     const d = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
     d.armor = 0;
-    d.shield = 5;
-    d.shieldMax = 5;
     addStatus(state, {
       kind: "smokeDodge",
       sourceId: d.instanceId,
       owner: 1,
       targetId: d.instanceId,
-      duration: "endOfTurn",
+      duration: "endOfNextTurn",
     });
-    const before = d.hp;
+    const beforeUnit = d.hp;
+    const beforeHq = state.players[1].hqHp;
     runDamagePhase(state, ctx(0));
+    expect(d.hp).toBe(beforeUnit);
+    expect(state.players[1].hqHp).toBeLessThan(beforeHq);
+  });
+
+  it("smoked defender still returns fire when the gun shot goes to HQ", () => {
+    const state = blankMatch();
+    state.currentPlayer = 0;
+    const a = spawn(state, 1, 0, P1_FRONT, 1);
+    a.atk = 6;
+    a.armor = 0;
+    a.hp = 20;
+    const d = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
+    d.atk = 5;
+    d.armor = 0;
+    addStatus(state, {
+      kind: "smokeDodge",
+      sourceId: d.instanceId,
+      owner: 1,
+      targetId: d.instanceId,
+      duration: "endOfNextTurn",
+    });
+    const beforeHq = state.players[1].hqHp;
+    const beforeAtkHp = a.hp;
+    runDamagePhase(state, ctx(0));
+    expect(d.hp).toBe(d.maxHp); // gun missed into HQ
+    expect(state.players[1].hqHp).toBe(beforeHq - a.atk);
+    expect(a.hp).toBe(beforeAtkHp - d.atk); // smoked unit still counters
+  });
+
+  it("smoked attacker still shoots the facing enemy", () => {
+    const state = blankMatch();
+    state.currentPlayer = 0;
+    const a = spawn(state, 1, 0, P1_FRONT, 1, "Smoke Screen");
+    a.atk = 7;
+    a.armor = 0;
+    addStatus(state, {
+      kind: "smokeDodge",
+      sourceId: a.instanceId,
+      owner: 0,
+      targetId: a.instanceId,
+      duration: "endOfNextTurn",
+    });
+    const d = spawn(state, 3, 1, P2_FRONT, 1);
+    d.atk = 1;
+    d.armor = 0;
+    const before = d.hp;
+    const beforeAtkHq = state.players[0].hqHp;
+    runDamagePhase(state, ctx(0));
+    expect(d.hp).toBe(before - a.atk);
+    // Defender counter redirects into attacker's HQ because of smoke
+    expect(state.players[0].hqHp).toBe(beforeAtkHq - d.atk);
+  });
+
+  it("triggers from return fire on your own attack turn", () => {
+    const state = blankMatch();
+    state.currentPlayer = 0;
+    const attacker = spawn(state, 1, 0, P1_FRONT, 1, "Smoke Screen");
+    attacker.atk = 1;
+    attacker.armor = 0;
+    const defender = spawn(state, 3, 1, P2_FRONT, 1);
+    defender.atk = 8;
+    defender.armor = 0;
+    runDamagePhase(state, ctx(0));
+    expect(hasStatusOn(state, attacker.instanceId, "smokeDodge")).toBe(true);
+  });
+
+  it("front shot deploys smoke; support gun shot then goes to HQ", () => {
+    const state = blankMatch();
+    state.currentPlayer = 0;
+    const front = spawn(state, 1, 0, P1_FRONT, 1);
+    front.atk = 4;
+    const support = spawn(state, 11, 0, P1_SUPPORT, 1, "Artillery");
+    support.atk = 10;
+    support.rested = false;
+    const defender = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
+    defender.armor = 0;
+    defender.hp = 40;
+    const before = defender.hp;
+    const beforeHq = state.players[1].hqHp;
+    runDamagePhase(state, ctx(0));
+    expect(hasStatusOn(state, defender.instanceId, "smokeDodge")).toBe(true);
+    expect(before - defender.hp).toBe(front.atk);
+    expect(state.players[1].hqHp).toBe(beforeHq - support.atk);
+  });
+
+  it("clears when the smoked unit moves", () => {
+    const state = blankMatch();
+    const d = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
+    addStatus(state, {
+      kind: "smokeDodge",
+      sourceId: d.instanceId,
+      owner: 1,
+      targetId: d.instanceId,
+      duration: "endOfNextTurn",
+    });
+    expect(hasStatusOn(state, d.instanceId, "smokeDodge")).toBe(true);
+    relocateUnit(state, d, P2_FRONT, 2);
+    expect(hasStatusOn(state, d.instanceId, "smokeDodge")).toBe(false);
+  });
+
+  it("missiles still hit a smoked unit", () => {
+    const state = blankMatch();
+    const missile = spawn(state, 10, 0, P1_SUPPORT, 1, "Missile 5");
+    const d = spawn(state, 3, 1, P2_FRONT, 1, "Smoke Screen");
+    d.armor = 0;
+    addStatus(state, {
+      kind: "smokeDodge",
+      sourceId: d.instanceId,
+      owner: 1,
+      targetId: d.instanceId,
+      duration: "endOfNextTurn",
+    });
+    missile.missileTarget = { col: d.col, row: d.row };
+    const before = d.hp;
+    resolveMissileShot(state, missile);
     expect(d.hp).toBeLessThan(before);
-    // Still only the pre-existing dodge status — Shock must not add a new trigger path oddly;
-    // defender already had smokeDodge. Fresh trigger check:
-    const state2 = blankMatch();
-    const a2 = spawn(state2, 1, 0, P1_FRONT, 1, "Shock 4");
-    a2.atk = 8;
-    const d2 = spawn(state2, 3, 1, P2_FRONT, 1, "Smoke Screen");
-    d2.armor = 0;
-    runDamagePhase(state2, ctx(0));
-    expect(hasStatusOn(state2, d2.instanceId, "smokeDodge")).toBe(false);
   });
 });
 
@@ -333,22 +429,21 @@ describe("Shield + Barrier + Shock + Sloped Armor + Corrosion", () => {
     expect(d2.armor).toBe(3);
   });
 
-  it("Shield regenerates half when undamaged; Barrier recharges end of turn", () => {
+  it("Shield regenerates half each turn; Barrier recharges start of turn", () => {
     const state = blankMatch();
     const unit = spawn(state, 1, 0, P1_FRONT, 1, "Shield 4; Barrier 3");
     unit.shield = 0;
     unit.barrier = 0;
-    unit.tookDamageSinceRegen = false;
     runShieldRegen(state, 0);
     expect(unit.shield).toBe(2); // ceil(4/2)
     unit.barrier = 0;
-    runOwnerEndOfTurn(state, 0);
+    runBarrierRecharge(state, 0);
     expect(unit.barrier).toBe(3);
 
     unit.shield = 0;
     unit.tookDamageSinceRegen = true;
     runShieldRegen(state, 0);
-    expect(unit.shield).toBe(0);
+    expect(unit.shield).toBe(2);
     expect(unit.tookDamageSinceRegen).toBe(false);
   });
 });
@@ -413,6 +508,31 @@ describe("Veteran + First Strike + Fire + Radar", () => {
     expect(fire2.remainingPasses).toBe(2);
   });
 
+  it("Fire applies to HQ on open-lane gun shots and ticks / refreshes there", () => {
+    const state = blankMatch();
+    state.players[1].hqHp = 20;
+    const a = spawn(state, 1, 0, P1_FRONT, 1, "Fire 3");
+    a.atk = 1;
+    runDamagePhase(state, ctx(0));
+    expect(state.players[1].hqHp).toBe(19);
+    const fire = state.statuses.find((s) => s.kind === "fireDot" && s.targetHq === 1);
+    expect(fire?.magnitude).toBe(3);
+    expect(fire?.remainingPasses).toBe(3);
+
+    a.rested = true; // only the weaker Fire refreshes
+    const a2 = spawn(state, 4, 0, P1_FRONT, 2, "Fire 1");
+    a2.atk = 1;
+    runDamagePhase(state, ctx(0));
+    expect(state.players[1].hqHp).toBe(18);
+    const fire2 = state.statuses.find((s) => s.kind === "fireDot" && s.targetHq === 1)!;
+    expect(fire2.magnitude).toBe(3);
+    expect(fire2.remainingPasses).toBe(3);
+
+    tickStatuses(state);
+    expect(state.players[1].hqHp).toBe(15);
+    expect(fire2.remainingPasses).toBe(2);
+  });
+
   it("Radar re-aims allied missiles when the radar unit attacks", () => {
     const state = blankMatch();
     const radar = spawn(state, 1, 0, P1_FRONT, 1, "Radar");
@@ -422,6 +542,17 @@ describe("Veteran + First Strike + Fire + Radar", () => {
     const enemy = spawn(state, 3, 1, P2_FRONT, 1);
     enemy.armor = 0;
     runDamagePhase(state, ctx(0));
+    expect(missile.missileTarget).toEqual({ col: enemy.col, row: enemy.row });
+  });
+
+  it("Radar re-aims allied missiles when the radar unit deploys", () => {
+    const state = blankMatch();
+    const missile = spawn(state, 10, 0, P1_SUPPORT, 2, "Missile 5");
+    missile.missileTarget = { col: P2_FRONT, row: 0 }; // empty / stale
+    const enemy = spawn(state, 3, 1, P2_FRONT, 1);
+    enemy.armor = 0;
+    spawn(state, 1, 0, P1_FRONT, 1, "Radar");
+    reaimAlliedMissiles(state, 0);
     expect(missile.missileTarget).toEqual({ col: enemy.col, row: enemy.row });
   });
 });

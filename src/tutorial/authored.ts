@@ -33,10 +33,13 @@ import {
   type Phase,
   type PlayerId,
   type PlayTargets,
+  type StatusDuration,
+  type StatusKind,
   type UnitClass,
   type UnitDef,
   type UnitInstance,
 } from "../engine/types";
+import { addStatus } from "../engine/status";
 import type { LessonHint, TutorialHud } from "./lessons";
 
 /** Hidden log line. Keeps a beat done after its board check would revert next turn. */
@@ -124,6 +127,17 @@ export interface CustomUnitDraft {
   artAliasId?: number;
 }
 
+/** Seeded match statuses for free-play keyword lessons (Smoke / Suppression / Hulldown). */
+export type SeededStatus =
+  | { kind: "smokeDodge"; remainingPasses?: number }
+  | {
+      kind: "suppressionMark";
+      remainingPasses?: number;
+      /** Who threw the mark (defaults to the enemy of this unit). */
+      owner?: PlayerId;
+    }
+  | { kind: "hulldownArmor"; magnitude?: number };
+
 export interface PlacedUnitDraft {
   defId: number;
   owner: PlayerId;
@@ -136,6 +150,8 @@ export interface PlacedUnitDraft {
   ap?: number;
   /** Pre-lock a missile mark (Heatseeking lessons). */
   missileTarget?: BoardPos;
+  /** Statuses applied after spawn (Smoke already up, Suppression mark, dig-in, etc.). */
+  statuses?: SeededStatus[];
 }
 
 export interface CardSlot {
@@ -347,6 +363,9 @@ export function setupScenario(draft: ScenarioDraft): MatchState {
     if (placed.armor != null) unit.armor = placed.armor;
     if (placed.ap != null) unit.ap = placed.ap;
     if (placed.missileTarget) unit.missileTarget = { ...placed.missileTarget };
+    for (const seed of placed.statuses ?? []) {
+      seedUnitStatus(state, unit, seed);
+    }
   }
   if (draft.startPhase) state.phase = draft.startPhase;
   for (const card of draft.hand) {
@@ -365,6 +384,46 @@ export function setupScenario(draft: ScenarioDraft): MatchState {
 
 export function supportCol(owner: PlayerId): number {
   return owner === 0 ? P1_SUPPORT : P2_SUPPORT;
+}
+
+function seedUnitStatus(
+  state: MatchState,
+  unit: UnitInstance,
+  seed: SeededStatus,
+): void {
+  if (seed.kind === "smokeDodge") {
+    addStatus(state, {
+      kind: "smokeDodge",
+      sourceId: unit.instanceId,
+      owner: unit.owner,
+      targetId: unit.instanceId,
+      duration: "endOfNextTurn",
+      remainingPasses: seed.remainingPasses ?? 2,
+    });
+    return;
+  }
+  if (seed.kind === "suppressionMark") {
+    const thrower: PlayerId = seed.owner ?? (unit.owner === 0 ? 1 : 0);
+    addStatus(state, {
+      kind: "suppressionMark",
+      sourceId: "seed",
+      owner: thrower,
+      col: unit.col,
+      lane: unit.row,
+      duration: "endOfNextTurn",
+      remainingPasses: seed.remainingPasses ?? 4,
+    });
+    return;
+  }
+  addStatus(state, {
+    kind: "hulldownArmor" satisfies StatusKind,
+    magnitude: seed.magnitude ?? 3,
+    sourceId: unit.instanceId,
+    owner: unit.owner,
+    targetId: unit.instanceId,
+    duration: "untilConsumed" satisfies StatusDuration,
+    remainingPasses: 99,
+  });
 }
 
 function walkLog(
@@ -777,6 +836,89 @@ export function idleOpponentScript(match: MatchState): Action | null {
     return null;
   if (match.phase === "deployment") return { type: "endDeployment" };
   if (match.phase === "maneuver") return { type: "endManeuver" };
+  return null;
+}
+
+/**
+ * Fire lesson: P2 plays Sniping (2 dmg) from hand to delete the player's Fire burner,
+ * then ends the phase. Falls back to idle otherwise.
+ */
+export function fireOpponentScript(match: MatchState): Action | null {
+  if (match.currentPlayer !== 1 || match.combatPlayback || match.winner != null)
+    return null;
+  if (match.phase === "deployment") return { type: "endDeployment" };
+  if (match.phase === "maneuver") {
+    const sniping = match.players[1].hand.find((card) => card.templateId === "sniping");
+    if (sniping && match.players[1].commandPoints >= sniping.cost) {
+      const target = boardUnits(match).find((unit) => unit.owner === 0 && unit.hp > 0);
+      if (target) {
+        return {
+          type: "playCard",
+          cardId: sniping.instanceId,
+          targets: { unitIds: [target.instanceId] },
+        };
+      }
+    }
+    return { type: "endManeuver" };
+  }
+  return null;
+}
+
+/** Tutorial unit ids for veteran-first-strike (must match scenarios.ts). */
+export const VFS_AMBUSH_ID = 1326;
+export const VFS_AEGIS_ID = 1322;
+export const VFS_AMBUSH_ROW = 2;
+
+/**
+ * Veteran / First Strike lesson:
+ * T2 — deploy Ambush (Cover; First Strike) into the empty Ambush lane.
+ * T4 — only when Aegis contests that lane: Rally then First Strike card, then engage.
+ *     (Mirror First Strike fail path must not get the scripted execute.)
+ */
+export function veteranFirstStrikeOpponentScript(match: MatchState): Action | null {
+  if (match.currentPlayer !== 1 || match.combatPlayback || match.winner != null)
+    return null;
+
+  if (match.phase === "deployment") {
+    if (match.players[1].undeployed.includes(VFS_AMBUSH_ID)) {
+      return { type: "deploy", unitDefId: VFS_AMBUSH_ID, row: VFS_AMBUSH_ROW };
+    }
+    return { type: "endDeployment" };
+  }
+
+  if (match.phase === "maneuver") {
+    const ambush = boardUnits(match).find(
+      (unit) => unit.owner === 1 && unit.defId === VFS_AMBUSH_ID && unit.hp > 0,
+    );
+    const aegis = boardUnits(match).find(
+      (unit) =>
+        unit.owner === 0 &&
+        unit.defId === VFS_AEGIS_ID &&
+        unit.hp > 0 &&
+        unit.row === VFS_AMBUSH_ROW,
+    );
+    if (ambush && aegis) {
+      const hand = match.players[1].hand;
+      const cp = match.players[1].commandPoints;
+      const rally = hand.find((card) => card.templateId === "rally");
+      if (rally && cp >= rally.cost) {
+        return {
+          type: "playCard",
+          cardId: rally.instanceId,
+          targets: { unitIds: [ambush.instanceId] },
+        };
+      }
+      const firstStrike = hand.find((card) => card.templateId === "first_strike");
+      if (firstStrike && cp >= firstStrike.cost) {
+        return {
+          type: "playCard",
+          cardId: firstStrike.instanceId,
+          targets: {},
+        };
+      }
+    }
+    return { type: "endManeuver" };
+  }
   return null;
 }
 

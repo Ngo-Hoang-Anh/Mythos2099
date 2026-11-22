@@ -59,6 +59,8 @@ export type TankArtSpec = {
   legs?: LegSpec[];
   /** Artillery batteries draw as two scaled hulls side by side. */
   pair?: boolean;
+  /** Visual scale vs the fit box (e.g. 0.75 when reusing a larger hull pack). */
+  scale?: number;
 };
 
 /** 256×256 hull + gun pack. Mount = hull socket; origin = gun rotation hole. */
@@ -114,10 +116,10 @@ export const UNIT_ART: Record<number, TankArtSpec> = {
   6: packTank("Humvee", "Hull_08.png", "Gun_02.png", 128, 151, 128, 145),
   // Socket (128,150) ↔ gun mount hole (128,135).
   3: packTank("Bastion", "Hull_02.png", "Gun_08.png", 128, 150, 128, 135),
-  // Twin gun on one mount; socket (128,152) ↔ turret body (128,146).
-  1: packTank("Zeus", "Hull_05.png", "Gun_06.png", 128, 152, 128, 146),
   // Heavy quad-pod hull + twin turret; socket (128,124) ↔ (128,140).
   2: packTank("Apex", "Hull_01.png", "Gun_01.png", 128, 124, 128, 140, "heavy"),
+  // Former Zeus 2D pack, shrunk for Loki until dedicated light-vehicle art ships.
+  36: { ...packTank("Zeus", "Hull_05.png", "Gun_06.png", 128, 152, 128, 146), scale: 0.75 },
   // Halftrack hull + twin missile pods; socket (128,122) ↔ launcher center (128,122).
   10: packTank("MLRS", "Hull_01.png", "Gun_01.png", 128, 122, 128, 122, "heavy"),
   // Scraped orange chassis + matching 1× barrel; socket (128,148) ↔ gun hole (128,148).

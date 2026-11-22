@@ -53,6 +53,24 @@ describe("squad art specs", () => {
     }
   });
 
+  it("forms Qinglong as an 8-ship Anhur-blue S with idle feet and head glow", () => {
+    const spec = SQUAD_ART[28];
+    expect(spec.kind).toBe("drones");
+    expect(spec.pieces).toHaveLength(8);
+    expect(spec.pieces.every((p) => p.src.endsWith("/aegis.svg"))).toBe(true);
+    expect(spec.pieces[0]!.scale).toBeGreaterThan(1);
+    expect(spec.pieces[2]!.scale).toBe(1);
+    expect(spec.pieces[5]!.scale).toBe(1);
+    expect(spec.pieces[1]!.scale).toBeLessThan(1);
+    expect(spec.pieces[0]!.parked.y).toBeLessThan(spec.pieces[7]!.parked.y);
+    expect(spec.props?.length).toBeGreaterThan(0);
+    expect(spec.props?.some((p) => p.src.endsWith("qinglong-foot.svg"))).toBe(true);
+    expect(spec.props?.some((p) => p.src.endsWith("qinglong-glow.svg"))).toBe(true);
+    for (const file of ["qinglong-foot.svg", "qinglong-glow.svg"]) {
+      expect(existsSync(resolve(`public/units-art/squads/props/${file}`))).toBe(true);
+    }
+  });
+
   it("uses painted bike PNGs and crisp prop sprites", () => {
     for (const file of ["bike-blue.png", "bike-red.png", "bike-sand.png"]) {
       expect(existsSync(resolve(`public/units-art/squads/motorcycles/${file}`))).toBe(true);

@@ -238,6 +238,51 @@ export function prepareControls(
   return measured;
 }
 
+/** Snap board facing to one of 8 compass headings (N/NE/E/SE/S/SW/W/NW). */
+export function snapOctantDeg(deg: number): number {
+  const snapped = Math.round(deg / 45) * 45;
+  return Object.is(snapped, -0) ? 0 : snapped;
+}
+
+function isOctantAligned(dx: number, dy: number, eps = 0.75): boolean {
+  if (Math.abs(dx) <= eps && Math.abs(dy) <= eps) return true;
+  if (Math.abs(dx) <= eps || Math.abs(dy) <= eps) return true;
+  return Math.abs(Math.abs(dx) - Math.abs(dy)) <= eps;
+}
+
+/**
+ * One segment as 8-dir travel: diagonal first (octile), then orthogonal finish.
+ * Already-aligned moves stay a single straight hop.
+ */
+export function octantLeg(from: Point, to: Point): Point[] {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dist(from, to) < 0.75) return [from, to];
+  if (isOctantAligned(dx, dy)) return [from, to];
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  const sx = Math.sign(dx);
+  const sy = Math.sign(dy);
+  const diag = Math.min(ax, ay);
+  const corner = { x: from.x + sx * diag, y: from.y + sy * diag };
+  if (dist(from, corner) < 0.75 || dist(corner, to) < 0.75) return [from, to];
+  return [from, corner, to];
+}
+
+/**
+ * Angular 8-dir drive path for isometric / 2.5D sheets.
+ * No Catmull bows — corners stay N/NE/E/SE/S/SW/W/NW so sprite frames change at turns.
+ */
+export function octantDrivePath(controls: Point[], spacing = 38): Point[] {
+  if (controls.length < 2) return controls;
+  const corners: Point[] = [controls[0]];
+  for (let i = 1; i < controls.length; i += 1) {
+    const leg = octantLeg(corners[corners.length - 1]!, controls[i]!);
+    for (let j = 1; j < leg.length; j += 1) corners.push(leg[j]!);
+  }
+  return resample(corners, spacing);
+}
+
 function lerpPoint(a: Point, b: Point, t: number): Point {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }

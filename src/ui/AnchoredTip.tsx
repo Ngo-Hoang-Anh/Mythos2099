@@ -49,7 +49,8 @@ function applyTipPlacement(anchor: HTMLElement, tip: HTMLElement) {
   tip.style.position = "fixed";
   tip.style.top = "0px";
   tip.style.left = "0px";
-  tip.style.zIndex = mobile ? "220" : "70";
+  // Above reserve/choice modals (110) and tutorial chrome (120); match mobile shell.
+  tip.style.zIndex = "220";
   tip.setAttribute("data-anchored-tip", "");
 
   if (mobile) {

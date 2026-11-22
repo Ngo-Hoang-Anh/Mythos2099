@@ -1,5 +1,5 @@
 import { allUnits, findUnit } from "./board";
-import { applyUnitDamage, healUnit, maybeUnitDeathComeback } from "./hp";
+import { applyHqDamage, applyUnitDamage, healUnit, maybeUnitDeathComeback } from "./hp";
 import type {
   Keyword,
   MatchState,
@@ -35,6 +35,7 @@ export function addStatus(
     sourceId: string | number;
     owner: PlayerId;
     targetId?: string;
+    targetHq?: PlayerId;
     lane?: number;
     col?: number;
     duration: StatusDuration;
@@ -52,6 +53,7 @@ export function addStatus(
     sourceId: opts.sourceId,
     owner: opts.owner,
     targetId: opts.targetId,
+    targetHq: opts.targetHq,
     lane: opts.lane,
     col: opts.col,
     duration: opts.duration,
@@ -118,11 +120,21 @@ export function tickStatuses(state: MatchState): void {
         healUnit(unit, status.magnitude);
       }
     }
-    if (status.kind === "fireDot" && status.targetId && status.magnitude > 0) {
-      const unit = findUnit(state.board, status.targetId);
-      if (unit && unit.hp > 0) {
-        applyUnitDamage(state, unit, status.magnitude, "Fire");
-        unit.tookDamageSinceRegen = true;
+    if (status.kind === "fireDot" && status.magnitude > 0) {
+      if (status.targetHq != null) {
+        const hq = state.players[status.targetHq];
+        if (hq.hqHp > 0) {
+          applyHqDamage(state, status.targetHq, status.magnitude, "Fire", {
+            icon: "fire",
+            via: "Fire",
+          });
+        }
+      } else if (status.targetId) {
+        const unit = findUnit(state.board, status.targetId);
+        if (unit && unit.hp > 0) {
+          applyUnitDamage(state, unit, status.magnitude, "Fire", { skipSmoke: true });
+          unit.tookDamageSinceRegen = true;
+        }
       }
     }
     if (status.duration === "thisCombat") continue;
@@ -193,7 +205,7 @@ export function afterGunAttack(state: MatchState, attacker: UnitInstance): void 
   for (const status of state.statuses) {
     if (status.kind !== "afterAttackSelfDamage") continue;
     if (status.targetId !== attacker.instanceId) continue;
-    applyUnitDamage(state, attacker, status.magnitude, "Sticky Bomb");
+    applyUnitDamage(state, attacker, status.magnitude, "Sticky Bomb", { skipSmoke: true });
   }
 }
 
@@ -209,6 +221,14 @@ export function hulldownGunReduction(state: MatchState, unit: UnitInstance): num
 export function clearHulldownOnMove(state: MatchState, unit: UnitInstance): void {
   const active = state.statuses.filter(
     (status) => status.targetId === unit.instanceId && status.kind === "hulldownArmor",
+  );
+  for (const status of active) removeStatus(state, status.id);
+}
+
+/** Clear Smoke Screen dodge when the unit moves. */
+export function clearSmokeOnMove(state: MatchState, unit: UnitInstance): void {
+  const active = state.statuses.filter(
+    (status) => status.targetId === unit.instanceId && status.kind === "smokeDodge",
   );
   for (const status of active) removeStatus(state, status.id);
 }

@@ -8,39 +8,50 @@ type PlayOpts = {
 const MUSIC_VOL = 0.32;
 const SFX_VOL = 0.62;
 
+/** Tiny silent wav — play during the unlock gesture so browsers arm HTMLAudio. */
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+
 class AudioBus {
   private unlocked = false;
   private muted = false;
   private music: HTMLAudioElement | null = null;
   private playlist: string[] = [];
   private trackIndex = 0;
-  private unlockBound = false;
   private pendingMusic = false;
+  private unlockHandler: (() => void) | null = null;
 
   isUnlocked(): boolean {
     return this.unlocked;
   }
 
-  /** Call once from App — first pointer/key unlocks Web Audio autoplay. */
+  /**
+   * Call once from App. Safe under React Strict Mode remounts:
+   * cleanup removes listeners; the next mount rebinds until unlocked.
+   */
   bindUnlock(): () => void {
-    if (this.unlockBound || typeof window === "undefined") return () => {};
-    this.unlockBound = true;
+    if (typeof window === "undefined") return () => {};
+    if (this.unlocked) return () => {};
+
+    this.teardownUnlock();
+
     const unlock = () => {
       this.unlock();
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
+      this.teardownUnlock();
     };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    this.unlockHandler = unlock;
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
+      if (this.unlockHandler === unlock) this.teardownUnlock();
     };
   }
 
   unlock(): void {
     if (this.unlocked) return;
     this.unlocked = true;
+    this.primeGestureAudio();
     if (this.pendingMusic) this.playCurrentMusic();
   }
 
@@ -51,16 +62,16 @@ class AudioBus {
 
   playSfx(src: string, opts: PlayOpts = {}): void {
     if (!this.unlocked || this.muted || typeof Audio === "undefined") return;
-    const audio = new Audio(src);
-    audio.volume = clamp01(opts.volume ?? SFX_VOL);
-    audio.loop = Boolean(opts.loop);
-    void audio.play().catch(() => {});
+    const el = new Audio(src);
+    el.volume = clamp01(opts.volume ?? SFX_VOL);
+    el.loop = Boolean(opts.loop);
+    void el.play().catch(() => {});
     if (opts.maxMs && opts.maxMs > 0) {
       window.setTimeout(() => {
         try {
-          audio.pause();
-          audio.removeAttribute("src");
-          audio.load();
+          el.pause();
+          el.removeAttribute("src");
+          el.load();
         } catch {
           /* ignore */
         }
@@ -84,6 +95,29 @@ class AudioBus {
     this.music = null;
   }
 
+  private teardownUnlock(): void {
+    if (!this.unlockHandler || typeof window === "undefined") {
+      this.unlockHandler = null;
+      return;
+    }
+    window.removeEventListener("pointerdown", this.unlockHandler);
+    window.removeEventListener("keydown", this.unlockHandler);
+    this.unlockHandler = null;
+  }
+
+  private primeGestureAudio(): void {
+    if (typeof Audio === "undefined") return;
+    try {
+      const el = new Audio(SILENT_WAV);
+      el.volume = 0;
+      void el.play().then(() => {
+        el.pause();
+      }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
   private playCurrentMusic(): void {
     if (this.playlist.length === 0 || typeof Audio === "undefined") return;
     const src = this.playlist[this.trackIndex]!;
@@ -91,16 +125,19 @@ class AudioBus {
       this.music.onended = null;
       this.music.pause();
     }
-    const audio = new Audio(src);
-    audio.volume = MUSIC_VOL;
-    audio.muted = this.muted;
-    audio.onended = () => {
+    const el = new Audio(src);
+    el.volume = MUSIC_VOL;
+    el.muted = this.muted;
+    el.onended = () => {
       this.trackIndex = (this.trackIndex + 1) % this.playlist.length;
       this.playCurrentMusic();
     };
-    this.music = audio;
-    void audio.play().catch(() => {
-      /* wait for unlock */
+    this.music = el;
+    void el.play().then(() => {
+      this.pendingMusic = false;
+    }).catch(() => {
+      /* Autoplay still blocked — keep pending for next unlock / gesture. */
+      this.pendingMusic = true;
     });
   }
 }

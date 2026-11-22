@@ -13,6 +13,7 @@ import {
   sideUnitsInLane,
   type CombatCtx,
 } from "./helpers";
+import { deploySmokeAfterDamage } from "./smoke";
 
 /** Living enemy standing on the missile lock. Untargetable units still count as present. */
 export function missileLockHasEnemy(state: MatchState, shooter: UnitInstance): boolean {
@@ -98,6 +99,15 @@ export function resolveMissileShot(
     target.tookDamageSinceRegen = true;
     log(state, `${shooter.name} deals ${dmg} with Missile to ${target.name} (${Math.max(target.hp, 0)} HP)`, "missile");
     if (ctx) ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
+    const smokeStatusId = deploySmokeAfterDamage(state, target);
+    if (smokeStatusId && ctx) {
+      ctx.steps.push({
+        kind: "statusAdd",
+        unitId: target.instanceId,
+        statusId: smokeStatusId,
+        statusKind: "smokeDodge",
+      });
+    }
   }
   if (!ctx) resolveDestroyedUnits(state);
 }

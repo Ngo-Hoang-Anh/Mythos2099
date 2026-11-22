@@ -7,6 +7,7 @@ function playback(lane: number): CombatPlayback {
     steps: [{ kind: "lane", lane, color: "green" }],
     initialBoard: [],
     initialHq: [20, 20],
+    initialStatuses: [],
   };
 }
 

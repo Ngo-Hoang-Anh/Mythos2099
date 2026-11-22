@@ -1,5 +1,5 @@
 import { applyHqDamage, pushHqDamageSteps } from "../hp";
-import { unitsOf } from "../board";
+import { frontCol, supportCol, unitsOf } from "../board";
 import { artilleryRepeatBonus } from "../combat";
 import { armorPiercingOf, hasKeyword, keywordValue, stripKeyword, suppressionPenalty } from "../keywords";
 import { log, withLogGroup } from "../state";
@@ -10,8 +10,8 @@ import {
   canCounter,
   canVolley,
   combatLanes,
+  facingCounterUnit,
   mayStrike,
-  sideUnitsInLane,
   strikeAtk,
   strikeSource,
   supportFireFromOthers,
@@ -19,8 +19,9 @@ import {
   volleyTarget,
   type CombatCtx,
 } from "./helpers";
-import { afterGunHitEffects, resolveGunHit } from "./keywordEffects";
+import { afterGunHitEffects, applyFireFromHqHit, resolveGunHit } from "./keywordEffects";
 import { reaimAlliedMissiles } from "./missile";
+import { smokeBlocksGun } from "./smoke";
 
 function afterAttackingVolley(state: MatchState, shooter: UnitInstance, side: "attack" | "counter"): void {
   if (hasKeyword(shooter, "firstStrike")) {
@@ -44,7 +45,7 @@ function volleyAtk(state: MatchState, unit: UnitInstance): number {
 }
 
 function volleyAp(state: MatchState, unit: UnitInstance): number {
-  let ap = armorPiercingOf(unit) + keywordValue(unit, "firstStrike");
+  let ap = armorPiercingOf(unit);
   ap -= suppressionPenalty(state, unit).ap;
   ap = Math.max(0, ap);
   if (
@@ -98,7 +99,15 @@ function fireGunAtUnit(
     log(state, `${shooter.name} deals ${dmg} with ${src.via} to ${target.name} (${Math.max(target.hp, 0)} HP)`, src.icon);
     ctx.steps.push({ kind: "hp", unitId: target.instanceId, hp: target.hp, lost: dmg });
   }
-  afterGunHitEffects(state, ctx.attacker, shooter, target, side, hit);
+  const { smokeStatusId } = afterGunHitEffects(state, ctx.attacker, shooter, target, side, hit);
+  if (smokeStatusId) {
+    ctx.steps.push({
+      kind: "statusAdd",
+      unitId: target.instanceId,
+      statusId: smokeStatusId,
+      statusKind: "smokeDodge",
+    });
+  }
   afterAttackingVolley(state, shooter, side);
   afterGunAttack(state, shooter);
 }
@@ -135,6 +144,7 @@ function fireGunAtHq(
   const src = strikeSource(state, shooter, side);
   const hits = applyHqDamage(state, foe, dmg, shooter.name, { keepPhase: true, ...src });
   pushHqDamageSteps(ctx.steps, foe, state.players[foe].hqHp, dmg, hits);
+  applyFireFromHqHit(state, shooter, foe, dmg);
   afterAttackingVolley(state, shooter, side);
   afterGunAttack(state, shooter);
 }
@@ -163,25 +173,35 @@ export function runDamagePhase(state: MatchState, ctx: CombatCtx): void {
 
   ctx.steps.push({ kind: "phase", phase: "damage" });
   withLogGroup(state, "Damage", "atk", () => {
-    for (const lane of combatLanes(ctx)) {
-      const attackers = sideUnitsInLane(state, ctx.attacker, lane).filter(
-        (u) => canVolley(u) && !u.rested && u.hp > 0 && mayStrike(ctx, u),
-      );
-      if (attackers.length === 0) continue;
-      ctx.steps.push({ kind: "lane", lane, color: "red" });
-      for (const unit of attackers) {
-        const target = resolveAttackTarget(state, ctx, unit);
-        if (!target) {
-          fireGunAtHq(state, ctx, unit, ctx.defender, "attack");
-          continue;
-        }
+    // Two passes: every Frontline shooter first, then every Support shooter.
+    // Smoke Screen on a shared target can deploy from the front hit before the back shot.
+    const ready = (u: UnitInstance) => canVolley(u) && !u.rested && u.hp > 0 && mayStrike(ctx, u);
+    const fireAttacker = (unit: UnitInstance) => {
+      const target = resolveAttackTarget(state, ctx, unit);
+      if (target) {
         fireGunAtUnit(state, ctx, unit, target, "attack");
-        // Interleaved return fire: this specific defender answers this attacker
-        // immediately. Multiple attackers on one defender each get their own
-        // counter paired with their shot.
-        if (takesReturnFire(unit) && canCounter(target)) {
-          fireGunAtUnit(state, ctx, target, unit, "counter");
+      } else {
+        // Empty lane or Smoke Screen on the facing enemy → gun shot goes to HQ.
+        fireGunAtHq(state, ctx, unit, ctx.defender, "attack");
+      }
+      // Interleaved return fire — including when Smoke redirected the shot to HQ.
+      // If the attacker has Smoke Screen, the counter also redirects to HQ.
+      const counter = target ?? facingCounterUnit(state, ctx, unit);
+      if (counter && takesReturnFire(unit) && canCounter(counter)) {
+        if (smokeBlocksGun(state, unit, counter.owner)) {
+          fireGunAtHq(state, ctx, counter, unit.owner, "counter");
+        } else {
+          fireGunAtUnit(state, ctx, counter, unit, "counter");
         }
+      }
+    };
+    for (const pass of ["front", "support"] as const) {
+      for (const lane of combatLanes(ctx)) {
+        const col = pass === "front" ? frontCol(ctx.attacker) : supportCol(ctx.attacker);
+        const unit = state.board[col][lane];
+        if (!unit || !ready(unit)) continue;
+        ctx.steps.push({ kind: "lane", lane, color: "red" });
+        fireAttacker(unit);
       }
     }
     removeDeadUnits(state, ctx);

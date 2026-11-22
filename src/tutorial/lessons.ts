@@ -1,13 +1,17 @@
 ﻿import { type Action, type Keyword, type MatchState } from "../engine/types";
+import { fireOpponentScript, veteranFirstStrikeOpponentScript } from "./authored";
 import {
   AGGRESSIVE_SCENARIO,
   ARMOR_SCENARIO,
   ARTILLERY_SCENARIO,
+  BARRIER_TIMING_SCENARIO,
   BASIC_SCENARIO,
   COMEBACK_SCENARIO,
   COVER_FLANK_SCENARIO,
   EXTRA_ATTACK_SCENARIO,
+  FIRE_SCENARIO,
   JET_PLANE_SCENARIO,
+  HULLDOWN_SLOPE_SCENARIO,
   MISSILE_SCENARIO,
   MOVEMENT_FORWARD_SCENARIO,
   MOVEMENT_UPDOWN_SCENARIO,
@@ -15,7 +19,11 @@ import {
   PLAYSTYLE_MISSILE_ARTY_SCENARIO,
   PLAYSTYLE_TANK_ROBOT_SCENARIO,
   RESOURCES_SCENARIO,
+  SCOUT_RECON_SCENARIO,
+  SHOCK_MATCH_SCENARIO,
+  SMOKE_TIMING_SCENARIO,
   SUPPORT_FIRE_SCENARIO,
+  VETERAN_FIRST_STRIKE_SCENARIO,
   VICTORY_SCENARIO,
   lessonFromDraft,
 } from "./scenarios";
@@ -30,9 +38,16 @@ export type LessonId =
   | "comeback"
   | "cover-flank"
   | "aggressive"
+  | "barrier-timing"
+  | "veteran-first-strike"
+  | "smoke-timing"
+  | "shock-match"
   | "support-fire"
   | "missile"
+  | "scout-recon"
+  | "hulldown-slope"
   | "extra-attack"
+  | "fire"
   | "artillery"
   | "jet-plane"
   | "return-fire"
@@ -144,11 +159,31 @@ const COVER_FLANK: LessonDef = lessonFromDraft(COVER_FLANK_SCENARIO);
 
 const AGGRESSIVE: LessonDef = lessonFromDraft(AGGRESSIVE_SCENARIO);
 
+const BARRIER_TIMING: LessonDef = lessonFromDraft(BARRIER_TIMING_SCENARIO);
+
+const VETERAN_FIRST_STRIKE: LessonDef = {
+  ...lessonFromDraft(VETERAN_FIRST_STRIKE_SCENARIO),
+  scriptedAction: veteranFirstStrikeOpponentScript,
+};
+
+const SMOKE_TIMING: LessonDef = lessonFromDraft(SMOKE_TIMING_SCENARIO);
+
+const SHOCK_MATCH: LessonDef = lessonFromDraft(SHOCK_MATCH_SCENARIO);
+
 const SUPPORT_FIRE: LessonDef = lessonFromDraft(SUPPORT_FIRE_SCENARIO);
 
 const MISSILE: LessonDef = lessonFromDraft(MISSILE_SCENARIO);
 
+const SCOUT_RECON: LessonDef = lessonFromDraft(SCOUT_RECON_SCENARIO);
+
+const HULLDOWN_SLOPE: LessonDef = lessonFromDraft(HULLDOWN_SLOPE_SCENARIO);
+
 const EXTRA: LessonDef = lessonFromDraft(EXTRA_ATTACK_SCENARIO);
+
+const FIRE: LessonDef = {
+  ...lessonFromDraft(FIRE_SCENARIO),
+  scriptedAction: fireOpponentScript,
+};
 
 const ARTILLERY: LessonDef = lessonFromDraft(ARTILLERY_SCENARIO);
 
@@ -175,9 +210,16 @@ export const LESSONS: LessonDef[] = [
   COMEBACK,
   COVER_FLANK,
   AGGRESSIVE,
+  BARRIER_TIMING,
+  VETERAN_FIRST_STRIKE,
+  SMOKE_TIMING,
+  SHOCK_MATCH,
   SUPPORT_FIRE,
   MISSILE,
+  SCOUT_RECON,
+  HULLDOWN_SLOPE,
   EXTRA,
+  FIRE,
   ARTILLERY,
   JET,
   PLAYSTYLE_AGGRO,
@@ -265,9 +307,16 @@ export const TUTORIAL_HUB: readonly HubSection[] = [
     cards: [
       "cover-flank",
       "aggressive",
+      "barrier-timing",
+      "veteran-first-strike",
+      "smoke-timing",
+      "shock-match",
       "support-fire",
       "missile",
+      "scout-recon",
+      "hulldown-slope",
       "extra-attack",
+      "fire",
     ].map((id) => hubCard(lessonById(id as LessonId))),
   },
   {

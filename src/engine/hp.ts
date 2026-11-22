@@ -137,17 +137,29 @@ export function pushHqDamageSteps(
   }
 }
 
+/** Bound from keywordEffects to avoid a status↔hp↔smoke cycle under Vitest ESM. */
+type SmokeDeployFn = (state: MatchState, target: UnitInstance) => void;
+let boundSmokeDeploy: SmokeDeployFn | null = null;
+
+export function bindSmokeDeploy(fn: SmokeDeployFn): void {
+  boundSmokeDeploy = fn;
+}
+
 export function applyUnitDamage(
   state: MatchState,
   target: UnitInstance,
   amount: number,
   source: string,
-  opts?: { icon?: LogIcon; via?: string },
+  opts?: { icon?: LogIcon; via?: string; shooterOwner?: PlayerId; skipSmoke?: boolean },
 ): void {
   if (amount <= 0 || target.hp <= 0) return;
+  // Smoke Screen does not block skills / direct damage — only gun targeting.
   target.hp -= amount;
   const via = opts?.via ?? "ATK";
   log(state, `${source} deals ${amount} with ${via} to ${target.name} (${Math.max(target.hp, 0)} HP)`, opts?.icon ?? "atk");
+  if (!opts?.skipSmoke) {
+    boundSmokeDeploy?.(state, target);
+  }
   // Do not remove from the board here — call resolveDestroyedUnits / runCleanupPhase
   // so 0 HP destroys go through the same resolve path as combat.
 }

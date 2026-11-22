@@ -5,7 +5,7 @@ Generated: 2026-11-19T13:48:58.090Z
 ## Assumptions
 
 - Two units only, same lane, no cards, no Cover/Flank relocation, no allied Support Fire.
-- Artillery / Air Strike stay on Support; everyone else on Frontline.
+- Artillery / Jet Plane stay on Support; everyone else on Frontline.
 - **One engagement:** full engine gun math — ATK + Aggressive/Retaliate + First Strike + **Shock**, AP, Shield/Barrier, Sloped, Hulldown; **Corrosion −Armor once** on connecting hits before damage; then missiles (50% armor, no AP).
 - **Two-round exchange:** that engagement, then roles reverse with leftover HP if both still live.
 - Still omitted: cards, Cover/Flank relocation, allied Support Fire, Smoke dodge setup, Suppression marks, Fire DoT ticks, Radar re-aim, Loki Copy.

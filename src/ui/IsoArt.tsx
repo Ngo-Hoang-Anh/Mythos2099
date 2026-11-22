@@ -1,8 +1,8 @@
-import { isoFrameIndex, type IsoArtSpec } from "../data/isoArt";
+import { ISO_STATIC_FACING_DEG, isoFrameIndex, type IsoArtSpec } from "../data/isoArt";
 
 export function IsoArt({
   spec,
-  facingDeg = 0,
+  facingDeg = ISO_STATIC_FACING_DEG,
 }: {
   spec: IsoArtSpec;
   facingDeg?: number;

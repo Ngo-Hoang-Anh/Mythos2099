@@ -1,8 +1,9 @@
-import { getIsoArt } from "../data/isoArt";
+import { MISSILE_TRAIL_SPRITES } from "../data/combatFx";
+import { getIsoArt, ISO_STATIC_FACING_DEG } from "../data/isoArt";
 import { getUnitArt } from "../data/unitArt";
 import { getSquadArt } from "../data/squadArt";
 import { getSpriteArt } from "../data/spriteArt";
-import { keywordsWithMods, missileMod } from "../engine/status";
+import { hasStatusOn, keywordsWithMods, missileMod } from "../engine/status";
 import type { Keyword, MatchState, UnitClass, UnitInstance } from "../engine/types";
 import { IsoArt } from "./IsoArt";
 import { TankArt } from "./TankArt";
@@ -39,7 +40,7 @@ export function UnitArt({
   unitClass,
   compact,
   unitId,
-  facingDeg = 0,
+  facingDeg,
   turretExtraDeg = 0,
   deployed = true,
   running = false,
@@ -56,10 +57,12 @@ export function UnitArt({
   showProps?: boolean;
 }) {
   const iso = unitId ? getIsoArt(unitId) : undefined;
+  // Omitted facing on isometric art → SE static portrait; board tokens always pass a heading.
+  const facing = facingDeg ?? (iso ? ISO_STATIC_FACING_DEG : 0);
   if (iso) {
     return (
       <div className={`unit-art has-sprite has-iso ${compact ? "compact" : ""}`} title={name}>
-        <IsoArt spec={iso} facingDeg={facingDeg + turretExtraDeg} />
+        <IsoArt spec={iso} facingDeg={facing + turretExtraDeg} />
       </div>
     );
   }
@@ -68,14 +71,14 @@ export function UnitArt({
   if (spec) {
     return (
       <div className={`unit-art has-sprite ${compact ? "compact" : ""}`} title={name}>
-        <TankArt spec={spec} facingDeg={facingDeg} turretExtraDeg={turretExtraDeg} walking={running} />
+        <TankArt spec={spec} facingDeg={facing} turretExtraDeg={turretExtraDeg} walking={running} />
       </div>
     );
   }
   if (sprite) {
     return (
       <div className={`unit-art has-sprite ${compact ? "compact" : ""}`} title={name}>
-        <SpriteArt spec={sprite} facingDeg={facingDeg} running={running} />
+        <SpriteArt spec={sprite} facingDeg={facing} running={running} />
       </div>
     );
   }
@@ -85,7 +88,7 @@ export function UnitArt({
         <SquadArt
           unitId={unitId}
           unitClass={unitClass}
-          facingDeg={facingDeg}
+          facingDeg={facing}
           turretExtraDeg={turretExtraDeg}
           deployed={deployed}
           running={running}
@@ -100,7 +103,7 @@ export function UnitArt({
       style={{ background: CLASS_COLOR[unitClass] }}
       title={name}
     >
-      <span className="unit-art-face" style={{ transform: `rotate(${facingDeg}deg)` }}>
+      <span className="unit-art-face" style={{ transform: `rotate(${facing}deg)` }}>
         {name}
       </span>
     </div>
@@ -176,7 +179,7 @@ export function UnitPortrait({
   atkAimId,
   onAtkAim,
   unitId,
-  facingDeg = 0,
+  facingDeg,
   turretExtraDeg = 0,
   deployed = true,
   running = false,
@@ -348,6 +351,7 @@ export function UnitToken({
   const keywords = match ? keywordsWithMods(match, unit) : unit.keywords;
   const missileBoost = match ? missileMod(match, unit) !== 0 : false;
   const statuses = layout === "board" && match ? unitStatusChips(match, unit) : [];
+  const smokeActive = layout === "board" && match ? hasStatusOn(match, unit.instanceId, "smokeDodge") : false;
   const facing = usesDriveRig(unit.class)
     ? (hullDeg ?? parkedHullDeg(unit.class, unit.owner))
     : parkedHullDeg(unit.class, unit.owner);
@@ -368,6 +372,21 @@ export function UnitToken({
             <SquadArt unitId={unit.defId} facingDeg={facing} deployed showSoldiers={false} showProps />
           </div>
         ) : null}
+        {smokeActive && !hideArt ? (
+          <div
+            className={`smoke-aura face-${unit.owner === 0 ? "right" : "left"}`}
+            aria-hidden
+          >
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <img
+                key={i}
+                className={`smoke-puff puff-${i}`}
+                src={MISSILE_TRAIL_SPRITES[1 + (i % 6)] ?? MISSILE_TRAIL_SPRITES[0]}
+                alt=""
+              />
+            ))}
+          </div>
+        ) : null}
         <div className={hideArt ? "art-hidden" : ""}>
           <UnitPortrait
             name={unit.name}
@@ -377,7 +396,9 @@ export function UnitToken({
             turretExtraDeg={turretExtraDeg}
             deployed={deployed}
             running={running}
-            showProps={layout !== "board"}
+            showProps={
+              layout === "board" && getSquadArt(unit.defId)?.propsMode !== "carry" ? false : undefined
+            }
             compact={layout === "board"}
             boardMeter={layout === "board"}
             cost={unit.cost}

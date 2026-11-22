@@ -20,8 +20,8 @@ describe("damage preview", () => {
     const aim = gunAim(state, shooter);
     expect(aim?.to).toEqual({ col: P2_FRONT, row: 0 });
     expect(aim && "hits" in aim ? aim.hits : []).toEqual([
-      { unitId: target.instanceId, hp: 5 },
-      { unitId: shooter.instanceId, hp: 5 },
+      { unitId: target.instanceId, hp: 9 },
+      { unitId: shooter.instanceId, hp: 7 },
     ]);
   });
 

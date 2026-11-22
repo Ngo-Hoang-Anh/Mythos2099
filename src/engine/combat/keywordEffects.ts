@@ -1,7 +1,6 @@
 import { frontCol, unitsOf } from "../board";
 import { computeStrikeDamage, defenseArmor } from "../combat";
 import {
-  hasFrontlineScout,
   hasKeyword,
   keywordValue,
   stripKeyword,
@@ -11,12 +10,16 @@ import { log } from "../state";
 import {
   addStatus,
   clearHulldownOnMove,
-  hasStatusOn,
   hulldownGunReduction,
 } from "../status";
 import type { MatchState, PlayerId, UnitInstance } from "../types";
+import { bindSmokeDeploy } from "../hp";
+import { deploySmokeAfterDamage } from "./smoke";
 
 export { clearHulldownOnMove, hulldownGunReduction };
+export { deploySmokeAfterDamage, smokeBlocksGun, enemyFirstForGun } from "./smoke";
+
+bindSmokeDeploy(deploySmokeAfterDamage);
 
 export interface GunHitResult {
   damage: number;
@@ -30,18 +33,6 @@ export function isFrontalGunHit(shooter: UnitInstance, target: UnitInstance): bo
   return shooter.col === frontCol(shooter.owner);
 }
 
-function smokeDodges(
-  state: MatchState,
-  shooter: UnitInstance,
-  target: UnitInstance,
-  shock: number,
-): boolean {
-  if (shock > 0) return false;
-  if (!hasStatusOn(state, target.instanceId, "smokeDodge")) return false;
-  if (hasFrontlineScout(state, shooter.owner)) return false;
-  return true;
-}
-
 /**
  * Apply Shield → Armor → Barrier → Sloped Armor to a gun strike.
  * `atk` / `armorPiercing` are already final strike values.
@@ -53,10 +44,6 @@ export function resolveGunHit(
   opts: { atk: number; armorPiercing: number },
 ): GunHitResult {
   const shock = keywordValue(shooter, "shock");
-  if (smokeDodges(state, shooter, target, shock)) {
-    log(state, `${target.name} Smoke Screen dodges the attack`, "smokeScreen");
-    return { damage: 0, blockedByDefense: false, dodged: true };
-  }
 
   // Corrosion always strips Armor once on a connecting gun hit (before damage math).
   const corrosion = keywordValue(shooter, "corrosion");
@@ -133,49 +120,43 @@ export function resolveGunHit(
 
 export function afterGunHitEffects(
   state: MatchState,
-  ctxAttacker: PlayerId,
+  _ctxAttacker: PlayerId,
   shooter: UnitInstance,
   target: UnitInstance,
-  side: "attack" | "counter",
+  _side: "attack" | "counter",
   hit: GunHitResult,
-): void {
+): { smokeStatusId: string | null } {
+  let smokeStatusId: string | null = null;
   if (hit.damage > 0) {
     target.tookDamageSinceRegen = true;
-  }
-
-  // Smoke Screen: after taking damage on the enemy's turn (while defending).
-  if (
-    hit.damage > 0 &&
-    !hit.dodged &&
-    keywordValue(shooter, "shock") <= 0 &&
-    hasKeyword(target, "smokeScreen") &&
-    target.owner !== ctxAttacker &&
-    side === "attack"
-  ) {
-    if (!hasStatusOn(state, target.instanceId, "smokeDodge")) {
-      addStatus(state, {
-        kind: "smokeDodge",
-        sourceId: target.instanceId,
-        owner: target.owner,
-        targetId: target.instanceId,
-        duration: "endOfTurn",
-      });
-      log(state, `${target.name} deploys Smoke Screen`, "smokeScreen");
-    }
+    smokeStatusId = deploySmokeAfterDamage(state, target);
   }
 
   if (hit.damage > 0) {
     const fire = keywordValue(shooter, "fire");
-    if (fire > 0) applyOrRefreshFire(state, shooter, target, fire);
+    if (fire > 0) applyOrRefreshFireOnUnit(state, shooter, target, fire);
   }
 
   if (hasKeyword(target, "firstStrike")) {
     stripKeyword(target, "firstStrike");
     log(state, `${target.name} First Strike spent`, "firstStrike");
   }
+  return { smokeStatusId };
 }
 
-function applyOrRefreshFire(
+/** After a gun shot deals HQ HP damage, apply / refresh Fire DoT on that HQ. */
+export function applyFireFromHqHit(
+  state: MatchState,
+  shooter: UnitInstance,
+  hqOwner: PlayerId,
+  damage: number,
+): void {
+  if (damage <= 0) return;
+  const fire = keywordValue(shooter, "fire");
+  if (fire > 0) applyOrRefreshFireOnHq(state, shooter, hqOwner, fire);
+}
+
+function applyOrRefreshFireOnUnit(
   state: MatchState,
   shooter: UnitInstance,
   target: UnitInstance,
@@ -204,12 +185,39 @@ function applyOrRefreshFire(
   log(state, `${target.name} ignited with Fire ${fire}`, "fire");
 }
 
+function applyOrRefreshFireOnHq(
+  state: MatchState,
+  shooter: UnitInstance,
+  hqOwner: PlayerId,
+  fire: number,
+): void {
+  const existing = state.statuses.find(
+    (status) => status.kind === "fireDot" && status.targetHq === hqOwner,
+  );
+  const label = `HQ P${hqOwner + 1}`;
+  if (existing) {
+    existing.magnitude = Math.max(existing.magnitude, fire);
+    existing.remainingPasses = 3;
+    existing.sourceId = shooter.instanceId;
+    existing.owner = shooter.owner;
+    log(state, `${label} Fire refreshed (${existing.magnitude})`, "fire");
+    return;
+  }
+  addStatus(state, {
+    kind: "fireDot",
+    magnitude: fire,
+    sourceId: shooter.instanceId,
+    owner: shooter.owner,
+    targetHq: hqOwner,
+    duration: "endOfTurn",
+    remainingPasses: 3,
+  });
+  log(state, `${label} ignited with Fire ${fire}`, "fire");
+}
+
 export function runOwnerEndOfTurn(state: MatchState, owner: PlayerId): void {
   for (const unit of unitsOf(state.board, owner)) {
     if (unit.hp <= 0) continue;
-    if (unit.barrierMax > 0) {
-      unit.barrier = unit.barrierMax;
-    }
     if (hasKeyword(unit, "hulldown")) {
       const existing = state.statuses.find(
         (status) => status.kind === "hulldownArmor" && status.targetId === unit.instanceId,
@@ -229,6 +237,17 @@ export function runOwnerEndOfTurn(state: MatchState, owner: PlayerId): void {
     }
   }
   throwSuppressionMarks(state, owner);
+}
+
+/** Barrier recharges to max at the start of its owner's turn. */
+export function runBarrierRecharge(state: MatchState, owner: PlayerId): void {
+  for (const unit of unitsOf(state.board, owner)) {
+    if (unit.hp <= 0 || unit.barrierMax <= 0) continue;
+    if (unit.barrier < unit.barrierMax) {
+      unit.barrier = unit.barrierMax;
+      log(state, `${unit.name} Barrier recharges to ${unit.barrier}`, "barrier");
+    }
+  }
 }
 
 function throwSuppressionMarks(state: MatchState, owner: PlayerId): void {
@@ -284,13 +303,11 @@ function throwSuppressionMarks(state: MatchState, owner: PlayerId): void {
 export function runShieldRegen(state: MatchState, owner: PlayerId): void {
   for (const unit of unitsOf(state.board, owner)) {
     if (unit.hp <= 0 || unit.shieldMax <= 0) continue;
-    if (!unit.tookDamageSinceRegen) {
-      const gain = Math.ceil(unit.shieldMax / 2);
-      const before = unit.shield;
-      unit.shield = Math.min(unit.shieldMax, unit.shield + gain);
-      if (unit.shield > before) {
-        log(state, `${unit.name} Shield regenerates to ${unit.shield}`, "shield");
-      }
+    const gain = Math.ceil(unit.shieldMax / 2);
+    const before = unit.shield;
+    unit.shield = Math.min(unit.shieldMax, unit.shield + gain);
+    if (unit.shield > before) {
+      log(state, `${unit.name} Shield regenerates to ${unit.shield}`, "shield");
     }
     unit.tookDamageSinceRegen = false;
   }

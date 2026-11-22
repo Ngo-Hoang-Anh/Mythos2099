@@ -42,6 +42,7 @@ export function cloneState(state: MatchState): MatchState {
           steps: [...state.combatPlayback.steps],
           initialBoard: cloneBoard(state.combatPlayback.initialBoard),
           initialHq: [...state.combatPlayback.initialHq],
+          initialStatuses: cloneStatuses(state.combatPlayback.initialStatuses ?? []),
         }
       : null,
   };

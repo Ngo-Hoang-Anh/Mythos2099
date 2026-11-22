@@ -36,7 +36,6 @@ export type KeywordName =
   | "blitz"
   | "supportFire"
   | "artillery"
-  | "airStrike"
   | "missile"
   | "jetPlane"
   | "camouflage"
@@ -351,6 +350,8 @@ export interface StatusEffect {
   sourceId: string | number;
   owner: PlayerId;
   targetId?: string;
+  /** Fire DoT on a player's HQ (mutually exclusive with targetId). */
+  targetHq?: PlayerId;
   lane?: number;
   /** Board column for cell marks (Suppression). */
   col?: number;
@@ -399,6 +400,8 @@ export type CombatStep =
   | { kind: "hp"; unitId: string; hp: number; lost: number }
   | { kind: "hq"; player: PlayerId; hp: number; damage: number }
   | { kind: "hqBreakpoint"; player: PlayerId; bp: number; supply: number; draw: number }
+  /** Reveal a status on the visual board after the hit that caused it (e.g. Smoke Screen). */
+  | { kind: "statusAdd"; unitId: string; statusId: string; statusKind: StatusKind }
   | { kind: "destroy"; unitId: string }
   | { kind: "missileLock"; unitId: string; to: BoardPos };
 
@@ -406,6 +409,8 @@ export interface CombatPlayback {
   steps: CombatStep[];
   initialBoard: (UnitInstance | null)[][];
   initialHq: [number, number];
+  /** Statuses present when engagement began — playback reveals later adds via statusAdd. */
+  initialStatuses: StatusEffect[];
 }
 
 export type LogIcon = KeywordName | "atk" | "hp" | "supply" | "card";

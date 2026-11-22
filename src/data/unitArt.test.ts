@@ -14,7 +14,7 @@ describe("unit art specs", () => {
     expect(spec.turrets[0].barrels[0]).toMatchObject({ originX: 128, originY: 145 });
   });
 
-  it("mounts Bastion and Zeus guns on their hull sockets", () => {
+  it("mounts Bastion and Loki (former Zeus pack) guns on their hull sockets", () => {
     const bastion = UNIT_ART[3];
     expect(bastion.hull).toContain("/units-art/tanks/Bastion/Hull_02");
     expect(bastion.turrets).toHaveLength(1);
@@ -25,15 +25,17 @@ describe("unit art specs", () => {
       originY: 135,
     });
 
-    const zeus = UNIT_ART[1];
-    expect(zeus.hull).toContain("/units-art/tanks/Zeus/Hull_05");
-    expect(zeus.turrets).toHaveLength(1);
-    expect(zeus.turrets[0]).toMatchObject({ x: 128, y: 152 });
-    expect(zeus.turrets[0].barrels[0]).toMatchObject({
+    const loki = UNIT_ART[36];
+    expect(loki.hull).toContain("/units-art/tanks/Zeus/Hull_05");
+    expect(loki.scale).toBe(0.75);
+    expect(loki.turrets).toHaveLength(1);
+    expect(loki.turrets[0]).toMatchObject({ x: 128, y: 152 });
+    expect(loki.turrets[0].barrels[0]).toMatchObject({
       src: expect.stringContaining("/units-art/tanks/Zeus/Gun_06"),
       originX: 128,
       originY: 146,
     });
+    expect(UNIT_ART[1]).toBeUndefined();
   });
 
   it("packs Apex / Jackal / Nomad as 256 Hull+Gun like Bastion", () => {

@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import type { CardType, EffectId, Keyword, KeywordName } from "../engine/types";
 import { FLAG_KEYWORDS } from "../engine/keywords";
-import { keywordHelp, STAT_HELP } from "../engine/armySummary";
+import { formatAvg, keywordHelp, STAT_HELP } from "../engine/armySummary";
 import { TipHost } from "./AnchoredTip";
 import {
   STATUS_POLARITY_COLOR,
@@ -27,7 +27,6 @@ const KEYWORD_FILE: Record<KeywordName, string> = {
   blitz: "blitz.svg",
   supportFire: "support fire.svg",
   artillery: "artilery.svg",
-  airStrike: "heavy-bullets.svg",
   missile: "missle.svg",
   jetPlane: "jet-fighter.svg",
   camouflage: "camouflage.svg",
@@ -242,7 +241,7 @@ export function KeywordChip({
       }
     >
       <KeywordIcon name={keyword.name} size={size} />
-      {flag ? null : <span className="chip-val">{keyword.value}</span>}
+      {flag ? null : <span className="chip-val">{formatAvg(keyword.value)}</span>}
     </TipHost>
   );
 }

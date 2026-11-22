@@ -16,7 +16,8 @@ import {
 import { playEffect } from "./effects";
 import { relocateUnit } from "./fx";
 import { hasKeyword, restsOnDeploy, syncDefensePools } from "./keywords";
-import { runOwnerEndOfTurn, runShieldRegen } from "./combat/keywordEffects";
+import { runBarrierRecharge, runOwnerEndOfTurn, runShieldRegen } from "./combat/keywordEffects";
+import { reaimAlliedMissiles } from "./combat/missile";
 import { discardsNeeded, needsDesperateMeasure } from "./desperateMeasure";
 import { applyEliminationLoss, projectedDeploySupply } from "./elimination";
 import { mulberry32State, shuffle } from "./rng";
@@ -200,6 +201,7 @@ function startTurn(state: MatchState, playerId: PlayerId): void {
   player.discardRedrawsUsed = 0;
   player.deploysThisTurn = 0;
   runShieldRegen(state, playerId);
+  runBarrierRecharge(state, playerId);
   refreshCp(state, playerId);
   if (player.turnsTaken > 1) {
     const drawBonus = player.nextTurnDrawBonus;
@@ -294,6 +296,10 @@ function passTurn(state: MatchState): void {
   clearRested(state);
   runOwnerEndOfTurn(state, state.currentPlayer);
   tickStatuses(state);
+  if (state.winner !== null) {
+    state.phase = "gameover";
+    return;
+  }
   const next: PlayerId = state.currentPlayer === 0 ? 1 : 0;
   state.turn += 1;
   startTurn(state, next);
@@ -422,6 +428,9 @@ function commitDeploy(state: MatchState, player: PlayerState, def: UnitDef, row:
       relocateUnit(state, unit, dest, row);
       log(state, `${unit.name} Blitz to Frontline`, "blitz");
     }
+  }
+  if (hasKeyword(unit, "radar")) {
+    reaimAlliedMissiles(state, player.id);
   }
   return unit;
 }

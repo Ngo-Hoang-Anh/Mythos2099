@@ -90,7 +90,7 @@ function blankMatch(currentPlayer: PlayerId = 0): MatchState {
 
 function deployCol(owner: PlayerId, def: UnitDef): number {
   const backline =
-    hasKeyword(def, "artillery") || hasKeyword(def, "airStrike") || hasKeyword(def, "jetPlane");
+    hasKeyword(def, "artillery") || hasKeyword(def, "jetPlane");
   return backline ? supportCol(owner) : frontCol(owner);
 }
 

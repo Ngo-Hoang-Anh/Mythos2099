@@ -95,7 +95,7 @@ function vacuumHtml(generatedAt: string): string {
   const roster = units
     .map(
       (u) =>
-        `<tr><td>${esc(codes[u.id])}</td><td>${esc(u.name)}</td><td>${esc(u.class)}</td><td class="num">${u.cost}</td><td class="num">${u.hp}</td><td class="num">${u.atk}</td><td class="num">${u.armor}</td><td class="num">${u.ap}</td><td>${esc(u.keywords.map((k) => (k.value && !["cover", "flank", "blitz", "artillery", "airStrike", "jetPlane"].includes(k.name) ? `${k.name} ${k.value}` : k.name)).join(", "))}</td></tr>`,
+        `<tr><td>${esc(codes[u.id])}</td><td>${esc(u.name)}</td><td>${esc(u.class)}</td><td class="num">${u.cost}</td><td class="num">${u.hp}</td><td class="num">${u.atk}</td><td class="num">${u.armor}</td><td class="num">${u.ap}</td><td>${esc(u.keywords.map((k) => (k.value && !["cover", "flank", "blitz", "artillery", "jetPlane"].includes(k.name) ? `${k.name} ${k.value}` : k.name)).join(", "))}</td></tr>`,
     )
     .join("");
 
@@ -115,7 +115,7 @@ function vacuumHtml(generatedAt: string): string {
 <h2>Assumptions</h2>
 <ul>
 <li>Hai unit, cùng làn, không bài, không Cover/Flank, không Support Fire đồng minh.</li>
-<li>Artillery / Air Strike đứng Support; còn lại Frontline.</li>
+<li>Artillery / Jet Plane đứng Support; còn lại Frontline.</li>
 <li>1 engagement: attacker volley → defender counter → attacker missile (50% armor, làm tròn xuống, không AP).</li>
 <li>2-round: đổi lượt nếu cả hai còn sống, máu cộng dồn.</li>
 </ul>

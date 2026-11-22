@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { C, getCard, type CardCatalogId } from "../src/data/cardCatalog";
 import { getUnitDef, UNITS } from "../src/data/units";
+import { KEYWORD_LABEL } from "../src/engine/armySummary";
 import { FLAG_KEYWORDS, parseKeywords } from "../src/engine/keywords";
 import { applyAction } from "../src/engine/match";
 import {
@@ -10,7 +11,6 @@ import {
   type Direction,
   type InitiativeChoice,
   type Keyword,
-  type KeywordName,
   type MatchState,
   type Phase,
   type PlayerId,
@@ -63,18 +63,6 @@ const DIRECTIONS: Direction[] = [
 ];
 const CHOICES: InitiativeChoice[] = ["supply", "move", "nextSupply"];
 const HUB_STATS: LessonStat[] = ["hp", "atk", "armor", "ap", "supply"];
-const KEYWORD_LABEL: Record<KeywordName, string> = {
-  cover: "Cover",
-  flank: "Flank",
-  retaliate: "Retaliate",
-  aggressive: "Aggressive",
-  blitz: "Blitz",
-  supportFire: "Support Fire",
-  artillery: "Artillery",
-  airStrike: "Air Strike",
-  missile: "Missile",
-  jetPlane: "Jet Plane",
-};
 const CARD_KEYS = Object.keys(C) as CardCatalogId[];
 
 function loadDraft(): ScenarioDraft {

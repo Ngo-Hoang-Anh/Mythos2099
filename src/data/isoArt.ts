@@ -20,6 +20,9 @@ export type IsoArtSpec = {
 /** Game facingDeg: 0 = North (up), 90 = East (right). */
 const FACING_DIRS: IsoDir[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
+/** Static UI / catalog portraits — southeast isometric view. */
+export const ISO_STATIC_FACING_DEG = 135;
+
 /** Packed ToolBuddy / iso-preview row: 8×256 cells with 4px border + gap. */
 function packedRow8(frame = 256, pad = 4, gap = 4): IsoFrameRect[] {
   return Array.from({ length: 8 }, (_, i) => ({

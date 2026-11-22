@@ -78,7 +78,8 @@ function SingleTankArt({
   size: number;
 }) {
   const pad = spec.kind === "heavy" ? 1.32 : spec.kind === "biped" ? 1.28 : 1.2;
-  const scale = Math.min(size / (spec.hullW * pad), size / (spec.hullH * pad));
+  const fit = Math.min(size / (spec.hullW * pad), size / (spec.hullH * pad));
+  const scale = fit * (spec.scale ?? 1);
   const biped = Boolean(spec.legs?.length);
   return (
     <div className={`tank-fit ${spec.kind}`}>

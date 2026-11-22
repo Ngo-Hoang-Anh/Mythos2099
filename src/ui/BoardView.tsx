@@ -5,7 +5,9 @@ import { gunAim, missileAimHit, type HpForecast } from "./damagePreview";
 import { SquadArt } from "./SquadArt";
 import { ExplosionFx } from "./ExplosionFx";
 import { SgBrackets, sgIcon } from "./UiChrome";
-import { WhiteFlagIcon } from "./icons";
+import { StatusEffectChip, WhiteFlagIcon } from "./icons";
+import { hqStatusChips } from "./unitStatuses";
+import { getIsoArt } from "../data/isoArt";
 import { boardFacingDeg, getUnitArt } from "../data/unitArt";
 import { getSquadArt, SQUAD_PROP_FADE_TOTAL_MS } from "../data/squadArt";
 import { getSpriteArt } from "../data/spriteArt";
@@ -35,6 +37,7 @@ import {
   moveUnitOnBoard,
   supportCol,
 } from "../engine/board";
+import { cloneStatuses } from "../engine/status";
 import type { DragKind } from "./dnd";
 import { allowDrop } from "./dnd";
 import { isPageHidden, onPageHidden } from "./pageVisibility";
@@ -54,6 +57,7 @@ import {
   type KeywordName,
   type MatchState,
   type PlayerId,
+  type StatusEffect,
   type UnitClass,
   type UnitSfxSlots,
   type UnitInstance,
@@ -68,12 +72,14 @@ import {
   isAirborneClass,
   isSquadClass,
   isStepAdjacent,
+  octantDrivePath,
   parkAlign,
   parkedHullDeg,
   planMoveRoute,
   prepareControls,
   reverseToFace,
   shortestDelta,
+  snapOctantDeg,
   usesDriveRig,
   type PathNode,
   type Point,
@@ -104,7 +110,7 @@ import {
   reversePath,
   type TimedTrack,
   spreadMarchPaths,
-} from "./airStrike";
+} from "./flightPaths";
 
 const TURRET_SETTLE_MS = 280;
 const FORMATION_MS = 420;
@@ -450,9 +456,11 @@ export function BoardView({
   const hqRefs = useRef<Record<0 | 1, HTMLButtonElement | null>>({ 0: null, 1: null });
   const hqArtRefs = useRef<Record<0 | 1, HTMLElement | null>>({ 0: null, 1: null });
   const visualRef = useRef<(UnitInstance | null)[][] | null>(null);
+  const visualStatusesRef = useRef<StatusEffect[] | null>(null);
   const poseRef = useRef<Record<string, { hull: number; turret: number }>>({});
   const [visualBoard, setVisualBoard] = useState<(UnitInstance | null)[][] | null>(null);
   const [visualHq, setVisualHq] = useState<[number, number] | null>(null);
+  const [visualStatuses, setVisualStatuses] = useState<StatusEffect[] | null>(null);
   const [hqCrack, setHqCrack] = useState<{ player: PlayerId; bps: number[] } | null>(null);
   const [laneHl, setLaneHl] = useState<{ lane: number; color: "green" | "yellow" | "red" | "orange" } | null>(null);
   const [phaseName, setPhaseName] = useState<CombatPhaseName | null>(null);
@@ -654,7 +662,9 @@ export function BoardView({
   }, []);
 
   function leaveSquadGround(unitId: string, defId: number, from: BoardPos, facingDeg: number) {
-    if (!getSquadArt(defId)?.props?.length) return;
+    const art = getSquadArt(defId);
+    // Carry props (Qinglong aura/feet) stay on the token — do not stamp a ground leftover.
+    if (!art?.props?.length || art.propsMode === "carry") return;
     const key = `leave-${unitId}-${Date.now()}`;
     setSquadGround((prev) => ({
       leftover: [...prev.leftover, { key, col: from.col, row: from.row, defId, facingDeg }],
@@ -666,7 +676,8 @@ export function BoardView({
   }
 
   function arriveSquadGround(unitId: string, defId: number) {
-    if (!getSquadArt(defId)?.props?.length) return;
+    const art = getSquadArt(defId);
+    if (!art?.props?.length || art.propsMode === "carry") return;
     setSquadGround((prev) => ({ ...prev, phase: { ...prev.phase, [unitId]: "arriving" } }));
     later(SQUAD_PROP_FADE_TOTAL_MS + 120, () => {
       setSquadGround((prev) => {
@@ -680,14 +691,25 @@ export function BoardView({
     preloadCombatFx();
   }, []);
 
-  const board = visualBoard ?? holdBoard ?? match.board;
+  // Prefer playback snapshots before React effects flush — avoids a frame of post-combat HP/buffs/smoke.
+  const board = visualBoard ?? (combatPlayback ? combatPlayback.initialBoard : null) ?? holdBoard ?? match.board;
+  const hqPair =
+    visualHq ?? holdHq ?? (combatPlayback ? combatPlayback.initialHq : null);
+  const displayStatuses =
+    visualStatuses ??
+    (combatPlayback ? (combatPlayback.initialStatuses ?? []) : null) ??
+    match.statuses;
   const missileLocks = new Set<string>();
   for (const unit of allUnits(board)) {
     if (unit.hp <= 0 || !unit.missileTarget) continue;
     missileLocks.add(`${unit.missileTarget.col}-${unit.missileTarget.row}`);
   }
 
-  const previewState: MatchState = board === match.board ? match : { ...match, board };
+  const previewState: MatchState = {
+    ...match,
+    board,
+    statuses: displayStatuses,
+  };
 
   useLayoutEffect(() => {
     if (!aim) {
@@ -756,8 +778,8 @@ export function BoardView({
       !unit ? [] : aim.kind === "missile" ? [missileAimHit(previewState, unit)].filter((hit): hit is HpForecast => Boolean(hit)) : (gunAim(previewState, unit)?.hits ?? []);
     for (const hit of hits) hpForecast.set(hit.unitId, hit.hp);
   }
-  const hq0 = visualHq ? visualHq[0] : holdHq ? holdHq[0] : match.players[0].hqHp;
-  const hq1 = visualHq ? visualHq[1] : holdHq ? holdHq[1] : match.players[1].hqHp;
+  const hq0 = hqPair ? hqPair[0] : match.players[0].hqHp;
+  const hq1 = hqPair ? hqPair[1] : match.players[1].hqHp;
 
   function pointOfTarget(to: FxTarget | { col: number; row: number }): Point | null {
     const root = rootRef.current?.getBoundingClientRect();
@@ -789,6 +811,37 @@ export function BoardView({
   function bumpVisual() {
     if (!visualRef.current) return;
     setVisualBoard(cloneBoard(visualRef.current));
+  }
+
+  function revealStatus(step: Extract<CombatStep, { kind: "statusAdd" }>) {
+    const fromMatch = match.statuses.find((status) => status.id === step.statusId);
+    const next = cloneStatuses(visualStatusesRef.current ?? []);
+    if (next.some((status) => status.id === step.statusId)) return;
+    next.push(
+      fromMatch
+        ? {
+            ...fromMatch,
+            hitKeys: fromMatch.hitKeys ? [...fromMatch.hitKeys] : undefined,
+            suppressedKeywords: fromMatch.suppressedKeywords
+              ? fromMatch.suppressedKeywords.map((keyword) => ({ ...keyword }))
+              : undefined,
+          }
+        : {
+            id: step.statusId,
+            kind: step.statusKind,
+            magnitude: 0,
+            sourceId: step.unitId,
+            owner: 0,
+            targetId: step.unitId,
+            duration: "endOfNextTurn",
+            remainingPasses: 2,
+          },
+    );
+    visualStatusesRef.current = next;
+    setVisualStatuses(next);
+    if (step.statusKind === "smokeDodge") {
+      setKeywordPop({ unitId: step.unitId, keyword: "smokeScreen", amount: 1 });
+    }
   }
 
   function hqBreaksOf(results: Array<{ kind: string }>): Extract<CombatStep, { kind: "hqBreakpoint" }>[] {
@@ -1004,8 +1057,10 @@ export function BoardView({
   useEffect(() => {
     if (!combatPlayback) {
       visualRef.current = null;
+      visualStatusesRef.current = null;
       setVisualBoard(null);
       setVisualHq(null);
+      setVisualStatuses(null);
       setHqCrack(null);
       setLaneHl(null);
       setPhaseName(null);
@@ -1051,8 +1106,10 @@ export function BoardView({
         pending.add(resume);
       });
     visualRef.current = cloneBoard(playback.initialBoard);
+    visualStatusesRef.current = cloneStatuses(playback.initialStatuses ?? []);
     setVisualBoard(cloneBoard(playback.initialBoard));
     setVisualHq([...playback.initialHq]);
+    setVisualStatuses(cloneStatuses(playback.initialStatuses ?? []));
 
     async function run() {
       if (skipDelays) {
@@ -1132,14 +1189,19 @@ export function BoardView({
       .map((unit) => parkPoint(unit.col, unit.row, root))
       .filter((p): p is Point => p !== null);
     const waypoints = measured.length >= 2 ? measured : [start, end];
-    const controls = airborne
-      ? waypoints
-      : prepareControls(route, waypoints, (row) => aislePoint(owner, row, root));
+    const iso = Boolean(defId && getIsoArt(defId));
+    // Iso sheets are 8-dir: skip soft bows / Catmull so facing hits distinct compass frames.
+    const controls =
+      airborne || iso
+        ? waypoints
+        : prepareControls(route, waypoints, (row) => aislePoint(owner, row, root));
     const adjacent = isStepAdjacent(from, to);
-    const path = curveDrivePath(controls, adjacent && !airborne ? [] : obstacles);
+    const path = iso
+      ? octantDrivePath(controls)
+      : curveDrivePath(controls, adjacent && !airborne ? [] : obstacles);
     const spriteSteer = Boolean(defId && getSpriteArt(defId));
     const flySteer = spriteSteer || unitClass === "Drone";
-    const aimHull = steer || flySteer;
+    const aimHull = steer || flySteer || iso;
     if (defId) {
       leaveSquadGround(unitId, defId, from, parkedHullDeg(unitClass, owner));
     }
@@ -1204,10 +1266,10 @@ export function BoardView({
       trackAir(unitId, path, durations);
     }
     const reverseFrom = hull;
+    const travelHeading =
+      path.length >= 2 ? (iso ? snapOctantDeg(headingAlong(path[0], path[1], hull)) : headingAlong(path[0], path[1], hull)) : hull;
     const backing =
-      unitClass === "Motorcycle" && path.length >= 2
-        ? reverseToFace(path[0], hull, headingAlong(path[0], path[1], hull))
-        : null;
+      unitClass === "Motorcycle" && path.length >= 2 ? reverseToFace(path[0], hull, travelHeading) : null;
     if (backing) {
       const origin = path[0];
       path.splice(
@@ -1229,8 +1291,9 @@ export function BoardView({
         if (reversing && backing) {
           const t = (i + 1) / reverseSegs;
           hull = reverseFrom + shortestDelta(reverseFrom, backing.hull) * t;
+          if (iso) hull = snapOctantDeg(hull);
         } else {
-          const want = headingAlong(a, b, hull);
+          const want = iso ? snapOctantDeg(headingAlong(a, b, hull)) : headingAlong(a, b, hull);
           const delta = shortestDelta(hull, want);
           hull += delta;
           if (i === reverseSegs && Math.abs(delta) > 55 && unitClass !== "Motorcycle") {
@@ -2490,10 +2553,16 @@ export function BoardView({
           return next;
         });
       }
+      if (step.kind === "statusAdd") revealStatus(step);
     }
     bumpVisual();
     await wait(80);
     if (cancelled()) return;
+    if (exchange.results.some((step) => step.kind === "statusAdd" && step.statusKind === "smokeDodge")) {
+      await wait(KEYWORD_MS);
+      if (cancelled()) return;
+      setKeywordPop(null);
+    }
     await flashHqBreaks(exchange.results, wait, cancelled);
     if (cancelled()) return;
     await Promise.all(aftermaths.map((item) => item.settle()));
@@ -2513,6 +2582,7 @@ export function BoardView({
           return next;
         });
       }
+      if (step.kind === "statusAdd") revealStatus(step);
     }
     bumpVisual();
   }
@@ -2752,6 +2822,17 @@ export function BoardView({
       await wait(80);
       return;
     }
+    if (step.kind === "statusAdd") {
+      revealStatus(step);
+      if (step.statusKind === "smokeDodge") {
+        await wait(KEYWORD_MS);
+        if (cancelled()) return;
+        setKeywordPop(null);
+      } else {
+        await wait(80);
+      }
+      return;
+    }
     if (step.kind === "hq") {
       setVisualHq((prev) => {
         const next: [number, number] = prev ? [...prev] : [hq0, hq1];
@@ -2779,7 +2860,10 @@ export function BoardView({
 
   function flyerOverlay(flyer: Omit<FlyerPlay, "unitId"> & { unitId?: string }, key: string) {
     const defId = flyer.defId;
-    const painted = Boolean(defId && (getUnitArt(defId) || getSpriteArt(defId) || getSquadArt(defId)));
+    // Iso art counts as painted — otherwise CLASS_COLOR fills a 96×96 square behind the flyer.
+    const painted = Boolean(
+      defId && (getUnitArt(defId) || getSpriteArt(defId) || getSquadArt(defId) || getIsoArt(defId)),
+    );
     const squad = isSquadClass(flyer.unitClass) || Boolean(defId && getSquadArt(defId));
     return (
       <div
@@ -2816,13 +2900,16 @@ export function BoardView({
     const leftover = squadGround.leftover.filter((item) => item.col === col && item.row === row);
     const parked = unit ? pose[unit.instanceId] : undefined;
     const groundPhase = unit ? squadGround.phase[unit.instanceId] ?? null : null;
+    const suppressed = displayStatuses.some(
+      (status) => status.kind === "suppressionMark" && status.col === col && status.lane === row,
+    );
     return (
       <div
         key={`${col}-${row}`}
         ref={(el) => {
           cellRefs.current[`${col}-${row}`] = el;
         }}
-        className={`cell ${front ? "front" : "support"} ${parkAlign(col) === "left" ? "park-left" : "park-right"} ${deployable ? "deployable" : ""} ${reachable ? "reachable" : ""}`}
+        className={`cell ${front ? "front" : "support"} ${parkAlign(col) === "left" ? "park-left" : "park-right"} ${deployable ? "deployable" : ""} ${reachable ? "reachable" : ""} ${suppressed ? "suppressed" : ""}`}
         data-tut={`cell-${col}-${row}`}
         onClick={() => onSelectCell(col, row)}
         onDragOver={(event) => {
@@ -2834,6 +2921,21 @@ export function BoardView({
           onDropCell?.(col, row, event);
         }}
       >
+        {suppressed ? (
+          <div className="suppression-fx" aria-hidden>
+            <div className="suppression-ground" />
+            <div className="suppression-smoke">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <img
+                  key={i}
+                  className={`smoke-puff gray puff-${i}`}
+                  src={missileTrailSprite(2 + (i % 5))}
+                  alt=""
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
         {leftover.map((item) => (
           <div key={item.key} className="squad-ground leaving">
             <SquadArt unitId={item.defId} facingDeg={item.facingDeg} deployed showSoldiers={false} showProps />
@@ -2850,7 +2952,7 @@ export function BoardView({
         {unit ? (
           <UnitToken
             unit={unit}
-            match={match}
+            match={previewState}
             layout="board"
             parkAlign={parkAlign(unit.col)}
             hullDeg={parked?.hull}
@@ -2923,6 +3025,7 @@ export function BoardView({
           hqRefs.current[0] = el;
         }}
         intel={viewer === 1 ? opponentIntel : null}
+        statuses={hqStatusChips(previewState, 0)}
       />
       <HqFaceFlank
         player={0}
@@ -2969,6 +3072,7 @@ export function BoardView({
           hqRefs.current[1] = el;
         }}
         intel={viewer === 0 ? opponentIntel : null}
+        statuses={hqStatusChips(previewState, 1)}
       />
       {aimLine ? (
         <svg className="missile-arc" aria-hidden>
@@ -3132,6 +3236,7 @@ function HqPillar({
   onClick,
   innerRef,
   intel = null,
+  statuses = [],
 }: {
   player: PlayerId;
   showSurrender?: boolean;
@@ -3151,6 +3256,7 @@ function HqPillar({
   onClick: () => void;
   innerRef: (el: HTMLButtonElement | null) => void;
   intel?: ReactNode;
+  statuses?: import("./unitStatuses").UnitStatusChip[];
 }) {
   const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const nextBp = nextHqBreakpoint(hp, triggered);
@@ -3205,6 +3311,13 @@ function HqPillar({
         })}
       </div>
       <div className="hq-hp">{hp}</div>
+      {statuses.length > 0 ? (
+        <div className="hq-statuses" aria-label="HQ effects">
+          {statuses.map((status) => (
+            <StatusEffectChip key={status.id} chip={status} size={14} />
+          ))}
+        </div>
+      ) : null}
       {note ? <div className="hq-break-note">{note}</div> : null}
     </button>
     {intel ? <div className={`hq-intel ${note ? "under-note" : ""}`}>{intel}</div> : null}

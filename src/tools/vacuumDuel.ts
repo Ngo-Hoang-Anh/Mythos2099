@@ -86,7 +86,7 @@ function blankMatch(attacker: PlayerId): MatchState {
 
 function deployCol(owner: PlayerId, def: UnitDef): number {
   const backline =
-    hasKeyword(def, "artillery") || hasKeyword(def, "airStrike") || hasKeyword(def, "jetPlane");
+    hasKeyword(def, "artillery") || hasKeyword(def, "jetPlane");
   return backline ? supportCol(owner) : frontCol(owner);
 }
 
@@ -249,7 +249,7 @@ function indexDuels(rows: DuelHp[]): Map<string, DuelHp> {
 
 function keywordLabel(def: UnitDef): string {
   if (def.keywords.length === 0) return "—";
-  return def.keywords.map((k) => (k.value && !["cover", "flank", "blitz", "artillery", "airStrike", "jetPlane"].includes(k.name) ? `${k.name} ${k.value}` : k.name)).join(", ");
+  return def.keywords.map((k) => (k.value && !["cover", "flank", "blitz", "artillery", "jetPlane"].includes(k.name) ? `${k.name} ${k.value}` : k.name)).join(", ");
 }
 
 function summaryRows(engagements: DuelHp[], units: UnitDef[]) {
@@ -350,7 +350,7 @@ export function renderVacuumDuelMarkdown(opts?: { generatedAt?: string; units?: 
     "## Assumptions",
     "",
     "- Two units only, same lane, no cards, no Cover/Flank relocation, no allied Support Fire.",
-    "- Artillery / Air Strike stay on Support; everyone else on Frontline.",
+    "- Artillery / Jet Plane stay on Support; everyone else on Frontline.",
     "- **One engagement:** full engine gun math — ATK + Aggressive/Retaliate + First Strike (once), AP, Shield/Barrier, Sloped, Hulldown; **Shock** only depletes Shield/Barrier; **Corrosion −Armor once** before damage; then missiles (50% armor, no AP).",
     "- **Two-round exchange:** that engagement, then roles reverse with leftover HP if both still live.",
     "- Still omitted: cards, Cover/Flank relocation, allied Support Fire, Smoke dodge setup, Suppression marks, Fire DoT ticks, Radar re-aim, Loki Copy.",

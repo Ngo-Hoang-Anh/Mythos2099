@@ -33,6 +33,8 @@ export type SquadPieceSpec = {
   /** Optional running pose (gun across the body). */
   runSrc?: string;
   scaleWhenEntrenched?: number;
+  /** Draw scale (Qinglong head/body tiers). Default 1. */
+  scale?: number;
 };
 
 export type SquadPropSpec = {
@@ -50,6 +52,11 @@ export type SquadArtSpec = {
   entrench?: boolean;
   pieces: SquadPieceSpec[];
   props?: SquadPropSpec[];
+  /**
+   * `ground` (default): props leave a board footprint and stay hidden on the token.
+   * `carry`: idle decorations stay on the unit (hidden while moving/attacking).
+   */
+  propsMode?: "ground" | "carry";
 };
 
 const SOLDIER = { width: 32, height: 40, originX: 16, originY: 24 } as const;
@@ -63,7 +70,9 @@ function piece(
   role: SquadMemberRole,
   blob: SquadPos,
   parked: SquadPos,
-  extra: Partial<Pick<SquadPieceSpec, "firesBullet" | "shotScale" | "tipX" | "tipY" | "runSrc" | "scaleWhenEntrenched">> & {
+  extra: Partial<
+    Pick<SquadPieceSpec, "firesBullet" | "shotScale" | "tipX" | "tipY" | "runSrc" | "scaleWhenEntrenched" | "scale">
+  > & {
     size?: { width: number; height: number; originX: number; originY: number };
   } = {},
 ): SquadPieceSpec {
@@ -80,6 +89,7 @@ function piece(
     tipY: extra.tipY ?? 0,
     runSrc: extra.runSrc,
     scaleWhenEntrenched: extra.scaleWhenEntrenched,
+    scale: extra.scale,
   };
 }
 
@@ -123,6 +133,76 @@ function drones(file: string): SquadArtSpec {
       piece(src, "drone", pos, pos, { size: DRONE, firesBullet: true, shotScale: 0.25, tipX: 0, tipY: -12 }),
     ),
   };
+}
+
+/**
+ * Qinglong: 8× Anhur-blue drones on a horizontal S, head toward the enemy (−Y).
+ * Indices 0-based; "leg" anchors at 1-based positions 3 and 6 → indices 2 and 5.
+ */
+function qinglongS(): SquadArtSpec {
+  const src = "/units-art/drone/aegis.svg";
+  const PROP = "/units-art/squads/props";
+  const n = 8;
+  const parked: SquadPos[] = [];
+  const blob: SquadPos[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const t = i / (n - 1);
+    // Full sine along forward axis → horizontal S; head (i=0) faces the enemy.
+    const y = -30 + t * 58;
+    const x = Math.sin(t * Math.PI * 2) * 22;
+    parked.push({ x, y });
+    // Moving: tighten toward a shorter S so the snake still reads.
+    blob.push({ x: x * 0.55, y: -22 + t * 42 });
+  }
+  const legAt = new Set([2, 5]);
+  const pieces = parked.map((pos, i) => {
+    const scale = i === 0 ? 1.38 : legAt.has(i) ? 1 : 0.72;
+    return piece(src, "drone", blob[i]!, pos, {
+      size: DRONE,
+      firesBullet: true,
+      shotScale: i === 0 ? 0.35 : 0.22,
+      tipX: 0,
+      tipY: -12,
+      scale,
+    });
+  });
+  const props: SquadPropSpec[] = [];
+  // Foot dots on both sides of leg drones (idle / parked only).
+  for (const i of legAt) {
+    const { x, y } = parked[i]!;
+    for (const side of [-1, 1] as const) {
+      props.push({
+        src: `${PROP}/qinglong-foot.svg`,
+        width: 10,
+        height: 6,
+        originX: 5,
+        originY: 3,
+        x: x + side * 13,
+        y: y + 10,
+      });
+      props.push({
+        src: `${PROP}/qinglong-foot.svg`,
+        width: 8,
+        height: 5,
+        originX: 4,
+        originY: 2,
+        x: x + side * 17,
+        y: y + 14,
+      });
+    }
+  }
+  // Soft light-blue streaks beside the head.
+  const head = parked[0]!;
+  props.push({
+    src: `${PROP}/qinglong-glow.svg`,
+    width: 48,
+    height: 28,
+    originX: 24,
+    originY: 20,
+    x: head.x,
+    y: head.y - 6,
+  });
+  return { kind: "drones", pieces, props, propsMode: "carry" };
 }
 
 function infantryMechs(
@@ -178,6 +258,7 @@ export const SQUAD_ART: Record<number, SquadArtSpec> = {
   22: drones("recon.svg"),
   24: drones("aegis.svg"),
   23: drones("kamikaze.svg"),
+  28: qinglongS(),
 };
 
 export function getSquadArt(id: number | undefined): SquadArtSpec | undefined {

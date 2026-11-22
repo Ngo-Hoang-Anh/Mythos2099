@@ -170,11 +170,7 @@ export function supportFireBonus(
 }
 
 export function canAttackFromPosition(unit: UnitInstance): boolean {
-  if (
-    hasKeyword(unit, "artillery") ||
-    hasKeyword(unit, "airStrike") ||
-    hasKeyword(unit, "jetPlane")
-  ) {
+  if (hasKeyword(unit, "artillery") || hasKeyword(unit, "jetPlane")) {
     return true;
   }
   return unit.owner === 0 ? unit.col === 1 : unit.col === 2;

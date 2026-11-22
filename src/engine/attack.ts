@@ -1,4 +1,4 @@
-import { enemyFirstInRow, findUnit } from "./board";
+import { findUnit } from "./board";
 import {
   extraGunDamage,
   extraGunHqDamage,
@@ -6,6 +6,8 @@ import {
   missilePowerOf,
 } from "./combat";
 import { resolveDestroyedUnits } from "./combat/cleanup";
+import { applyFireFromHqHit } from "./combat/keywordEffects";
+import { enemyFirstForGun, smokeBlocksGun } from "./combat/smoke";
 import { armorPiercingOf, hasKeyword } from "./keywords";
 import { pushAttack } from "./fx";
 import { applyHqDamage, applyUnitDamage } from "./hp";
@@ -26,13 +28,19 @@ export function resolveAttack(
 
   const forced = opts?.targetId ? findUnit(state.board, opts.targetId) : null;
   if (opts?.targetId && (!forced || forced.hp <= 0)) return "Target is gone";
-  const enemy = forced ?? enemyFirstInRow(state.board, attacker.owner, attacker.row);
   const hqOwner: PlayerId = attacker.owner === 0 ? 1 : 0;
+  const enemy =
+    forced && !smokeBlocksGun(state, forced, attacker.owner)
+      ? forced
+      : forced
+        ? null
+        : enemyFirstForGun(state, attacker.owner, attacker.row);
 
   if (!enemy) {
     const dmg = extraGunHqDamage(state, attacker, hqOwner);
     pushAttack(state, attacker, { hq: hqOwner }, { damage: dmg, power: extraGunPower(attacker) + armorPiercingOf(attacker) });
     applyHqDamage(state, hqOwner, dmg, attacker.name, strikeSource(state, attacker, "attack"));
+    applyFireFromHqHit(state, attacker, hqOwner, dmg);
     afterGunAttack(state, attacker);
     fireFollowupMissile(state, attacker);
     resolveDestroyedUnits(state);
@@ -44,7 +52,10 @@ export function resolveAttack(
     damage: dmg,
     power: extraGunPower(attacker) + armorPiercingOf(attacker),
   });
-  applyUnitDamage(state, enemy, dmg, attacker.name, strikeSource(state, attacker, "attack"));
+  applyUnitDamage(state, enemy, dmg, attacker.name, {
+    ...strikeSource(state, attacker, "attack"),
+    shooterOwner: attacker.owner,
+  });
   afterGunAttack(state, attacker);
   fireFollowupMissile(state, attacker);
   resolveDestroyedUnits(state);
@@ -58,5 +69,5 @@ function fireFollowupMissile(state: MatchState, attacker: UnitInstance): void {
 }
 
 export function canStayAndShoot(unit: UnitInstance): boolean {
-  return hasKeyword(unit, "artillery") || hasKeyword(unit, "airStrike") || hasKeyword(unit, "jetPlane");
+  return hasKeyword(unit, "artillery") || hasKeyword(unit, "jetPlane");
 }

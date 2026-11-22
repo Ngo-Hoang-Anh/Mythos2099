@@ -1,5 +1,11 @@
 import { KEYWORD_LABEL } from "../engine/armySummary";
-import type { KeywordName, MatchState, StatusEffect, UnitInstance } from "../engine/types";
+import type {
+  KeywordName,
+  MatchState,
+  PlayerId,
+  StatusEffect,
+  UnitInstance,
+} from "../engine/types";
 
 export type StatusPolarity = "buff" | "debuff";
 
@@ -39,6 +45,26 @@ function chip(
     title,
     body,
   };
+}
+
+/** Fire (and future DoTs) on an HQ pillar. */
+export function hqStatusChips(match: MatchState, player: PlayerId): UnitStatusChip[] {
+  const chips: UnitStatusChip[] = [];
+  for (const status of match.statuses) {
+    if (status.kind === "fireDot" && status.targetHq === player) {
+      chips.push(
+        chip(
+          status,
+          "debuff",
+          "fire",
+          `Fire ${status.magnitude}`,
+          `HQ takes ${status.magnitude} damage at the end of each turn (${status.remainingPasses} left).`,
+          status.magnitude,
+        ),
+      );
+    }
+  }
+  return chips;
 }
 
 /** Active buff/debuff chips for board hover — Fire, Suppression, Smoke, Hulldown, temp mods, etc. */
@@ -81,7 +107,7 @@ export function unitStatusChips(match: MatchState, unit: UnitInstance): UnitStat
           "buff",
           "smokeScreen",
           "Smoke Screen",
-          "Dodging gun hits until the end of this turn.",
+          "Cannot be gun-attacked (shots go to HQ). Lasts this turn and the next. Missiles and skills still hit.",
         ),
       );
       continue;

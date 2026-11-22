@@ -1,7 +1,7 @@
 import type { CombatStep } from "../engine/types";
 
 type ShotStep = Extract<CombatStep, { kind: "shot" }>;
-type ResultStep = Extract<CombatStep, { kind: "hp" | "hq" | "hqBreakpoint" }>;
+type ResultStep = Extract<CombatStep, { kind: "hp" | "hq" | "hqBreakpoint" | "statusAdd" }>;
 type MoveStep = Extract<CombatStep, { kind: "move" }>;
 type RestStep = Extract<CombatStep, { kind: "rest" }>;
 type StatStep = Extract<CombatStep, { kind: "statAtk" }>;
@@ -28,7 +28,7 @@ export function takeCombatExchange(steps: CombatStep[], start: number): { exchan
       i += 1;
       continue;
     }
-    if (step.kind === "hp" || step.kind === "hq" || step.kind === "hqBreakpoint") {
+    if (step.kind === "hp" || step.kind === "hq" || step.kind === "hqBreakpoint" || step.kind === "statusAdd") {
       results.push(step);
       i += 1;
       continue;
@@ -90,7 +90,13 @@ export function collectQuickCombat(steps: CombatStep[]): QuickCombatPlan {
 
     const results: ResultStep[] = [];
     let j = i + 1;
-    while (j < steps.length && (steps[j].kind === "hp" || steps[j].kind === "hq" || steps[j].kind === "hqBreakpoint")) {
+    while (
+      j < steps.length &&
+      (steps[j].kind === "hp" ||
+        steps[j].kind === "hq" ||
+        steps[j].kind === "hqBreakpoint" ||
+        steps[j].kind === "statusAdd")
+    ) {
       results.push(steps[j] as ResultStep);
       j += 1;
     }

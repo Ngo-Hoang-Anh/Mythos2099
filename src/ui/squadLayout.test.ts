@@ -81,6 +81,19 @@ describe("squad layouts", () => {
     expect(squadKindOf(21)).toBe("bikes");
     expect(squadKindOf(22)).toBe("drones");
     expect(squadKindOf(23)).toBe("drones");
+    expect(squadKindOf(28)).toBe("drones");
+  });
+
+  it("parks Qinglong in an S with carry props that hide while moving", () => {
+    const idle = squadLayout(28, true, false);
+    const moving = squadLayout(28, true, true);
+    expect(idle?.members).toHaveLength(8);
+    expect(idle!.members[0]!.scale).toBeGreaterThan(idle!.members[2]!.scale);
+    expect(idle!.members[2]!.scale).toBe(1);
+    expect(idle!.members[5]!.scale).toBe(1);
+    expect(idle!.props.length).toBeGreaterThan(0);
+    expect(moving?.props).toEqual([]);
+    expect(idle!.members[0]!.y).toBeLessThan(idle!.members[7]!.y);
   });
 
   it("only two breacher heavies spawn flying bullets in the volley", () => {

@@ -58,8 +58,8 @@ describe("unit catalog", () => {
     );
     expect(of(14)).toMatchObject({ hp: 12, atk: 3, armor: 2 });
     expect(of(14).keywords).toEqual(expect.arrayContaining([{ name: "camouflage", value: 1 }]));
-    expect(of(15)).toMatchObject({ hp: 10, atk: 3, armor: 2, ap: 3 });
-    expect(of(15).keywords).toEqual(expect.arrayContaining([{ name: "shield", value: 3 }]));
+    expect(of(15)).toMatchObject({ hp: 9, atk: 3, armor: 2, ap: 3 });
+    expect(of(15).keywords).toEqual(expect.arrayContaining([{ name: "shield", value: 4 }]));
     expect(of(16)).toMatchObject({ hp: 20, atk: 2, ap: 6 });
     expect(of(16).keywords).toEqual(expect.arrayContaining([{ name: "retaliate", value: 3 }]));
     expect(of(17)).toMatchObject({ hp: 18, atk: 1, ap: 1, cost: 5 });
@@ -82,11 +82,11 @@ describe("unit catalog", () => {
     expect(of(22).keywords).toEqual(expect.arrayContaining([{ name: "radar", value: 1 }]));
     expect(of(23)).toMatchObject({ atk: 7, ap: 4 });
     expect(of(23).keywords).toEqual(expect.arrayContaining([{ name: "scout", value: 1 }]));
-    expect(of(24)).toMatchObject({ hp: 10, armor: 0 });
+    expect(of(24)).toMatchObject({ hp: 9, armor: 0 });
     expect(of(24).keywords).toEqual(
       expect.arrayContaining([
-        { name: "shield", value: 3 },
-        { name: "barrier", value: 3 },
+        { name: "shield", value: 4 },
+        { name: "barrier", value: 4 },
         { name: "supportFire", value: 3 },
       ]),
     );
@@ -101,15 +101,15 @@ describe("unit catalog", () => {
     expect(of(28)).toMatchObject({ hp: 13, atk: 4, armor: 0 });
     expect(of(28).keywords).toEqual(
       expect.arrayContaining([
-        { name: "barrier", value: 4 },
+        { name: "barrier", value: 5 },
         { name: "shock", value: 5 },
       ]),
     );
-    expect(of(29)).toMatchObject({ hp: 11, atk: 3, ap: 2 });
+    expect(of(29)).toMatchObject({ hp: 8, atk: 3, ap: 2 });
     expect(of(29).keywords).toEqual(
       expect.arrayContaining([
         { name: "veteran", value: 1 },
-        { name: "shield", value: 2 },
+        { name: "shield", value: 3 },
         { name: "slopedArmor", value: 1 },
       ]),
     );
@@ -135,10 +135,10 @@ describe("unit catalog", () => {
         { name: "firstStrike", value: 4 },
       ]),
     );
-    expect(of(33)).toMatchObject({ hp: 10, cost: 5 });
+    expect(of(33)).toMatchObject({ hp: 9, cost: 5 });
     expect(of(33).keywords).toEqual(
       expect.arrayContaining([
-        { name: "shield", value: 3 },
+        { name: "shield", value: 4 },
         { name: "shock", value: 4 },
       ]),
     );
@@ -159,18 +159,23 @@ describe("unit catalog", () => {
         { name: "corrosion", value: 2 },
       ]),
     );
-    expect(of(36)).toMatchObject({ hp: 12, atk: 3, ap: 1, cost: 3 });
+    expect(of(36)).toMatchObject({ hp: 11, atk: 3, ap: 1, cost: 3 });
     expect(of(36).keywords).toEqual(
       expect.arrayContaining([
         { name: "camouflage", value: 1 },
-        { name: "shield", value: 3 },
+        { name: "shield", value: 4 },
         { name: "smokeScreen", value: 1 },
       ]),
     );
     expect(of(11)).toMatchObject({ atk: 4, ap: 4, cost: 5 });
     expect(of(12)).toMatchObject({ atk: 4, ap: 4 });
     expect(of(1)).toMatchObject({ hp: 12, atk: 3, armor: 3 });
-    expect(of(1).keywords).toEqual(expect.arrayContaining([{ name: "missile", value: 4 }]));
+    expect(of(1).keywords).toEqual(
+      expect.arrayContaining([
+        { name: "missile", value: 4 },
+        { name: "slopedArmor", value: 1 },
+      ]),
+    );
     expect(of(5)).toMatchObject({ hp: 13, atk: 3, armor: 1 });
     expect(of(7)).toMatchObject({ hp: 13, atk: 3 });
     expect(of(7).keywords).toEqual(expect.arrayContaining([{ name: "retaliate", value: 4 }]));
@@ -223,7 +228,8 @@ describe("unit catalog", () => {
     expect(flagged).toEqual(Object.keys(UNIT_ART).map(Number).sort((a, b) => a - b));
     for (const unit of UNITS.filter((u) => u.id <= 27)) {
       const painted =
-        unit.class === "Tank" ||
+        // Zeus (1) is isometric-only; former 2D pack moved to Loki (36).
+        (unit.class === "Tank" && unit.id !== 1) ||
         unit.class === "Light Vehicle" ||
         unit.id === 14 ||
         unit.id === 13 ||

@@ -17,7 +17,7 @@ import {
   retaliateOf,
   suppressionPenalty,
 } from "../keywords";
-import { clearHulldownOnMove, hasStatusOn, isUntargetableBy, statusesOf } from "../status";
+import { clearHulldownOnMove, clearSmokeOnMove, hasStatusOn, isUntargetableBy, statusesOf } from "../status";
 import type {
   CombatStep,
   LogIcon,
@@ -26,6 +26,7 @@ import type {
   UnitInstance,
 } from "../types";
 import { ROWS } from "../types";
+import { enemyFirstForGun, smokeBlocksGun } from "./smoke";
 
 export interface ExtraEngagement {
   /** Only this lane fights. Other rows do not shoot or take gun/missile damage. */
@@ -60,14 +61,19 @@ export function extraFoe(state: MatchState, ctx: CombatCtx, shooter: UnitInstanc
   return null;
 }
 
-/** Extra matchups prefer participants, then normal lane facing — never skip a living blocker to HQ. */
+/** Extra matchups prefer participants, then normal lane facing. Smoke Screen → HQ. */
 export function extraVolleyTarget(
   state: MatchState,
   ctx: CombatCtx,
   shooter: UnitInstance,
 ): UnitInstance | null {
   if (!ctx.extra) return null;
-  return extraFoe(state, ctx, shooter) ?? enemyFirstInRow(state.board, shooter.owner, ctx.extra.lane);
+  const foe = extraFoe(state, ctx, shooter);
+  if (foe) {
+    if (smokeBlocksGun(state, foe, shooter.owner)) return null;
+    return foe;
+  }
+  return enemyFirstForGun(state, shooter.owner, ctx.extra.lane);
 }
 
 export function volleyTarget(
@@ -79,7 +85,27 @@ export function volleyTarget(
     return { unit: extraVolleyTarget(state, ctx, shooter), lane: ctx.extra.lane };
   }
   const lane = combatTargetLane(state, shooter);
-  return { unit: enemyFirstInRow(state.board, shooter.owner, lane), lane };
+  return { unit: enemyFirstForGun(state, shooter.owner, lane), lane };
+}
+
+/**
+ * Living facing foe for return fire — ignores Smoke Screen redirect.
+ * When guns go to HQ because of smoke, this unit still counters.
+ */
+export function facingCounterUnit(
+  state: MatchState,
+  ctx: CombatCtx,
+  shooter: UnitInstance,
+): UnitInstance | null {
+  if (ctx.extra) {
+    const foe = extraFoe(state, ctx, shooter);
+    if (foe && foe.hp > 0) return foe;
+    const first = enemyFirstInRow(state.board, shooter.owner, ctx.extra.lane);
+    return first && first.hp > 0 ? first : null;
+  }
+  const lane = combatTargetLane(state, shooter);
+  const first = enemyFirstInRow(state.board, shooter.owner, lane);
+  return first && first.hp > 0 ? first : null;
 }
 
 export function laneHasUnrestedEnemy(state: MatchState, owner: PlayerId, lane: number): boolean {
@@ -123,13 +149,12 @@ export function strikeAtk(state: MatchState, unit: UnitInstance, asAttacker: boo
 export function strikeSource(state: MatchState, unit: UnitInstance, side: "attack" | "counter" | "missile"): { icon: LogIcon; via: string } {
   if (side === "missile") return { icon: "missile", via: "Missile" };
   if (hasKeyword(unit, "artillery")) return { icon: "artillery", via: "Artillery" };
-  if (hasKeyword(unit, "airStrike")) return { icon: "airStrike", via: "Air Strike" };
   if (side === "counter" && effectiveRetaliate(state, unit) > 0) return { icon: "retaliate", via: "Retaliate" };
   return { icon: "atk", via: "ATK" };
 }
 
 export function isBattery(unit: UnitInstance): boolean {
-  return hasKeyword(unit, "artillery") || hasKeyword(unit, "airStrike");
+  return hasKeyword(unit, "artillery");
 }
 
 export function fightsFromSupport(unit: UnitInstance): boolean {
@@ -165,6 +190,7 @@ export function combatMove(state: MatchState, ctx: CombatCtx, unit: UnitInstance
   const from = { col: unit.col, row: unit.row };
   if (from.col === col && from.row === row) return;
   clearHulldownOnMove(state, unit);
+  clearSmokeOnMove(state, unit);
   moveUnitOnBoard(state.board, unit, col, row);
   ctx.steps.push({
     kind: "move",

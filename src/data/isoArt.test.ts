@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIsoArt, getUnitDisplayType, isoFrameIndex, ISO_ART } from "./isoArt";
+import { getIsoArt, getUnitDisplayType, isoFrameIndex, ISO_ART, ISO_STATIC_FACING_DEG } from "./isoArt";
 import { getUnitDef } from "./units";
 
 const ISO_UNITS: { id: number; src: string }[] = [
@@ -38,5 +38,7 @@ describe("iso art", () => {
     expect(isoFrameIndex(180, tankDirs)).toBe(tankDirs.indexOf("S"));
     expect(isoFrameIndex(-90, tankDirs)).toBe(tankDirs.indexOf("W"));
     expect(isoFrameIndex(45, tankDirs)).toBe(tankDirs.indexOf("NE"));
+    expect(ISO_STATIC_FACING_DEG).toBe(135);
+    expect(isoFrameIndex(ISO_STATIC_FACING_DEG, tankDirs)).toBe(tankDirs.indexOf("SE"));
   });
 });

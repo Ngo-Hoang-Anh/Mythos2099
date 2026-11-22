@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { combatTurretExtra, curveDrivePath, headingAlong, parkAlign, parkedHullDeg, planMoveRoute, prepareControls, reverseToFace, shortestDelta, usesDriveRig } from "./movePath";
+import {
+  combatTurretExtra,
+  curveDrivePath,
+  headingAlong,
+  headingDeg,
+  octantDrivePath,
+  octantLeg,
+  parkAlign,
+  parkedHullDeg,
+  planMoveRoute,
+  prepareControls,
+  reverseToFace,
+  shortestDelta,
+  snapOctantDeg,
+  usesDriveRig,
+} from "./movePath";
 
 describe("move path", () => {
   it("drives same-row support to front on own territory", () => {
@@ -81,6 +96,54 @@ describe("move path", () => {
     expect(bent).toHaveLength(3);
     expect(Math.abs(bent[1].y - 100)).toBeLessThan(20);
     expect(Math.abs(bent[1].x - 100)).toBeLessThan(8);
+  });
+
+  it("snaps facing to 8 compass headings", () => {
+    expect(snapOctantDeg(0)).toBe(0);
+    expect(snapOctantDeg(23)).toBe(45);
+    expect(snapOctantDeg(44)).toBe(45);
+    expect(snapOctantDeg(100)).toBe(90);
+    expect(snapOctantDeg(-10)).toBe(0);
+    expect(snapOctantDeg(-30)).toBe(-45);
+  });
+
+  it("splits a non-aligned hop into diagonal then orthogonal", () => {
+    const leg = octantLeg({ x: 0, y: 0 }, { x: 80, y: 40 });
+    expect(leg).toEqual([
+      { x: 0, y: 0 },
+      { x: 40, y: 40 },
+      { x: 80, y: 40 },
+    ]);
+    expect(octantLeg({ x: 0, y: 0 }, { x: 50, y: 0 })).toEqual([
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+    ]);
+    expect(octantLeg({ x: 0, y: 0 }, { x: 30, y: 30 })).toEqual([
+      { x: 0, y: 0 },
+      { x: 30, y: 30 },
+    ]);
+  });
+
+  it("keeps isometric drive segments on 8-dir rays", () => {
+    const path = octantDrivePath(
+      [
+        { x: 40, y: 400 },
+        { x: 120, y: 400 },
+        { x: 120, y: 80 },
+        { x: 40, y: 80 },
+      ],
+      40,
+    );
+    expect(path.length).toBeGreaterThan(4);
+    for (let i = 1; i < path.length; i += 1) {
+      const dx = path[i]!.x - path[i - 1]!.x;
+      const dy = path[i]!.y - path[i - 1]!.y;
+      if (Math.hypot(dx, dy) < 0.75) continue;
+      const axis = Math.abs(dx) < 0.75 || Math.abs(dy) < 0.75;
+      const diag = Math.abs(Math.abs(dx) - Math.abs(dy)) < 0.75;
+      expect(axis || diag).toBe(true);
+      expect(Math.abs(snapOctantDeg(headingDeg(path[i - 1]!, path[i]!)) % 45)).toBe(0);
+    }
   });
 
   it("does not snap heading to upright on a zero-length segment", () => {

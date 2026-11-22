@@ -11,7 +11,6 @@ export const KEYWORD_LABEL: Record<KeywordName, string> = {
   blitz: "Blitz",
   supportFire: "Support Fire",
   artillery: "Artillery",
-  airStrike: "Air Strike",
   missile: "Missile",
   jetPlane: "Jet Plane",
   camouflage: "Camouflage",
@@ -36,23 +35,22 @@ export const KEYWORD_SHORT: Record<KeywordName, string> = {
   flank: "If this lane has an enemy, this unit moves into a lane that does not.",
   blitz: "After you deploy it, this unit advances to the Frontline if that cell is empty.",
   artillery: "Stays on Support and fires from the back. Rests when deployed (unless Blitz). Does not take or deal return fire.",
-  airStrike: "Stays on Support and fights from the back line.",
   jetPlane: "Fights from Support. Rests when deployed (unless Blitz). Takes return fire and returns fire to whoever attacked it.",
   retaliate: "Adds {n} ATK when this unit counters.",
   aggressive: "Adds {n} ATK when this unit attacks.",
   supportFire: "Gives +{n} ATK to every other ally in this lane and the two adjacent lanes, including rested units.",
   missile: "Delayed attack. After combat, fires a missile with ATK {n}. Counts 50% of the target's armor (round up). AP does not apply.",
   camouflage: "Immune to Missile damage.",
-  smokeScreen: "After taking gun damage on the enemy turn, dodge later gun hits until that turn ends.",
+  smokeScreen: "After taking damage, cannot be gun-attacked for this turn and the next (shots go to HQ). Ends early if this unit moves. Missiles and skills still hit.",
   suppression: "At end of your turn, mark an enemy cell for their next 2 turns: −1 ATK and −2 AP per mark. Prefers unmarked; stacks if every enemy cell is already marked.",
   scout: "While on Frontline, your units ignore enemy Camouflage, Smoke Screen, and Suppression on you.",
-  shield: "Absorbs {n} damage before Armor. Regens half at the start of your turn if undamaged last turn.",
-  barrier: "Reduces the next frontal gun hit by {n}. Recharges at end of your turn.",
-  shock: "Depletes Barrier/Shield by {n}. Only matters vs those pools. Ignores Smoke.",
+  shield: "Absorbs {n} damage before Armor. Regens half at the start of your turn.",
+  barrier: "Reduces the next frontal gun hit by {n}. Recharges at the start of your turn.",
+  shock: "Depletes Barrier/Shield by {n}. Only matters vs those pools.",
   veteran: "After attacking, permanently gain +{n} ATK and +{n} AP.",
-  firstStrike: "Gain +{n} ATK and +{n} AP. Removed after this unit attacks or is attacked.",
-  fire: "After dealing HP with a gun attack, burn for {n} at end of each turn for 3 turns. Highest only.",
-  radar: "When this unit attacks, all allied Missiles re-aim.",
+  firstStrike: "Gain +{n} ATK. Removed after this unit attacks or is attacked.",
+  fire: "After dealing HP with a gun attack, burn the unit or HQ for {n} at end of each turn for 3 turns. Highest only; refresh keeps the higher burn.",
+  radar: "When this unit deploys or attacks, all allied Missiles re-aim.",
   hulldown: "At end of your turn, dig in: −3 damage from gun attacks. Missiles ignore this. Lost when this unit moves.",
   slopedArmor: "If a gun hit would deal 3 or less, ignore it.",
   corrosion: "On a connecting gun hit, permanently −{n} Armor (before damage).",
@@ -67,7 +65,6 @@ export const KEYWORD_FULL: Record<KeywordName, string> = {
   blitz: "After deploying, immediately advance to Frontline if that cell is empty. This deploy move does not rest the unit.",
   artillery:
     "Stays on Support and does not advance during relocation. Fires from the back line. Rests the turn it is deployed, unless it also has Blitz. Artillery does not take return fire when it attacks, and does not shoot back when it is attacked.",
-  airStrike: "Stays on Support and does not advance during relocation. Fights from the back line like Artillery.",
   jetPlane:
     "Jet aircraft. Fights from Support and does not advance during relocation. Rests the turn it is deployed, unless it also has Blitz. Move cards can still reposition it. Unlike Artillery, a jet takes return fire when it attacks. When a jet is attacked, it returns fire to the units that shot it — even while rested or on Support.",
   retaliate:
@@ -80,25 +77,25 @@ export const KEYWORD_FULL: Record<KeywordName, string> = {
   camouflage:
     "This unit takes no Missile damage. An enemy Scout on Frontline lets their Missiles ignore Camouflage.",
   smokeScreen:
-    "When this unit takes gun damage during the opponent's Engagement, it gains Smoke Dodge until that turn ends and ignores further gun hits. Shock attacks ignore Smoke and do not trigger it. An enemy Scout on Frontline ignores Smoke Dodge.",
+    "When this unit takes HP damage from an attack (gun, missile, or card) on any turn, it cannot be targeted by gun attacks for the rest of this turn and the next turn — those shots go straight to HQ instead. Smoke ends early if this unit moves. Missiles and skills still hit normally. An enemy Scout on Frontline ignores Smoke Screen.",
   suppression:
     "At the end of your turn, each Suppression unit marks a random enemy-occupied cell (prefer unmarked). The mark lasts through the opponent's next 2 turns. Enemies on a marked cell have −1 ATK and −2 AP per mark. If every enemy cell is already marked, additional marks stack on a marked cell. Scout on Frontline ignores Suppression on your units.",
   scout:
     "While this unit is alive on your Frontline, your units ignore enemy Camouflage and Smoke Screen, and ignore Suppression marks affecting you.",
   shield:
-    "Starts with a Shield pool of {n} that absorbs incoming gun strike power before Armor. Shock depletes Shield first. At the start of your turn, if this unit took no Shield/HP damage since the last check, Shield regenerates by half of its max (rounded up), capped at max.",
+    "Starts with a Shield pool of {n} that absorbs incoming gun strike power before Armor. Shock depletes Shield first. At the start of your turn, Shield regenerates by half of its max (rounded up), capped at max.",
   barrier:
-    "Starts with Barrier {n}. The next gun hit from an enemy on Frontline reduces damage taken by up to Barrier, then Barrier drops to 0. Recharges to max at the end of your turn. Does not block Support/Artillery angles. Shock also depletes Barrier.",
+    "Starts with Barrier {n}. The next gun hit from an enemy on Frontline reduces damage taken by up to Barrier, then Barrier drops to 0. Recharges to max at the start of your turn. Does not block Support/Artillery angles. Shock also depletes Barrier.",
   shock:
-    "When this unit gun-attacks a unit that has Barrier and/or Shield, deplete Barrier (if frontal) and Shield by {n} before the normal strike. Does nothing extra against targets with neither pool. Not dodged by Smoke Screen and does not trigger Smoke Screen.",
+    "When this unit gun-attacks a unit that has Barrier and/or Shield, deplete Barrier (if frontal) and Shield by {n} before the normal strike. Does nothing extra against targets with neither pool.",
   veteran:
     "After this unit's attack volley (not return fire), permanently increase its printed ATK and AP by {n}. Stacks every time it attacks.",
   firstStrike:
-    "While this keyword remains, this unit has +{n} ATK and +{n} AP. Remove First Strike after this unit fires a gun attack or is hit by a gun attack.",
+    "While this keyword remains, this unit has +{n} ATK. Remove First Strike after this unit fires a gun attack or is hit by a gun attack.",
   fire:
-    "After this unit deals HP damage with a gun attack, the target gains Fire {n} for 3 turn passes. Only one Fire DoT per unit; the highest magnitude deals damage. A new Fire refreshes duration and keeps the higher magnitude.",
+    "After this unit deals HP damage with a gun attack, the target (unit or HQ) gains Fire {n} for 3 turn passes. Only one Fire DoT per unit or HQ; the highest magnitude deals damage. A new Fire refreshes duration and keeps the higher magnitude.",
   radar:
-    "When this unit's attack volley resolves, every living allied Missile unit immediately re-locks a target.",
+    "When this unit deploys or its attack volley resolves, every living allied Missile unit immediately re-locks a target.",
   hulldown:
     "At the end of your turn, if not already dug in, this unit takes −3 damage from gun attacks until it moves. Flat reduction after Armor/AP — missiles ignore it, and Corrosion cannot strip it. Any move (cards, Blitz, Cover/Flank) clears Hulldown.",
   slopedArmor:
@@ -107,8 +104,15 @@ export const KEYWORD_FULL: Record<KeywordName, string> = {
     "When this unit's gun attack connects (not Smoke-dodged), permanently reduce the target's Armor by {n} (minimum 0) before damage is calculated. Applies once even if Shield or Barrier absorbs the hit.",
 };
 
+/** Army averages / keyword values: integers as-is, otherwise one decimal. */
+export function formatAvg(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "0";
+  const rounded = Math.round(n * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 function fillValue(text: string, n: number): string {
-  return text.replaceAll("{n}", String(n));
+  return text.replaceAll("{n}", formatAvg(n));
 }
 
 /** Hover tooltip. Keep this short. */
@@ -124,7 +128,7 @@ export function keywordTutorial(k: Keyword): { title: string; body: string } {
 export function keywordFullLabel(k: Keyword): string {
   const base = KEYWORD_LABEL[k.name];
   if (FLAG_KEYWORDS.has(k.name)) return base;
-  return `${base} ${k.value}`;
+  return `${base} ${formatAvg(k.value)}`;
 }
 
 export const STAT_HELP = {
@@ -229,9 +233,4 @@ export function summarizeArmy(unitIds: number[]): ArmySummary {
     cards: countCards(allCards),
     deckSize: allCards.length,
   };
-}
-
-export function formatAvg(n: number): string {
-  if (!Number.isFinite(n) || n === 0) return "0";
-  return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }

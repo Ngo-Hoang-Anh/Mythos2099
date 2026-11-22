@@ -276,9 +276,10 @@ describe("stats and damage phases", () => {
     expect(state.board[P2_FRONT][2]?.isAttacker).toBe(false);
     expect(state.board[P2_FRONT][2]?.combatAtkBonus).toBe(8);
     runDamagePhase(state, ctx());
-    expect(state.board[P2_FRONT][2]?.hp).toBe(11);
-    // Heimdall (0 ATK + Retaliate 6 + SF 2, AP 1) leaves Sarama at 4.
-    expect(state.board[P1_FRONT][2]?.hp).toBe(4);
+    // Sarama 4 + SF 2 vs Heimdall Armor 0 → 6 damage (18 → 12).
+    expect(state.board[P2_FRONT][2]?.hp).toBe(12);
+    // Heimdall return: ATK 1 + Retaliate 6 + SF 2, AP 1 vs Sarama Armor 1 → 9 (15 → 6).
+    expect(state.board[P1_FRONT][2]?.hp).toBe(6);
   });
 
   it("applies Support Fire to every other ally in the same lane", () => {
@@ -747,7 +748,8 @@ describe("mid-turn extra engagement", () => {
     expect(match.board[P1_SUPPORT][3]?.defId).toBe(17);
     expect(playbackPhases(match)).toEqual(["stats", "damage"]);
     expect(match.board[P1_FRONT][1]?.combatAtkBonus).toBe(4);
-    expect(match.board[P2_FRONT][1]!.hp).toBe(getUnitDef(4).hp - 4);
+    // Fenrir: printed ATK 1 + Aggressive 4.
+    expect(match.board[P2_FRONT][1]!.hp).toBe(getUnitDef(4).hp - 5);
     expect(match.board[P2_FRONT][0]?.hp).toBe(bystanderHp);
     expect(match.players[1].hqHp).toBe(HQ_MAX_HP);
     match = must(match, { type: "endEngagement" });
@@ -814,7 +816,8 @@ describe("mid-turn extra engagement", () => {
     match.players[0].commandPoints = 5;
     match = must(match, { type: "playCard", cardId: "trap-card", targets: { unitIds: [trapped.instanceId] } });
     expect(match.phase).toBe("engagement");
-    expect(match.board[P2_FRONT][2]?.hp).toBe(trapped.maxHp - 4);
+    // Bastion return fire: ATK 2 + Retaliate 5 vs Garuda Armor 2 → 5 damage.
+    expect(match.board[P2_FRONT][2]?.hp).toBe(trapped.maxHp - 5);
     expect(match.board[P1_FRONT][2]?.combatAtkBonus).toBe(5);
     expect(match.board[P2_FRONT][2]?.combatAtkBonus).toBe(0);
     expect(match.board[P2_SUPPORT][2]?.hp).toBe(behindHp);

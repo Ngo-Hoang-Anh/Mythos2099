@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { createPortal } from "react-dom";
 import { playUi, startBattleMusic, startMenuMusic } from "../audio";
+import { getIsoArt } from "../data/isoArt";
 import { boardFacingDeg } from "../data/unitArt";
 import { getUnitDef } from "../data/units";
 import { INITIATIVE_CARD_NAME, isInitiativeCard } from "../data/initiative";
@@ -179,9 +180,9 @@ function friendlyAimIds(match: MatchState, draft: TargetDraft | null, viewer: Pl
   const kinds = draft.kinds;
   const effect = targetingEffect(draft);
   const moveDirs = dirsForEffect(effect);
-  // Destination step: cells light up; keep gold on already-picked movers only.
+  // Destination step: only cells light up — no reticle box on the mover.
   if (moveDirs && awaitingMoveDest(effect, draft.unitIds, draft.cells)) {
-    return draft.unitIds;
+    return [];
   }
   const allies = unitsOf(match.board, viewer).filter((u) => u.hp > 0);
   if (kinds.includes("lure")) {
@@ -366,7 +367,11 @@ export function MatchView({
   const inCombat = Boolean(heldPlayback);
   const myTurn = match.currentPlayer === viewer && match.phase !== "gameover";
   const waitingOnOther = !myTurn && !inCombat && match.winner === null;
-  const selectedIds = draft?.unitIds ?? [];
+  // During move dest pick, skip selected reticle on the mover (cells already show aim).
+  const selectedIds =
+    draft && dirsForEffect(targetingEffect(draft)) && awaitingMoveDest(targetingEffect(draft), draft.unitIds, draft.cells)
+      ? []
+      : (draft?.unitIds ?? []);
   const allies = unitsOf(match.board, viewer);
   const shownError = error ?? actionError;
   const locked = busy || waitingOnOther;
@@ -1388,7 +1393,7 @@ export function MatchView({
               name={pendingDef.name}
               unitClass={pendingDef.class}
               unitId={pendingDef.id}
-              facingDeg={boardFacingDeg(player.id)}
+              facingDeg={getIsoArt(pendingDef.id) ? undefined : boardFacingDeg(player.id)}
               compact
               cost={Math.max(0, pendingDef.cost - Math.floor(desperateDiscards.length / 2))}
               hp={pendingDef.hp}
@@ -1674,7 +1679,7 @@ export function MatchView({
                       name={def.name}
                       unitClass={def.class}
                       unitId={def.id}
-                      facingDeg={boardFacingDeg(player.id)}
+                      facingDeg={getIsoArt(def.id) ? undefined : boardFacingDeg(player.id)}
                       compact
                       cost={def.cost}
                       hp={def.hp}
